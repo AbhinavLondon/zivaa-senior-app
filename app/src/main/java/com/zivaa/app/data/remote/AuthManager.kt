@@ -39,8 +39,21 @@ class AuthManager(context: Context) {
         )
     }
 
-    private val _authEvents = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
-    val authEvents = _authEvents.asSharedFlow()
+    companion object {
+        @Volatile
+        private var INSTANCE: AuthManager? = null
+
+        private val _authEvents = MutableSharedFlow<Boolean>(replay = 1, extraBufferCapacity = 2)
+        val authEvents = _authEvents.asSharedFlow()
+
+        fun getInstance(context: Context): AuthManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AuthManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
+
+    val authEvents = Companion.authEvents
 
     fun saveSession(accessToken: String, refreshToken: String, userId: String) {
         sharedPreferences.edit()

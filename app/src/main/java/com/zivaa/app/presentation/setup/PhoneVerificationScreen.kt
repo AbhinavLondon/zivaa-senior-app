@@ -33,10 +33,31 @@ fun PhoneVerificationScreen(
     onSendOtp: () -> Unit,
     onVerifyOtp: (String) -> Unit,
     onNext: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onCheckSession: () -> Unit = {}
 ) {
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                onCheckSession()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     LaunchedEffect(state.isSetupComplete) {
         if (state.isSetupComplete) {
+            onNext()
+        }
+    }
+
+    LaunchedEffect(state.isEmailVerified) {
+        if (state.isEmailVerified && !state.isSetupComplete) {
+            kotlinx.coroutines.delay(1200)
             onNext()
         }
     }

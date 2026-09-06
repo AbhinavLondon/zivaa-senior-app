@@ -41,6 +41,7 @@ fun SetupNavHost(
                 onPhoneChange = { }, 
                 onSendOtp = { viewModel.signInWithGoogle(context) },
                 onVerifyOtp = { }, 
+                onCheckSession = { viewModel.checkExistingSession() },
                 onNext = { 
                     if (state.isSetupComplete) {
                         onSetupComplete()

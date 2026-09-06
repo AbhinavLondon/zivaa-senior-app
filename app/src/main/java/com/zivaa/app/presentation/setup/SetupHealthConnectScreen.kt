@@ -20,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +44,7 @@ fun SetupHealthConnectScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
     
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
@@ -127,11 +130,19 @@ fun SetupHealthConnectScreen(
             ZivaaButton(
                 text = "Connect Health Connect",
                 onClick = {
-                    val support = healthConnectManager.checkHealthConnectSupportAndRedirect()
-                    if (support == HealthConnectSupport.AVAILABLE) {
-                        requestPermissionsLauncher.launch(healthConnectManager.permissions)
-                    } else if (support == HealthConnectSupport.INSTALL_REQUIRED) {
-                        Toast.makeText(context, "Please install Health Connect from the Play Store.", Toast.LENGTH_SHORT).show()
+                    coroutineScope.launch {
+                        val support = healthConnectManager.checkHealthConnectSupportAndRedirect()
+                        if (support == HealthConnectSupport.AVAILABLE) {
+                            if (healthConnectManager.hasAllPermissions()) {
+                                viewModel.selectWearable("Google Health Connect")
+                                Toast.makeText(context, "Health Connect is connected!", Toast.LENGTH_SHORT).show()
+                                onNext()
+                            } else {
+                                requestPermissionsLauncher.launch(healthConnectManager.permissions)
+                            }
+                        } else if (support == HealthConnectSupport.INSTALL_REQUIRED) {
+                            Toast.makeText(context, "Please install Health Connect from the Play Store.", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             )
