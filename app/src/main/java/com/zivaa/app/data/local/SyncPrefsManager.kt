@@ -6,17 +6,29 @@ import android.content.SharedPreferences
 class SyncPrefsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun saveChangesToken(token: String) {
-        prefs.edit().putString(KEY_CHANGES_TOKEN, token).apply()
+    fun saveChangesToken(token: String, patientId: String? = null) {
+        val key = if (!patientId.isNullOrBlank()) "${KEY_CHANGES_TOKEN}_$patientId" else KEY_CHANGES_TOKEN
+        prefs.edit().putString(key, token).apply()
     }
 
-    fun getChangesToken(): String? {
-        return prefs.getString(KEY_CHANGES_TOKEN, null)
+    fun getChangesToken(patientId: String? = null): String? {
+        val key = if (!patientId.isNullOrBlank()) "${KEY_CHANGES_TOKEN}_$patientId" else KEY_CHANGES_TOKEN
+        return prefs.getString(key, null)
     }
 
-    fun clearChangesToken() {
-        prefs.edit().remove(KEY_CHANGES_TOKEN).apply()
+    fun clearChangesToken(patientId: String? = null) {
+        val editor = prefs.edit().remove(KEY_CHANGES_TOKEN)
+        if (!patientId.isNullOrBlank()) {
+            editor.remove("${KEY_CHANGES_TOKEN}_$patientId")
+        }
+        editor.apply()
     }
+
+    fun getLastSyncedPatientId(): String? = prefs.getString("last_synced_patient_id", null)
+    fun setLastSyncedPatientId(patientId: String) {
+        prefs.edit().putString("last_synced_patient_id", patientId).apply()
+    }
+
 
     fun isPhoneSensorEnabled(): Boolean {
         return prefs.getBoolean(KEY_PHONE_SENSOR_ENABLED, true)

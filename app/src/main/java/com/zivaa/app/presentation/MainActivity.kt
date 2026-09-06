@@ -249,9 +249,11 @@ class MainActivity : ComponentActivity() {
                 }
 
                 authManager.authEvents.collect {
-                    showSetup = !prefsManager.isSetupComplete() || !authManager.hasValidSession()
+                    if (!authManager.hasValidSession()) {
+                        showSetup = true
+                    }
                     
-                    if (!showSetup) {
+                    if (!showSetup && authManager.hasValidSession()) {
                         // User is logged in, register FCM token
                         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                             if (task.isSuccessful) {
@@ -284,6 +286,7 @@ class MainActivity : ComponentActivity() {
                             onSetupComplete = {
                                 prefsManager.setSetupComplete(true)
                                 showSetup = false
+                                forceDashboardRefresh = true
                                 currentScreen = "dashboard"
                             }
                         )
@@ -297,7 +300,7 @@ class MainActivity : ComponentActivity() {
 
                         androidx.compose.runtime.LaunchedEffect(forceDashboardRefresh) {
                             if (forceDashboardRefresh) {
-                                viewModel.fetchVitalsAndSync()
+                                viewModel.fetchVitalsAndSync(force = true)
                                 forceDashboardRefresh = false
                             }
                         }
@@ -310,7 +313,7 @@ class MainActivity : ComponentActivity() {
                                     if (!grantedPermissions.containsAll(permissions)) {
                                         requestPermissions.launch(permissions)
                                     } else {
-                                        viewModel.fetchVitalsAndSync()
+                                        viewModel.fetchVitalsAndSync(force = true)
                                     }
                                 } catch (e: Exception) {
                                     e.printStackTrace()

@@ -43,15 +43,24 @@ class HealthDataSyncWorker(
         }
 
         return try {
-            val currentToken = syncPrefsManager.getChangesToken()
+            val lastSyncedPatient = syncPrefsManager.getLastSyncedPatientId()
+            val forceBackfill = workerParams.inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
+            
+            if (lastSyncedPatient != patientId) {
+                println("New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous token.")
+                syncPrefsManager.clearChangesToken(patientId)
+                syncPrefsManager.setLastSyncedPatientId(patientId)
+            }
+
+            val currentToken = if (forceBackfill) null else syncPrefsManager.getChangesToken(patientId)
             val payload = mutableListOf<com.zivaa.app.data.remote.SupabaseVitalRecord>()
             var nextToken: String? = null
 
             if (currentToken == null) {
-                // FIRST RUN: No token exists.
+                // FIRST RUN / FORCE BACKFILL: No token exists for this patient.
                 // 1. Fetch 90 days of backfill data.
                 val rawRecords = healthConnectManager.fetchAllAvailableMetrics()
-                println("No token found. Fetched ${rawRecords.size} records for backfill.")
+                println("No token or force backfill for $patientId. Fetched ${rawRecords.size} records for backfill.")
                 
                 payload.addAll(rawRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
 
@@ -64,7 +73,7 @@ class HealthDataSyncWorker(
                     if (changesResponse != null) {
                         val upsertions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.UpsertionChange>()
                         
-                        println("[SYNC METHOD] Normal ChangesToken returned ${upsertions.size} upsertions.")
+                        println("[SYNC METHOD] Normal ChangesToken returned ${upsertions.size} upsertions for patient $patientId.")
                         
                         payload.addAll(upsertions.flatMap { healthConnectManager.mapRecordToSupabase(it.record, patientId) })
                         nextToken = changesResponse.nextChangesToken
@@ -73,7 +82,7 @@ class HealthDataSyncWorker(
                     }
                 } catch (e: Exception) {
                     println("Changes token expired or error: ${e.message}. Clearing token.")
-                    syncPrefsManager.clearChangesToken()
+                    syncPrefsManager.clearChangesToken(patientId)
                     return Result.retry()
                 }
 
@@ -176,8 +185,8 @@ class HealthDataSyncWorker(
 
             // If everything succeeded (or there were 0 records to sync but we got a valid token), save the next token
             if (nextToken != null) {
-                syncPrefsManager.saveChangesToken(nextToken)
-                println("Saved next ChangesToken.")
+                syncPrefsManager.saveChangesToken(nextToken, patientId)
+                println("Saved next ChangesToken for patient $patientId.")
             }
 
             // Sync Daily Aggregations logic removed: Aggregation is now handled seamlessly by a Postgres trigger in Supabase!

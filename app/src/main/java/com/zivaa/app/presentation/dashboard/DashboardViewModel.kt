@@ -532,7 +532,12 @@ class DashboardViewModel(
                 fetchDailyPlan(vitalsMap)
 
                 // Trigger the background worker to silently handle the massive Supabase sync using changes tokens
-                val oneTimeWork = androidx.work.OneTimeWorkRequestBuilder<com.zivaa.app.data.health.worker.HealthDataSyncWorker>().build()
+                val workData = androidx.work.Data.Builder()
+                    .putBoolean("force_backfill", force)
+                    .build()
+                val oneTimeWork = androidx.work.OneTimeWorkRequestBuilder<com.zivaa.app.data.health.worker.HealthDataSyncWorker>()
+                    .setInputData(workData)
+                    .build()
                 val appContext = getApplication<Application>().applicationContext
                 androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
                     "ManualHealthDataSync",
