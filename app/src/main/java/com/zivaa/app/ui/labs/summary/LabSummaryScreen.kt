@@ -47,7 +47,7 @@ fun LabSummaryScreen(
             // HeroTitleSection() is removed per requirements
             item { SegmentedControlSection() }
             item { Spacer(modifier = Modifier.height(16.dp)) }
-            item { SahayakSummaryCard(state.categorySummary, state.isSummaryLoading) }
+            item { ZivaaSummaryCard(state.categorySummary, state.isSummaryLoading) }
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item { 
                 StatBoxesSection(
@@ -241,7 +241,7 @@ fun SegmentedControlSection() {
 }
 
 @Composable
-fun SahayakSummaryCard(summaryText: String?, isLoading: Boolean) {
+fun ZivaaSummaryCard(summaryText: String?, isLoading: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -256,14 +256,14 @@ fun SahayakSummaryCard(summaryText: String?, isLoading: Boolean) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "S",
+                    text = "Z",
                     style = ZivaaTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
                     color = ZivaaTheme.colors.sageInk
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "SAHAYAK · PLAIN SUMMARY",
+                text = "ZIVAA · PLAIN SUMMARY",
                 style = ZivaaTheme.typography.meta,
                 color = ZivaaTheme.colors.sageInk.copy(alpha = 0.8f)
             )
