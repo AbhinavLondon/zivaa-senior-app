@@ -78,8 +78,9 @@ class LabReportViewModel(
                         true
                     }
 
-                    // Group by category
-                    val categoryDisplay = resource.category?.firstOrNull()?.coding?.firstOrNull()?.display ?: "Other"
+                    // Group by consumer category
+                    val consumerCoding = resource.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
+                    val categoryDisplay = consumerCoding?.display ?: "Other"
                     if (!categoryMap.containsKey(categoryDisplay)) {
                         categoryMap[categoryDisplay] = mutableListOf()
                     }

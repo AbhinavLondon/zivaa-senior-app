@@ -61,9 +61,10 @@ class LabSummaryViewModel(
                 
                 val allObservations = obsResponse.body() ?: emptyList()
                 
-                // Filter by category
+                // Filter by consumer category
                 val categoryObs = allObservations.filter { obs ->
-                    val catDisplay = obs.resource?.category?.firstOrNull()?.coding?.firstOrNull()?.display ?: "Other"
+                    val consumerCoding = obs.resource?.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
+                    val catDisplay = consumerCoding?.display ?: "Other"
                     catDisplay == categoryName
                 }
 
