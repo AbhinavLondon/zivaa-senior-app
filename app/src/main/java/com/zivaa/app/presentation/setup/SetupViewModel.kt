@@ -76,46 +76,50 @@ class SetupViewModel : ViewModel() {
     }
 
     private suspend fun handleAuthSuccess() {
-        val userId = RetrofitClient.authManager?.getUserId()
-        if (userId != null) {
-            try {
-                val response = RetrofitClient.apiService.getPatient("eq.$userId")
-                val patient = response.body()?.firstOrNull()
-                
-                // A patient who actually completed onboarding will have dateOfBirth non-null.
-                // The DB trigger creates a skeleton row with dateOfBirth = NULL.
-                val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
-                
-                if (hasCompletedOnboarding) {
-                    // Existing user who previously completed onboarding, bypass to dashboard
-                    _state.value = _state.value.copy(
-                        isSetupComplete = true,
-                        isSubmitting = false
-                    )
-                } else {
-                    // Brand-new user or trigger-created skeleton row: continue onboarding!
-                    val resolvedName = if (_state.value.name.isNotBlank()) {
-                        _state.value.name
-                    } else {
-                        patient?.fullName ?: ""
-                    }
-                    val resolvedEmail = if (_state.value.email.isNotBlank()) {
-                        _state.value.email
-                    } else {
-                        patient?.phone ?: ""
-                    }
-                    _state.value = _state.value.copy(
-                        isEmailVerified = true,
-                        isSubmitting = false,
-                        name = resolvedName,
-                        email = resolvedEmail
-                    )
-                }
-            } catch (e: Exception) {
-                // On failure, fall back to email verified step to let them continue setup
-                _state.value = _state.value.copy(isEmailVerified = true, isSubmitting = false)
+        val auth = RetrofitClient.authManager
+        if (auth == null || !auth.hasValidSession()) {
+            return
+        }
+        val userId = auth.getUserId() ?: return
+        try {
+            val response = RetrofitClient.apiService.getPatient("eq.$userId")
+            if (!response.isSuccessful && (response.code() == 401 || response.code() == 403)) {
+                auth.clearSession()
+                _state.value = SetupState()
+                return
             }
-        } else {
+            val patient = response.body()?.firstOrNull()
+            
+            // A patient who actually completed onboarding will have dateOfBirth non-null.
+            // The DB trigger creates a skeleton row with dateOfBirth = NULL.
+            val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
+            
+            if (hasCompletedOnboarding) {
+                // Existing user who previously completed onboarding, bypass to dashboard
+                _state.value = _state.value.copy(
+                    isSetupComplete = true,
+                    isSubmitting = false
+                )
+            } else {
+                // Brand-new user or trigger-created skeleton row: continue onboarding!
+                val resolvedName = if (_state.value.name.isNotBlank()) {
+                    _state.value.name
+                } else {
+                    patient?.fullName ?: ""
+                }
+                val resolvedEmail = if (_state.value.email.isNotBlank()) {
+                    _state.value.email
+                } else {
+                    patient?.phone ?: ""
+                }
+                _state.value = _state.value.copy(
+                    isEmailVerified = true,
+                    isSubmitting = false,
+                    name = resolvedName,
+                    email = resolvedEmail
+                )
+            }
+        } catch (e: Exception) {
             _state.value = _state.value.copy(isEmailVerified = true, isSubmitting = false)
         }
     }

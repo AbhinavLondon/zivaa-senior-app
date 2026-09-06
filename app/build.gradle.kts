@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.0.11"
+        versionCode = 13
+        versionName = "1.0.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.11 - Fix Google Sign-In stuck loading state and smooth Health Connect transition"
+                releaseNotes = "Zivaa v1.0.12 - Fix welcome screen auto-advance and ensure clean onboarding entry"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

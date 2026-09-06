@@ -34,11 +34,6 @@ fun WelcomeScreen(
         }
     }
 
-    LaunchedEffect(state.isEmailVerified) {
-        if (state.isEmailVerified && !state.isSetupComplete) {
-            onNext()
-        }
-    }
     ZivaaSetupBackground {
         Spacer(modifier = Modifier.weight(1f))
         
