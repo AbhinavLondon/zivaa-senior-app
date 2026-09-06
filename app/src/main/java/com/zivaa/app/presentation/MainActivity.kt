@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
             hasCheckedForUpdate = true
             try {
                 com.google.firebase.appdistribution.FirebaseAppDistribution.getInstance().updateIfNewReleaseAvailable()
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 // App Distribution in-app alerts are active in release builds for registered testers
             }
         }

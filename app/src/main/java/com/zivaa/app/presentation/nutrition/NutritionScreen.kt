@@ -65,6 +65,10 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 
 @Composable
 fun NutritionScreen(
@@ -95,14 +99,45 @@ fun NutritionScreen(
     var activeLoggingMethod by rememberSaveable { mutableStateOf("photo") }
     
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && tempPhotoUri != null) {
-            viewModel.analyzeMealPhoto(context, tempPhotoUri!!)
+        val uriToAnalyze = tempPhotoUriString?.let { Uri.parse(it) } ?: tempPhotoUri
+        if (success && uriToAnalyze != null) {
+            viewModel.analyzeMealPhoto(context, uriToAnalyze)
+        }
+    }
+
+    val launchCamera: () -> Unit = {
+        try {
+            val imageDir = File(context.cacheDir, "camera_images")
+            if (!imageDir.exists()) {
+                imageDir.mkdirs()
+            }
+            val file = File(imageDir, "meal_photo_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            tempPhotoUriString = uri.toString()
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Unable to start camera: ${e.localizedMessage ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            Toast.makeText(context, "Camera permission is required to take meal photos.", Toast.LENGTH_SHORT).show()
         }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            tempPhotoUriString = uri?.toString()
+            tempPhotoUriString = uri.toString()
             viewModel.analyzeMealPhoto(context, uri)
         }
     }
@@ -309,14 +344,16 @@ fun NutritionScreen(
                     activeLoggingMethod = option
                     when (option) {
                         "photo" -> {
-                            val file = File(context.cacheDir, "meal_photo_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(
+                            val hasCameraPermission = ContextCompat.checkSelfPermission(
                                 context,
-                                "${context.packageName}.fileprovider",
-                                file
-                            )
-                            tempPhotoUriString = uri?.toString()
-                            cameraLauncher.launch(uri)
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (hasCameraPermission) {
+                                launchCamera()
+                            } else {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
                         }
                         "barcode" -> {
                             showBarcodeScanner = true

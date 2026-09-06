@@ -19,6 +19,12 @@ import com.zivaa.app.data.remote.AnalyzeMealTextRequest
 import com.zivaa.app.data.remote.LogMealRequest
 import com.zivaa.app.presentation.nutrition.components.FoodItem
 import java.time.LocalDate
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import kotlinx.coroutines.Dispatchers
+import java.io.ByteArrayOutputStream
 
 sealed class NutritionAnalysisState {
     object Idle : NutritionAnalysisState()
@@ -104,22 +110,25 @@ class NutritionViewModel : ViewModel() {
     }
 
     fun analyzeMealPhoto(context: Context, uri: Uri) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _analysisState.value = NutritionAnalysisState.Analyzing
             
             try {
-                val contentResolver = context.contentResolver
-                val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
-                val inputStream: InputStream? = contentResolver.openInputStream(uri)
-                val bytes = inputStream?.readBytes()
-                inputStream?.close()
+                val compressedBytes = try {
+                    compressImage(context, uri, maxDimension = 1280, quality = 80)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                } ?: run {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
 
-                if (bytes == null) {
+                if (compressedBytes == null || compressedBytes.isEmpty()) {
                     _analysisState.value = NutritionAnalysisState.Error("Failed to read image file.")
                     return@launch
                 }
 
-                val requestFile = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+                val requestFile = compressedBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
                 val filePart = MultipartBody.Part.createFormData("file", "meal_photo.jpg", requestFile)
 
                 val response = ZivaaBackendClient.apiService.analyzeMealPhoto(filePart)
@@ -139,6 +148,76 @@ class NutritionViewModel : ViewModel() {
                 _analysisState.value = NutritionAnalysisState.Error(e.message ?: "Unknown error occurred")
             }
         }
+    }
+
+    private fun compressImage(context: Context, uri: Uri, maxDimension: Int, quality: Int): ByteArray? {
+        val contentResolver = context.contentResolver
+
+        // 1. Decode bounds
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, boundsOptions)
+        } ?: return null
+
+        val origW = boundsOptions.outWidth
+        val origH = boundsOptions.outHeight
+        if (origW <= 0 || origH <= 0) return null
+
+        // 2. Compute sample size
+        var sampleSize = 1
+        val maxSide = maxOf(origW, origH)
+        while (maxSide / (sampleSize * 2) >= maxDimension) {
+            sampleSize *= 2
+        }
+
+        // 3. Decode sampled bitmap
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+        }
+        val sampledBitmap = contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, decodeOptions)
+        } ?: return null
+
+        // 4. Check EXIF orientation
+        val rotationDegrees = try {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                val exif = ExifInterface(stream)
+                when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            } ?: 0f
+        } catch (e: Exception) {
+            0f
+        }
+
+        val matrix = Matrix()
+        if (rotationDegrees != 0f) {
+            matrix.postRotate(rotationDegrees)
+        }
+
+        // 5. Scale if needed
+        val curMax = maxOf(sampledBitmap.width, sampledBitmap.height)
+        if (curMax > maxDimension) {
+            val scale = maxDimension.toFloat() / curMax
+            matrix.postScale(scale, scale)
+        }
+
+        val finalBitmap = if (!matrix.isIdentity) {
+            Bitmap.createBitmap(sampledBitmap, 0, 0, sampledBitmap.width, sampledBitmap.height, matrix, true).also {
+                if (it != sampledBitmap) sampledBitmap.recycle()
+            }
+        } else {
+            sampledBitmap
+        }
+
+        // 6. Compress to JPEG
+        val outputStream = ByteArrayOutputStream()
+        finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+        finalBitmap.recycle()
+        return outputStream.toByteArray()
     }
 
     fun analyzeMealText(text: String) {
