@@ -3,15 +3,21 @@ package com.zivaa.app.presentation.setup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +31,38 @@ fun NameDobScreen(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var showDobPicker by remember { mutableStateOf(false) }
+
+    val openDobPicker = {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        showDobPicker = true
+    }
+
+    if (showDobPicker) {
+        SeniorDobBottomSheet(
+            initialDate = state.dob,
+            onDismissRequest = {
+                showDobPicker = false
+                focusManager.clearFocus(force = true)
+            },
+            onDateSelected = {
+                viewModel.updateAboutYou(state.name, it, state.gender)
+                showDobPicker = false
+                focusManager.clearFocus(force = true)
+            }
+        )
+    }
+
+    LaunchedEffect(showDobPicker) {
+        if (!showDobPicker) {
+            focusManager.clearFocus(force = true)
+        }
+    }
+
     ZivaaSetupBackground {
         Column(
             modifier = Modifier
@@ -47,21 +85,18 @@ fun NameDobScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            var showDobPicker by remember { mutableStateOf(false) }
-
-            if (showDobPicker) {
-                SeniorDobBottomSheet(
-                    initialDate = state.dob,
-                    onDismissRequest = { showDobPicker = false },
-                    onDateSelected = { viewModel.updateAboutYou(state.name, it, state.gender) }
-                )
-            }
-
             ZivaaTextField(
                 value = state.name,
                 onValueChange = { viewModel.updateAboutYou(it, state.dob, state.gender) },
                 label = "Your Full Name",
                 placeholder = "e.g. Ranjit Kulkarni",
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { openDobPicker() }
+                ),
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
@@ -70,13 +105,14 @@ fun NameDobScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp)
-                    .clickable { showDobPicker = true }
+                    .clickable { openDobPicker() }
             ) {
                 ZivaaTextField(
                     value = state.dob,
                     onValueChange = { }, // Read-only via overlay click
                     label = "Date of Birth",
                     placeholder = "dd-mm-yyyy",
+                    readOnly = true,
                     trailingIcon = {
                         Text("📅", fontSize = 16.sp)
                     },
@@ -86,7 +122,7 @@ fun NameDobScreen(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .clickable { showDobPicker = true }
+                        .clickable { openDobPicker() }
                 )
             }
 

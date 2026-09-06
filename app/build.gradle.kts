@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.0.13"
+        versionCode = 15
+        versionName = "1.0.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.13 - Fix onboarding Google Sign-In flow, eliminate ghost session skip, and reset on fresh enrollment"
+                releaseNotes = "Zivaa v1.0.14 - Backend and frontend FHIR category fixes"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

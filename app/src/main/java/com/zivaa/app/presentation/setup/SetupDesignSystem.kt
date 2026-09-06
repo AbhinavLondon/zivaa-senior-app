@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
@@ -119,6 +121,10 @@ fun ZivaaTextField(
     label: String,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    readOnly: Boolean = false,
+    enabled: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -133,6 +139,10 @@ fun ZivaaTextField(
             onValueChange = onValueChange,
             placeholder = { Text(placeholder, style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
             modifier = Modifier.fillMaxWidth().height(60.dp),
+            readOnly = readOnly,
+            enabled = enabled,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = ZivaaTheme.colors.lineStrong,
                 unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
