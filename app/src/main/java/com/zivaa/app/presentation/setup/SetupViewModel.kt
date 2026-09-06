@@ -61,12 +61,36 @@ class SetupViewModel : ViewModel() {
                     if (userId != null) {
                         try {
                             val response = RetrofitClient.apiService.getPatient("eq.$userId")
-                            if (response.isSuccessful && !response.body().isNullOrEmpty()) {
-                                // Existing user, bypass onboarding
-                                _state.value = _state.value.copy(isSetupComplete = true, isSubmitting = false)
+                            val patient = response.body()?.firstOrNull()
+                            
+                            // A patient who actually completed onboarding will have dateOfBirth non-null.
+                            // The DB trigger creates a skeleton row with dateOfBirth = NULL.
+                            val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
+                            
+                            if (hasCompletedOnboarding) {
+                                // Existing user who previously completed onboarding, bypass to dashboard
+                                _state.value = _state.value.copy(
+                                    isSetupComplete = true,
+                                    isSubmitting = false
+                                )
                             } else {
-                                // New user authenticated, proceed to NameDobScreen
-                                _state.value = _state.value.copy(isEmailVerified = true, isSubmitting = false)
+                                // Brand-new user or trigger-created skeleton row: continue onboarding!
+                                val resolvedName = if (_state.value.name.isNotBlank()) {
+                                    _state.value.name
+                                } else {
+                                    patient?.fullName ?: ""
+                                }
+                                val resolvedEmail = if (_state.value.email.isNotBlank()) {
+                                    _state.value.email
+                                } else {
+                                    patient?.phone ?: ""
+                                }
+                                _state.value = _state.value.copy(
+                                    isEmailVerified = true,
+                                    isSubmitting = false,
+                                    name = resolvedName,
+                                    email = resolvedEmail
+                                )
                             }
                         } catch (e: Exception) {
                             // On failure, fall back to email verified step to let them continue setup
@@ -204,22 +228,36 @@ class SetupViewModel : ViewModel() {
 
                 val patientRecord = PatientRecord(
                     id = userId,
-                    fullName = _state.value.name,
+                    fullName = _state.value.name.ifBlank { "User" },
                     dateOfBirth = _state.value.dob.ifBlank { null },
+                    gender = _state.value.gender.ifBlank { null },
                     phone = _state.value.email,
                     wearables = _state.value.selectedWearable
                 )
                 val patientResponse = RetrofitClient.apiService.createPatient(patientRecord)
                 
                 if (patientResponse.isSuccessful && patientResponse.body()?.isNotEmpty() == true) {
-                    val patientId = patientResponse.body()!![0].id ?: return@launch
+                    val patientId = patientResponse.body()!![0].id ?: userId
                     
+                    // Cache profile locally in AuthManager
+                    RetrofitClient.authManager?.savePatientProfile(
+                        fullName = _state.value.name,
+                        locationCity = null,
+                        createdAt = null,
+                        dob = _state.value.dob.ifBlank { null },
+                        profilePicUrl = null
+                    )
+
                     // 2. Add Conditions
                     if (_state.value.selectedConditions.isNotEmpty()) {
                         val conditions = _state.value.selectedConditions.map { 
                             ConditionRecord(patientId = patientId, conditionName = it) 
                         }
-                        RetrofitClient.apiService.addConditions(conditions)
+                        try {
+                            RetrofitClient.apiService.addConditions(conditions)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SetupViewModel", "Error adding conditions", e)
+                        }
                     }
 
                     // 3. Add Caregivers
@@ -232,10 +270,33 @@ class SetupViewModel : ViewModel() {
                                 relation = it.relation
                             )
                         }
-                        RetrofitClient.apiService.addCaregivers(caregivers)
+                        try {
+                            RetrofitClient.apiService.addCaregivers(caregivers)
+                        } catch (e: Exception) {
+                            android.util.Log.e("SetupViewModel", "Error adding caregivers", e)
+                        }
                     }
 
-                    // 4. Removed Doctor step as per requirements
+                    // 4. Save Plan Setup
+                    try {
+                        val planSetup = SupabasePatientPlanSetup(
+                            patientId = patientId,
+                            primaryFocus = _state.value.primaryFocus,
+                            wakeTime = _state.value.wakeTime,
+                            movementLevel = _state.value.movementLevel,
+                            stepsGoal = _state.value.stepsGoal,
+                            dietType = _state.value.dietType,
+                            heightInches = _state.value.heightInches,
+                            weightKg = _state.value.weightKg,
+                            goalWeightKg = _state.value.goalWeightKg,
+                            healthConditions = _state.value.selectedConditions.toList(),
+                            eveningActivities = _state.value.evening.toList(),
+                            reminders = _state.value.reminders
+                        )
+                        RetrofitClient.apiService.insertPlanSetup(planSetup)
+                    } catch (e: Exception) {
+                        android.util.Log.e("SetupViewModel", "Error saving plan setup", e)
+                    }
 
                     _state.value = _state.value.copy(isSetupComplete = true, isSubmitting = false)
                 } else {

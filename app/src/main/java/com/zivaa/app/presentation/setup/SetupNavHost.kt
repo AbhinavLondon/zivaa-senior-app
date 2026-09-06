@@ -16,10 +16,6 @@ fun SetupNavHost(
     val viewModel: SetupViewModel = viewModel()
     val state by viewModel.state.collectAsState()
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        viewModel.reset()
-    }
-
     NavHost(navController = navController, startDestination = "welcome") {
         composable("welcome") {
             val context = androidx.compose.ui.platform.LocalContext.current
@@ -45,7 +41,13 @@ fun SetupNavHost(
                 onPhoneChange = { }, 
                 onSendOtp = { viewModel.signInWithGoogle(context) },
                 onVerifyOtp = { }, 
-                onNext = { navController.navigate("health_connect") },
+                onNext = { 
+                    if (state.isSetupComplete) {
+                        onSetupComplete()
+                    } else {
+                        navController.navigate("health_connect")
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -125,14 +127,22 @@ fun SetupNavHost(
             FamilySharingScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { navController.navigate("success") },
+                onNext = { 
+                    viewModel.finishSetup()
+                    navController.navigate("success") 
+                },
                 onBack = { navController.popBackStack() }
             )
         }
         composable("success") {
             SetupSuccessScreen(
                 state = state,
-                onNavigateToDashboard = onSetupComplete
+                onNavigateToDashboard = {
+                    if (!state.isSetupComplete && !state.isSubmitting) {
+                        viewModel.finishSetup()
+                    }
+                    onSetupComplete()
+                }
             )
         }
     }

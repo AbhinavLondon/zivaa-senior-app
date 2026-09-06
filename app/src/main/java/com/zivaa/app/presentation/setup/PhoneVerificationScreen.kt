@@ -35,6 +35,12 @@ fun PhoneVerificationScreen(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
+    LaunchedEffect(state.isSetupComplete) {
+        if (state.isSetupComplete) {
+            onNext()
+        }
+    }
+
     ZivaaSetupBackground {
         if (state.isEmailVerified) {
             // Success Screen
