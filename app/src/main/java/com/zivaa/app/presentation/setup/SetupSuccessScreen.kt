@@ -238,32 +238,61 @@ fun SetupSuccessScreen(
 
             // Bottom Primary Button (Light background, Dark text)
             Surface(
-                onClick = onNavigateToDashboard,
+                onClick = {
+                    if (!state.isSubmitting) {
+                        onNavigateToDashboard()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp, top = 8.dp)
+                    .padding(bottom = 16.dp, top = 8.dp)
                     .height(56.dp),
                 shape = RoundedCornerShape(50),
-                color = ZivaaTheme.colors.bgElev
+                color = if (state.isSubmitting) ZivaaTheme.colors.bgElev.copy(alpha = 0.6f) else ZivaaTheme.colors.bgElev
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Step into your first morning",
-                        style = ZivaaTheme.typography.bodyLarge,
-                        color = ZivaaTheme.colors.sage
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Icon(
-                        imageVector = Icons.Rounded.ArrowForward,
-                        contentDescription = "Forward",
-                        tint = ZivaaTheme.colors.sage,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    if (state.isSubmitting) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = ZivaaTheme.colors.sage,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Saving your plan...",
+                            style = ZivaaTheme.typography.bodyLarge,
+                            color = ZivaaTheme.colors.sage
+                        )
+                    } else {
+                        Text(
+                            text = "Step into your first morning",
+                            style = ZivaaTheme.typography.bodyLarge,
+                            color = ZivaaTheme.colors.sage
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowForward,
+                            contentDescription = "Forward",
+                            tint = ZivaaTheme.colors.sage,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
+            }
+
+            if (state.error != null) {
+                Text(
+                    text = state.error,
+                    color = Color.White.copy(alpha = 0.9f),
+                    style = ZivaaTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

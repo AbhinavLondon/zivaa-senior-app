@@ -226,11 +226,17 @@ class SetupViewModel : ViewModel() {
                     return@launch
                 }
 
+                val normalizedGender = when (_state.value.gender.trim().lowercase()) {
+                    "male" -> "male"
+                    "female" -> "female"
+                    "other" -> "other"
+                    else -> null
+                }
                 val patientRecord = PatientRecord(
                     id = userId,
                     fullName = _state.value.name.ifBlank { "User" },
                     dateOfBirth = _state.value.dob.ifBlank { null },
-                    gender = _state.value.gender.ifBlank { null },
+                    gender = normalizedGender,
                     phone = _state.value.email,
                     wearables = _state.value.selectedWearable
                 )
