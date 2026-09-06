@@ -91,6 +91,10 @@ interface SupabaseApiService {
     @POST("auth/v1/verify")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>
 
+    @JvmSuppressWildcards
+    @retrofit2.http.GET("auth/v1/user")
+    suspend fun getCurrentUser(): Response<Map<String, Any>>
+
     // Setup / Onboarding Endpoints
     @POST("rest/v1/patient_plan_setup")
     suspend fun insertPlanSetup(

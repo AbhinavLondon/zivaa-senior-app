@@ -52,6 +52,11 @@ class SetupViewModel : ViewModel() {
         _state.value = SetupState()
     }
 
+    fun startFreshEnrollment() {
+        RetrofitClient.authManager?.clearSession()
+        _state.value = SetupState()
+    }
+
     init {
         // Listen for Deep Link auth successes
         viewModelScope.launch {
@@ -63,7 +68,6 @@ class SetupViewModel : ViewModel() {
                 }
             }
         }
-        checkExistingSession()
     }
 
     fun checkExistingSession() {
@@ -82,12 +86,15 @@ class SetupViewModel : ViewModel() {
         }
         val userId = auth.getUserId() ?: return
         try {
-            val response = RetrofitClient.apiService.getPatient("eq.$userId")
-            if (!response.isSuccessful && (response.code() == 401 || response.code() == 403)) {
+            // Verify that the token actually belongs to an existing user in Supabase Auth
+            val authUserResponse = RetrofitClient.apiService.getCurrentUser()
+            if (!authUserResponse.isSuccessful) {
                 auth.clearSession()
-                _state.value = SetupState()
+                _state.value = _state.value.copy(isEmailVerified = false, isSubmitting = false)
                 return
             }
+
+            val response = RetrofitClient.apiService.getPatient("eq.$userId")
             val patient = response.body()?.firstOrNull()
             
             // A patient who actually completed onboarding will have dateOfBirth non-null.

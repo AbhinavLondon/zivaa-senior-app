@@ -21,7 +21,10 @@ fun SetupNavHost(
             val context = androidx.compose.ui.platform.LocalContext.current
             WelcomeScreen(
                 state = state,
-                onNext = { navController.navigate("namedob") },
+                onNext = { 
+                    viewModel.startFreshEnrollment()
+                    navController.navigate("namedob") 
+                },
                 onSignIn = { viewModel.signInWithGoogle(context) },
                 onBypassSetup = onSetupComplete
             )
