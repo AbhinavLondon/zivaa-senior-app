@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589394828071",
+    "project_id": "zivaa-9ae98",
+    "storage_bucket": "zivaa-9ae98.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589394828071:android:f0b855da45c5dbc5b06702",
+        "android_client_info": {
+          "package_name": "com.zivaa.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBidA8WsTgI3DYOgUxijaU8pCzU_Hw6iRE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

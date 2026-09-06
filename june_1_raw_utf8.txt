@@ -1,0 +1,263 @@
+﻿
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T04:01:01.896Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T04:01:19.896Z, endZoneOffset=+01:00, count=9, 
+metadata=Metadata(id='861b922b-54c8-4071-9c44-946487043950', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T04:01:19.900Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T04:01:19.897Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T04:01:24.133Z, endZoneOffset=+01:00, count=3, 
+metadata=Metadata(id='966f04aa-627c-4ad5-bbab-37dd488bcfd6', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T04:02:55.291Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T04:17:49.577Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T04:18:05.577Z, endZoneOffset=+01:00, count=8, 
+metadata=Metadata(id='3d6d89b1-0bec-4e7d-8309-390379f6e739', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T04:18:05.579Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T04:18:05.578Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T04:20:17.579Z, endZoneOffset=+01:00, count=48, 
+metadata=Metadata(id='a2f1f665-d083-4967-a5f4-5a874e0ca458', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T04:23:09.417Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:24:50.313Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:25:20.313Z, endZoneOffset=+01:00, count=15, 
+metadata=Metadata(id='c36b2814-4bd4-4e2a-9e94-5df2ef55f97b', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:25:20.324Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:25:20.313Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:33:28.577Z, endZoneOffset=+01:00, count=29, 
+metadata=Metadata(id='09762c60-fd16-47cb-9ecc-5ab7b38e25bc', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:39:48.606Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:33:28.577Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:41:32.772Z, endZoneOffset=+01:00, count=19, 
+metadata=Metadata(id='a54dfc23-a109-435c-b93f-633e95d0db53', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:43:53.638Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:41:32.772Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:53:20.853Z, endZoneOffset=+01:00, count=139, 
+metadata=Metadata(id='99849d5e-6aee-40a7-9767-1f257ba1bb66', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:53:22.759Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.512 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:54:16.770Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:54:30.770Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='6b5391ac-dd02-4553-bbe4-9834a8b84176', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:54:30.776Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:55:30.751Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:55:44.751Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='7b302ab3-f3df-46e0-86a6-e13ab6f4a891', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:55:44.756Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T06:55:44.751Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T06:56:23.860Z, endZoneOffset=+01:00, count=37, 
+metadata=Metadata(id='1ba8184d-b5ae-4ee8-9452-75c39d52cb7d', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T06:56:44.765Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T07:05:41.448Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T07:06:13.448Z, endZoneOffset=+01:00, count=16, 
+metadata=Metadata(id='68788c39-5038-4261-adc5-cacecf8bc1f8', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T07:06:13.449Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T07:06:13.448Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T07:13:56.528Z, endZoneOffset=+01:00, count=157, 
+metadata=Metadata(id='f460c3c6-88a1-45fe-85d7-75d56d231b40', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T07:14:46.761Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T07:29:55.955Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T07:30:27.955Z, endZoneOffset=+01:00, count=16, 
+metadata=Metadata(id='f93be407-e7a3-488a-a79c-f8e17e841700', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T07:30:27.957Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T07:30:27.956Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T07:33:57.690Z, endZoneOffset=+01:00, count=24, 
+metadata=Metadata(id='f31d3655-85de-4ecb-a36d-76d8a6ba8b7d', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T07:39:58.305Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:16:57.836Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:17:21.836Z, endZoneOffset=+01:00, count=12, 
+metadata=Metadata(id='59c2541c-9170-4231-b1a1-5a2b5ef885f7', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:17:21.842Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:17:21.836Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:18:27.020Z, endZoneOffset=+01:00, count=53, 
+metadata=Metadata(id='5f66260a-e970-4ebf-8912-56a06c83ffdd', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:21:29.873Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.513 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:18:27.020Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:36:07.363Z, endZoneOffset=+01:00, count=208, 
+metadata=Metadata(id='ae5ff90a-a61b-45b3-846d-c7b7d5228ea5', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:36:47.227Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:50:44.575Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:51:08.575Z, endZoneOffset=+01:00, count=12, 
+metadata=Metadata(id='d90624cd-8602-4bb5-9190-7749d68e5304', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:51:08.589Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:51:08.575Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:51:45.656Z, endZoneOffset=+01:00, count=19, 
+metadata=Metadata(id='5ff4e33a-758f-46c6-b9b0-77e85a2d40e4', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:52:08.597Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:55:16.505Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:55:40.505Z, endZoneOffset=+01:00, count=12, 
+metadata=Metadata(id='2f64c602-d087-447c-9791-1317f74bfd19', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:55:40.513Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T16:55:40.505Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T16:56:35.982Z, endZoneOffset=+01:00, count=12, 
+metadata=Metadata(id='4e355951-f618-4687-a0ce-47319f76bebc', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T16:56:40.518Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T17:04:07.613Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T17:04:39.613Z, endZoneOffset=+01:00, count=16, 
+metadata=Metadata(id='4dae8eda-5c6b-46f6-ad7f-a857fe2da9bd', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T17:04:39.614Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T17:04:39.613Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T17:07:13.489Z, endZoneOffset=+01:00, count=175, 
+metadata=Metadata(id='2fb0a79a-81b9-4e48-8417-9b6230c88c4b', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T17:08:28.816Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T17:54:51.562Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T17:55:23.562Z, endZoneOffset=+01:00, count=16, 
+metadata=Metadata(id='d6650229-bff4-4b7a-8eba-50d387754ec0', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T17:55:23.563Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.514 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T17:55:23.562Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T17:55:31.055Z, endZoneOffset=+01:00, count=6, 
+metadata=Metadata(id='9c83c025-cb50-4d1f-9e8f-73db8870ad79', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T17:57:02.245Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T17:55:31.054Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T17:57:21.851Z, endZoneOffset=+01:00, count=21, 
+metadata=Metadata(id='ef09d527-3e2a-4462-bdea-eded7f4188a3', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T17:58:02.254Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:08:24.119Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:08:36.119Z, endZoneOffset=+01:00, count=6, 
+metadata=Metadata(id='cc5ee8a8-8c5b-485a-b15c-8d8b02702c01', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:08:36.120Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:08:36.119Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:08:44.396Z, endZoneOffset=+01:00, count=14, 
+metadata=Metadata(id='e88e5fa5-4f89-4e39-8763-8ff451103136', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:09:36.131Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:10:57.176Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:11:11.176Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='47330ca6-ea55-4533-8359-bf4bfaadba77', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:11:11.178Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:12:59.781Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:13:13.781Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='27f8bbc2-a8b4-4036-81f7-e101e6b20b42', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:13:13.784Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:13:13.781Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:14:09.526Z, endZoneOffset=+01:00, count=19, 
+metadata=Metadata(id='b258c70b-0237-425a-99b6-23a0dde9a653', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:14:13.794Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:14:09.526Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:14:45.583Z, endZoneOffset=+01:00, count=18, 
+metadata=Metadata(id='7e70b837-f681-489d-9860-67c6a17ce37b', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:15:13.798Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:27:47.007Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:28:17.007Z, endZoneOffset=+01:00, count=15, 
+metadata=Metadata(id='f4211f39-d839-45ff-9243-0837d3ef52ea', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:28:17.010Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.515 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:28:17.007Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:30:58.129Z, endZoneOffset=+01:00, count=244, 
+metadata=Metadata(id='3026f6ab-df28-44b2-9f9c-372b9157582d', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:31:16.556Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:30:58.128Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:31:46.462Z, endZoneOffset=+01:00, count=26, 
+metadata=Metadata(id='aa89e447-756c-4b4a-a087-7f4d15ba90f5', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:32:16.565Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:31:46.463Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:33:12.533Z, endZoneOffset=+01:00, count=22, 
+metadata=Metadata(id='3db4720e-205b-4383-988c-d2d94906d789', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:33:16.569Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:33:12.533Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:33:30.062Z, endZoneOffset=+01:00, count=23, 
+metadata=Metadata(id='29a0bc53-07bf-4cdb-93b3-e8d7077f943b', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:34:16.575Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:36:39.740Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:36:53.740Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='c9bca95a-1325-4128-9778-82976d2efc41', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:36:53.743Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:36:53.740Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:36:59.400Z, endZoneOffset=+01:00, count=7, 
+metadata=Metadata(id='be15bacf-b900-4662-a623-5c963d6480c9', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:37:53.753Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:36:59.400Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:38:22.240Z, endZoneOffset=+01:00, count=16, 
+metadata=Metadata(id='de1745dc-143e-499d-b1bc-2ad33eceac85', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:38:53.762Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:41:38.104Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:42:08.104Z, endZoneOffset=+01:00, count=15, 
+metadata=Metadata(id='11ba0a13-18ad-4f58-93a6-f5b055ba100b', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:42:08.108Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:42:08.104Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:42:19.607Z, endZoneOffset=+01:00, count=19, 
+metadata=Metadata(id='0efb708f-86f6-4dec-8d62-3f49665679a7', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:43:08.118Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.516 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:52:56.400Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:53:26.400Z, endZoneOffset=+01:00, count=15, 
+metadata=Metadata(id='da75964b-77a6-40a4-a3d5-2be241b2c3bd', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:53:26.403Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:53:26.400Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:53:42.375Z, endZoneOffset=+01:00, count=26, 
+metadata=Metadata(id='606760c2-1370-4ea9-be46-b5b849a7c838', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:54:55.258Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:53:42.376Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:56:53.808Z, endZoneOffset=+01:00, count=166, 
+metadata=Metadata(id='60e175fa-fdcd-4a24-a248-6efd2997f1ac', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T19:56:54.363Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:56:53.808Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T19:57:02.631Z, endZoneOffset=+01:00, count=15, 
+metadata=Metadata(id='63d2d01a-60c4-4112-a89f-4f7e1fce7206', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T20:01:48.729Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T19:57:02.631Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T20:04:01.627Z, endZoneOffset=+01:00, count=18, 
+metadata=Metadata(id='5dca86e2-7573-4b5a-a32c-92e0dc97d519', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T20:04:26.183Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T20:04:01.627Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T20:05:35.341Z, endZoneOffset=+01:00, count=23, 
+metadata=Metadata(id='4b7373ad-b522-4d2c-ade2-3f3d9a50a5ae', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T20:06:05.168Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T20:10:34.160Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T20:10:46.160Z, endZoneOffset=+01:00, count=6, 
+metadata=Metadata(id='a7d4d8de-9d62-44f6-8ca4-001e7363e07e', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T20:10:46.161Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T20:10:46.161Z, 
+startZoneOffset=+01:00, endTime=2026-06-01T20:12:31.184Z, endZoneOffset=+01:00, count=23, 
+metadata=Metadata(id='495bab0f-fc80-428d-a9fb-128a461649e1', dataOrigin=DataOrigin(packageName='android'), 
+lastModifiedTime=2026-06-01T20:13:37.493Z, clientRecordId=null, clientRecordVersion=-1, device=Device(type=2, 
+manufacturer=samsung, model=SM-S948B), recordingMethod=2))
+07-02 00:10:50.517 28535 28535 I System.out: JUNE1_RAW: StepsRecord(startTime=2026-06-01T23:00:00Z, 
+startZoneOffset=+01:00, endTime=2026-06-02T22:59:59.999Z, endZoneOffset=+01:00, count=5952, 
+metadata=Metadata(id='46f4e302-b364-4fa5-9d48-0b5bc201ffaf', 
+dataOrigin=DataOrigin(packageName='com.sec.android.app.shealth'), lastModifiedTime=2026-06-02T20:21:12.829Z, 
+clientRecordId=null, clientRecordVersion=0, device=null, recordingMethod=0))
+
+

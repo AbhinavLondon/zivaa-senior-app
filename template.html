@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="90fe14b5-583c-4822-af9e-04826f572ef1"></script>
+</head>
+<body>
+
+
+<x-dc>
+<helmet>
+  <style>/* Sahayak — webfonts
+   Three families carry the whole system:
+   · Instrument Serif — display & editorial emphasis (the "voice")
+   · Manrope          — sans / body / UI (variable, 400–800)
+   · IBM Plex Mono    — eyebrows, labels, metadata, numerals
+   Latin subsets bundled locally; full Unicode ranges are served from
+   Google Fonts in production (see readme). */
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7799c5a4-233c-4f20-bef8-1a6203148c83") format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("c8e58cd3-6580-414e-b95f-4dc6a0712291") format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("5ba987a9-9cf5-4c0e-b9ae-553e9507b9d7") format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("aa3becf7-63b5-4e11-8eb2-dd8da4f303ca") format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("155064dc-92aa-4fe1-aef3-badbd7644fdd") format('woff2');
+}
+</style>
+  <style>/* Sahayak — color tokens
+   ────────────────────────────────────────────────────────────────────────
+   A warm, lived-in palette: aged-paper neutrals carrying a small family of
+   muted, earthen accents. Sage green is the brand anchor; clay, amber, rose
+   and leaf are its quieter companions. Nothing is loud — colours read like
+   pigment, not light.
+
+   Three moods ship: Warm (default), Cool, and Dark. Warm lives on :root so
+   consumers inherit it for free; the others are opt-in via [data-theme].
+   Every surface reads from a semantic alias, never a raw hex. */
+
+:root {
+  /* ── Neutrals — warm paper ──────────────────────────────────────────── */
+  --bg: #f6f3ee;          /* app canvas — aged paper            */
+  --bg-elev: #fbf9f5;     /* cards & raised surfaces            */
+  --ink: #1d211e;         /* primary text — near-black green    */
+  --ink-soft: #5a5a52;    /* body / secondary text             */
+  --ink-mute: #6b6a5f;    /* metadata, captions, eyebrows      */
+  --line: rgba(29, 33, 30, 0.08);        /* hairline divider     */
+  --line-strong: rgba(29, 33, 30, 0.14); /* stronger border      */
+
+  /* ── Brand & accents — earthen pigments ─────────────────────────────── */
+  --sage: #234b3f;        /* primary brand — calm forest green  */
+  --sage-ink: #f6f3ee;    /* text/ink on sage surfaces          */
+  --clay: #b6643d;        /* warm terracotta — care / physio    */
+  --amber: #c98a3a;       /* honey — "worth a look" / caution   */
+  --rose: #a4493d;        /* dried rose — alerts / discontinued */
+  --leaf: #5d7a4e;        /* olive leaf — labs / positive       */
+  --muted: #d4cbb8;       /* sand — neutral bubbles / fills     */
+
+  /* ── Semantic roles ─────────────────────────────────────────────────── */
+  --accent: var(--sage);              /* the one tunable accent  */
+  --accent-icon: var(--sage);         /* accent for icons on muted fills — stays legible in dark */
+  --surface: var(--bg);
+  --surface-card: var(--bg-elev);
+  --surface-hero: var(--accent);      /* the green "statement" slab */
+  --text-strong: var(--ink);
+  --text-body: var(--ink-soft);
+  --text-meta: var(--ink-mute);
+  --text-on-accent: var(--sage-ink);
+  --border-hairline: var(--line);
+  --border-strong: var(--line-strong);
+
+  /* tones — status & wellbeing signalling */
+  --tone-ok: var(--leaf);
+  --tone-watch: var(--amber);
+  --tone-act: var(--rose);
+  --tone-warm: var(--clay);
+}
+
+/* ── Theme: Warm — explicit reset ─────────────────────────────────────
+   Mirrors :root so a wrapper marked data-theme="warm" overrides any
+   dark/cool ancestor (host chrome, canvas) instead of inheriting it. */
+[data-theme="warm"] {
+  --bg: #f6f3ee;
+  --bg-elev: #fbf9f5;
+  --ink: #1d211e;
+  --ink-soft: #5a5a52;
+  --ink-mute: #6b6a5f;
+  --line: rgba(29, 33, 30, 0.08);
+  --line-strong: rgba(29, 33, 30, 0.14);
+  --sage: #234b3f;
+  --sage-ink: #f6f3ee;
+  --clay: #b6643d;
+  --amber: #c98a3a;
+  --rose: #a4493d;
+  --leaf: #5d7a4e;
+  --muted: #d4cbb8;
+  --accent: var(--sage);
+  --accent-icon: var(--sage);
+}
+
+/* ── Theme: Cool — slate & teal, a clinic-calm alternative ────────────── */
+:root[data-theme="cool"],
+[data-theme="cool"] {
+  --bg: #eef1f2;
+  --bg-elev: #f7f9fa;
+  --ink: #15212a;
+  --ink-soft: #4d5d68;
+  --ink-mute: #5f6d78;
+  --line: rgba(21, 33, 42, 0.08);
+  --line-strong: rgba(21, 33, 42, 0.14);
+  --sage: #1f4753;
+  --sage-ink: #eef1f2;
+  --clay: #3a6f8a;
+  --amber: #b78534;
+  --rose: #8a4747;
+  --leaf: #4a7682;
+  --muted: #c7d1d6;
+  --accent: var(--sage);
+  --accent-icon: var(--sage);
+}
+
+/* ── Theme: Dark — warm graphite at night ─────────────────────────────── */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --bg: #14171a;
+  --bg-elev: #1c2024;
+  --ink: #ede9df;
+  --ink-soft: #a8a59c;
+  --ink-mute: #a3a196;
+  --line: rgba(237, 233, 223, 0.08);
+  --line-strong: rgba(237, 233, 223, 0.14);
+  --sage: #2e6354;
+  --sage-ink: #ede9df;
+  --clay: #d68a5a;
+  --amber: #d6a35a;
+  --rose: #cf6f60;
+  --leaf: #8aa676;
+  --muted: #3a3d3e;
+  --accent: var(--sage);
+  --accent-icon: #8fbfa9;
+}
+</style>
+  <style>/* Sahayak — typography tokens
+   ────────────────────────────────────────────────────────────────────────
+   Three voices, each with one job:
+
+   · Instrument Serif  → display & headlines. Large, light, with italic used
+     as the brand's "soft emphasis". This is where the warmth lives.
+   · Manrope           → everything functional: body, buttons, labels, UI.
+   · IBM Plex Mono     → eyebrows, metadata, dates, units, numerals. Always
+     UPPERCASE with positive tracking when used as a label.
+
+   Headlines are set in serif at line-height ~1.1 with a hair of negative
+   tracking; body is Manrope at 1.45. Mono labels are tiny (10–11px),
+   tracked +0.06–0.08em, uppercase. */
+
+:root {
+  /* families — all unified to Manrope */
+  --font-serif: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans:  'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:  'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* aliases used across the system */
+  --font-display: var(--font-serif);  /* big editorial headlines    */
+  --font-body:    var(--font-sans);   /* paragraphs & UI            */
+  --font-label:   var(--font-mono);   /* eyebrows, units, metadata  */
+
+  /* type scale — mobile-first, the app's real sizes */
+  --text-display: 38px;   /* hero headline (serif)            */
+  --text-title:   28px;   /* screen title (serif)             */
+  --text-card:    22px;   /* card headline (serif italic)     */
+  --text-lead:    20px;   /* lead paragraph                   */
+  --text-body-lg: 17px;
+  --text-body:    15px;   /* default body (Manrope)           */
+  --text-sm:      13px;
+  --text-eyebrow: 11px;   /* mono eyebrow                     */
+  --text-meta:    10.5px; /* mono metadata                    */
+
+  /* line heights */
+  --leading-display: 1.05;
+  --leading-title:   1.1;
+  --leading-card:    1.15;
+  --leading-body:    1.45;
+
+  /* tracking */
+  --track-display: -0.01em;
+  --track-tight:   -0.005em;
+  --track-label:   0.08em;   /* mono eyebrows               */
+  --track-meta:    0.06em;
+
+  /* weights (Manrope is variable 400–800) */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+}
+</style>
+  <style>/* Sahayak — spacing, radii, shadow & motion tokens
+   ────────────────────────────────────────────────────────────────────────
+   Generous, soft, unhurried. Cards are large-radius (22px) with a faint
+   inner highlight and a wide, low-opacity sage-tinted drop shadow — they
+   feel like pressed paper, not floating glass. Pills are fully round.
+   Motion is gentle: short fades and a 0.985 press-shrink, eased with a
+   custom cubic-bezier. Nothing bounces. */
+
+:root {
+  /* ── Spacing scale (4px base) ───────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+
+  /* common surface padding */
+  --pad-screen: 22px;   /* left/right gutter inside a screen */
+  --pad-card: 20px;     /* card interior                     */
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-card: 22px;     /* primary card / hero            */
+  --radius-soft: 14px;     /* action rows, inputs, tiles     */
+  --radius-clinical: 12px; /* tighter "clinical" card        */
+  --radius-pill: 999px;    /* buttons, chips, status pills   */
+  --radius-bubble: 12px;   /* action glyph bubbles, avatars  */
+
+  /* ── Shadows ────────────────────────────────────────────────────────── */
+  /* Soft: inner top highlight + a wide, low sage-tinted drop. */
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                 0 8px 24px rgba(35, 75, 63, 0.06);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                  0 2px 6px rgba(35, 75, 63, 0.08);
+  --shadow-hero: 0 12px 30px rgba(35, 75, 63, 0.16);
+  --shadow-fab: 0 8px 24px rgba(35, 75, 63, 0.28);
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  --ease-soft: cubic-bezier(0.3, 0.7, 0.4, 1); /* @kind other */
+  --dur-fast: 0.18s;   /* @kind other */
+  --dur-base: 0.22s;   /* @kind other */
+  --press-scale: 0.985; /* @kind other */
+}
+
+/* Warm reset — restores the light soft shadow over a dark/cool ancestor. */
+[data-theme="warm"] {
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                 0 8px 24px rgba(35, 75, 63, 0.06);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                  0 2px 6px rgba(35, 75, 63, 0.08);
+}
+
+/* Dark mode trims the white inner highlight & deepens the drop. */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                  0 2px 6px rgba(0, 0, 0, 0.4);
+}
+</style>
+  <style>/* Sahayak Design System — global entry point.
+   Consumers link THIS file. It is an import manifest only: every token and
+   @font-face the system ships is reached from here. */
+
+/* Sahayak — webfonts
+   Three families carry the whole system:
+   · Instrument Serif — display & editorial emphasis (the "voice")
+   · Manrope          — sans / body / UI (variable, 400–800)
+   · IBM Plex Mono    — eyebrows, labels, metadata, numerals
+   Latin subsets bundled locally; full Unicode ranges are served from
+   Google Fonts in production (see readme). */
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7799c5a4-233c-4f20-bef8-1a6203148c83") format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("c8e58cd3-6580-414e-b95f-4dc6a0712291") format('woff2');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("5ba987a9-9cf5-4c0e-b9ae-553e9507b9d7") format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("aa3becf7-63b5-4e11-8eb2-dd8da4f303ca") format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("155064dc-92aa-4fe1-aef3-badbd7644fdd") format('woff2');
+}
+
+/* Sahayak — color tokens
+   ────────────────────────────────────────────────────────────────────────
+   A warm, lived-in palette: aged-paper neutrals carrying a small family of
+   muted, earthen accents. Sage green is the brand anchor; clay, amber, rose
+   and leaf are its quieter companions. Nothing is loud — colours read like
+   pigment, not light.
+
+   Three moods ship: Warm (default), Cool, and Dark. Warm lives on :root so
+   consumers inherit it for free; the others are opt-in via [data-theme].
+   Every surface reads from a semantic alias, never a raw hex. */
+
+:root {
+  /* ── Neutrals — warm paper ──────────────────────────────────────────── */
+  --bg: #f6f3ee;          /* app canvas — aged paper            */
+  --bg-elev: #fbf9f5;     /* cards & raised surfaces            */
+  --ink: #1d211e;         /* primary text — near-black green    */
+  --ink-soft: #5a5a52;    /* body / secondary text             */
+  --ink-mute: #6b6a5f;    /* metadata, captions, eyebrows      */
+  --line: rgba(29, 33, 30, 0.08);        /* hairline divider     */
+  --line-strong: rgba(29, 33, 30, 0.14); /* stronger border      */
+
+  /* ── Brand & accents — earthen pigments ─────────────────────────────── */
+  --sage: #234b3f;        /* primary brand — calm forest green  */
+  --sage-ink: #f6f3ee;    /* text/ink on sage surfaces          */
+  --clay: #b6643d;        /* warm terracotta — care / physio    */
+  --amber: #c98a3a;       /* honey — "worth a look" / caution   */
+  --rose: #a4493d;        /* dried rose — alerts / discontinued */
+  --leaf: #5d7a4e;        /* olive leaf — labs / positive       */
+  --muted: #d4cbb8;       /* sand — neutral bubbles / fills     */
+
+  /* ── Semantic roles ─────────────────────────────────────────────────── */
+  --accent: var(--sage);              /* the one tunable accent  */
+  --accent-icon: var(--sage);         /* accent for icons on muted fills — stays legible in dark */
+  --surface: var(--bg);
+  --surface-card: var(--bg-elev);
+  --surface-hero: var(--accent);      /* the green "statement" slab */
+  --text-strong: var(--ink);
+  --text-body: var(--ink-soft);
+  --text-meta: var(--ink-mute);
+  --text-on-accent: var(--sage-ink);
+  --border-hairline: var(--line);
+  --border-strong: var(--line-strong);
+
+  /* tones — status & wellbeing signalling */
+  --tone-ok: var(--leaf);
+  --tone-watch: var(--amber);
+  --tone-act: var(--rose);
+  --tone-warm: var(--clay);
+}
+
+/* ── Theme: Warm — explicit reset ─────────────────────────────────────
+   Mirrors :root so a wrapper marked data-theme="warm" overrides any
+   dark/cool ancestor (host chrome, canvas) instead of inheriting it. */
+[data-theme="warm"] {
+  --bg: #f6f3ee;
+  --bg-elev: #fbf9f5;
+  --ink: #1d211e;
+  --ink-soft: #5a5a52;
+  --ink-mute: #6b6a5f;
+  --line: rgba(29, 33, 30, 0.08);
+  --line-strong: rgba(29, 33, 30, 0.14);
+  --sage: #234b3f;
+  --sage-ink: #f6f3ee;
+  --clay: #b6643d;
+  --amber: #c98a3a;
+  --rose: #a4493d;
+  --leaf: #5d7a4e;
+  --muted: #d4cbb8;
+  --accent: var(--sage);
+  --accent-icon: var(--sage);
+}
+
+/* ── Theme: Cool — slate & teal, a clinic-calm alternative ────────────── */
+:root[data-theme="cool"],
+[data-theme="cool"] {
+  --bg: #eef1f2;
+  --bg-elev: #f7f9fa;
+  --ink: #15212a;
+  --ink-soft: #4d5d68;
+  --ink-mute: #5f6d78;
+  --line: rgba(21, 33, 42, 0.08);
+  --line-strong: rgba(21, 33, 42, 0.14);
+  --sage: #1f4753;
+  --sage-ink: #eef1f2;
+  --clay: #3a6f8a;
+  --amber: #b78534;
+  --rose: #8a4747;
+  --leaf: #4a7682;
+  --muted: #c7d1d6;
+  --accent: var(--sage);
+  --accent-icon: var(--sage);
+}
+
+/* ── Theme: Dark — warm graphite at night ─────────────────────────────── */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --bg: #14171a;
+  --bg-elev: #1c2024;
+  --ink: #ede9df;
+  --ink-soft: #a8a59c;
+  --ink-mute: #a3a196;
+  --line: rgba(237, 233, 223, 0.08);
+  --line-strong: rgba(237, 233, 223, 0.14);
+  --sage: #2e6354;
+  --sage-ink: #ede9df;
+  --clay: #d68a5a;
+  --amber: #d6a35a;
+  --rose: #cf6f60;
+  --leaf: #8aa676;
+  --muted: #3a3d3e;
+  --accent: var(--sage);
+  --accent-icon: #8fbfa9;
+}
+
+/* Sahayak — typography tokens
+   ────────────────────────────────────────────────────────────────────────
+   Three voices, each with one job:
+
+   · Instrument Serif  → display & headlines. Large, light, with italic used
+     as the brand's "soft emphasis". This is where the warmth lives.
+   · Manrope           → everything functional: body, buttons, labels, UI.
+   · IBM Plex Mono     → eyebrows, metadata, dates, units, numerals. Always
+     UPPERCASE with positive tracking when used as a label.
+
+   Headlines are set in serif at line-height ~1.1 with a hair of negative
+   tracking; body is Manrope at 1.45. Mono labels are tiny (10–11px),
+   tracked +0.06–0.08em, uppercase. */
+
+:root {
+  /* families — all unified to Manrope */
+  --font-serif: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans:  'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:  'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* aliases used across the system */
+  --font-display: var(--font-serif);  /* big editorial headlines    */
+  --font-body:    var(--font-sans);   /* paragraphs & UI            */
+  --font-label:   var(--font-mono);   /* eyebrows, units, metadata  */
+
+  /* type scale — mobile-first, the app's real sizes */
+  --text-display: 38px;   /* hero headline (serif)            */
+  --text-title:   28px;   /* screen title (serif)             */
+  --text-card:    22px;   /* card headline (serif italic)     */
+  --text-lead:    20px;   /* lead paragraph                   */
+  --text-body-lg: 17px;
+  --text-body:    15px;   /* default body (Manrope)           */
+  --text-sm:      13px;
+  --text-eyebrow: 11px;   /* mono eyebrow                     */
+  --text-meta:    10.5px; /* mono metadata                    */
+
+  /* line heights */
+  --leading-display: 1.05;
+  --leading-title:   1.1;
+  --leading-card:    1.15;
+  --leading-body:    1.45;
+
+  /* tracking */
+  --track-display: -0.01em;
+  --track-tight:   -0.005em;
+  --track-label:   0.08em;   /* mono eyebrows               */
+  --track-meta:    0.06em;
+
+  /* weights (Manrope is variable 400–800) */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+}
+
+/* Sahayak — spacing, radii, shadow & motion tokens
+   ────────────────────────────────────────────────────────────────────────
+   Generous, soft, unhurried. Cards are large-radius (22px) with a faint
+   inner highlight and a wide, low-opacity sage-tinted drop shadow — they
+   feel like pressed paper, not floating glass. Pills are fully round.
+   Motion is gentle: short fades and a 0.985 press-shrink, eased with a
+   custom cubic-bezier. Nothing bounces. */
+
+:root {
+  /* ── Spacing scale (4px base) ───────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+
+  /* common surface padding */
+  --pad-screen: 22px;   /* left/right gutter inside a screen */
+  --pad-card: 20px;     /* card interior                     */
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-card: 22px;     /* primary card / hero            */
+  --radius-soft: 14px;     /* action rows, inputs, tiles     */
+  --radius-clinical: 12px; /* tighter "clinical" card        */
+  --radius-pill: 999px;    /* buttons, chips, status pills   */
+  --radius-bubble: 12px;   /* action glyph bubbles, avatars  */
+
+  /* ── Shadows ────────────────────────────────────────────────────────── */
+  /* Soft: inner top highlight + a wide, low sage-tinted drop. */
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                 0 8px 24px rgba(35, 75, 63, 0.06);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                  0 2px 6px rgba(35, 75, 63, 0.08);
+  --shadow-hero: 0 12px 30px rgba(35, 75, 63, 0.16);
+  --shadow-fab: 0 8px 24px rgba(35, 75, 63, 0.28);
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  --ease-soft: cubic-bezier(0.3, 0.7, 0.4, 1); /* @kind other */
+  --dur-fast: 0.18s;   /* @kind other */
+  --dur-base: 0.22s;   /* @kind other */
+  --press-scale: 0.985; /* @kind other */
+}
+
+/* Warm reset — restores the light soft shadow over a dark/cool ancestor. */
+[data-theme="warm"] {
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                 0 8px 24px rgba(35, 75, 63, 0.06);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+                  0 2px 6px rgba(35, 75, 63, 0.08);
+}
+
+/* Dark mode trims the white inner highlight & deepens the drop. */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-press: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                  0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+</style>
+  <script src="e6f4c014-674e-4544-996c-c9d6fbefdd7e"></script>
+  <style>
+    html, body { margin: 0; background: #e9e5dd; }
+    *::-webkit-scrollbar { width: 0; height: 0; }
+    a { color: var(--ink); }
+    a:hover { color: var(--sage); }
+    @keyframes barsRise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  </style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px; box-sizing: border-box; font-family: var(--font-sans);">
+  <div data-theme="{{ themeVal }}" data-screen-label="Movement for Ranjit" style="width: 412px; height: 892px; background: var(--bg); border-radius: 46px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 40px 90px rgba(35,75,63,0.22), 0 0 0 1px rgba(29,33,30,0.04); position: relative;">
+
+    <!-- status bar -->
+    <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px 0 24px; font-size: 14px; font-weight: 600; color: var(--ink); position: relative; flex-shrink: 0; letter-spacing: .01em;">
+      <span>9:30</span>
+      <div style="position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: #0d0d0d;"></div>
+      <div style="display: flex; align-items: center; gap: 5px; color: var(--ink);">
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 13.3L.67 5.97a10.37 10.37 0 0114.66 0L8 13.3z" fill="currentColor"></path></svg>
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M14.67 14.67V1.33L1.33 14.67h13.34z" fill="currentColor"></path></svg>
+        <svg width="22" height="11" viewBox="0 0 22 11"><rect x="0.5" y="0.5" width="18" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity="0.45"></rect><rect x="2" y="2" width="13" height="7" rx="1" fill="currentColor"></rect><rect x="19.5" y="3.5" width="2" height="4" rx="1" fill="currentColor" fill-opacity="0.45"></rect></svg>
+      </div>
+    </div>
+
+    <!-- scrolling content -->
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+
+      <!-- top row: back + eyebrow -->
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 22px 6px;">
+        <a href="Today for Ranjit.dc.html" aria-label="Back to Today" style="width: 38px; height: 38px; border-radius: 50%; background: var(--bg-elev); color: var(--ink); border: 0.5px solid var(--line); display: flex; align-items: center; justify-content: center; flex-shrink: 0; text-decoration: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+        </a>
+        <div style="font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); white-space: nowrap;">Movement · Tue 16 Jun</div>
+      </div>
+
+      <!-- hero -->
+      <div style="padding: 8px 22px 4px;">
+        <div style="position: relative; overflow: hidden; border-radius: var(--radius-card); background: var(--surface-hero); color: var(--sage-ink); box-shadow: var(--shadow-hero); padding: 24px;">
+          <div style="position: absolute; top: -50px; right: -40px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(246,243,238,0.12), transparent 70%); pointer-events: none;"></div>
+          <div style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px 5px 9px; border-radius: 999px; background: rgba(246,243,238,0.14); margin-bottom: 16px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #d9e8d2; box-shadow: 0 0 0 4px rgba(217,232,210,0.18);"></span>
+            <span style="font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: rgba(246,243,238,0.78);">{{ heroEyebrow }}</span>
+          </div>
+          <div style="font-family: var(--font-serif); font-size: 31px; line-height: 1.12; letter-spacing: -.012em;">{{ heroHead }}</div>
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 20px;">
+            <span style="font-family: var(--font-serif); font-size: 46px; line-height: 1;">4,120</span>
+            <span style="font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: rgba(246,243,238,0.72);">steps · goal 4,000</span>
+          </div>
+          <div style="height: 7px; border-radius: 999px; background: rgba(246,243,238,0.18); overflow: hidden; margin-top: 12px;">
+            <div style="height: 100%; width: 100%; border-radius: 999px; background: #d9e8d2;"></div>
+          </div>
+          <div style="font-size: 14.5px; line-height: 1.5; color: rgba(246,243,238,0.82); margin-top: 16px;">{{ heroBody }}</div>
+        </div>
+      </div>
+
+      <!-- hour by hour -->
+      <div style="font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); padding: 24px 22px 10px;">Your steps, hour by hour</div>
+      <div style="padding: 0 22px;">
+        <div style="border-radius: var(--radius-card); background: var(--bg-elev); border: 0.5px solid var(--line); box-shadow: var(--shadow-soft); padding: 20px;">
+          <div style="display: flex; align-items: flex-end; gap: 4px; height: 110px;">
+            <sc-for list="{{ hourBars }}" as="h" hint-placeholder-count="16">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; min-width: 0;">
+                <span style="font-family: var(--font-mono); font-size: 9px; letter-spacing: .02em; color: var(--sage); font-weight: 700; white-space: nowrap;">{{ h.val }}</span>
+                <div style="{{ h.barStyle }}"></div>
+                <span style="font-family: var(--font-mono); font-size: 9px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-mute); height: 12px; white-space: nowrap;">{{ h.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin-top: 16px; padding-top: 14px; border-top: 0.5px solid var(--line);">{{ hourFoot }}</div>
+        </div>
+      </div>
+
+      <!-- this week -->
+      <div style="font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); padding: 24px 22px 10px;">Your last seven days</div>
+      <div style="padding: 0 22px;">
+        <div style="border-radius: var(--radius-card); background: var(--bg-elev); border: 0.5px solid var(--line); box-shadow: var(--shadow-soft); padding: 20px;">
+          <div style="display: flex; align-items: flex-end; gap: 10px; height: 110px; position: relative;">
+            <div style="position: absolute; left: 0; right: 0; bottom: {{ avgBottom }}px; border-top: 1.5px dashed color-mix(in srgb, var(--ink-mute) 65%, transparent); pointer-events: none;"></div>
+            <span style="position: absolute; left: 0; bottom: 86px; transform: translateY(50%); background: var(--bg-elev); padding: 1px 7px 1px 0; font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); pointer-events: none; white-space: nowrap; z-index: 1;">avg 3,800</span>
+            <div style="position: absolute; left: 0; right: 0; bottom: {{ goalLineBottom }}px; display: {{ goalDisplay }}; border-top: 1.5px dashed color-mix(in srgb, var(--sage) 70%, transparent); pointer-events: none;"></div>
+            <span style="position: absolute; right: 0; bottom: {{ goalTextBottom }}px; display: {{ goalDisplay }}; background: var(--bg-elev); padding: 1px 0 1px 7px; font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--sage); font-weight: 700; pointer-events: none; white-space: nowrap; z-index: 1;">goal {{ goalText }}</span>
+            <sc-for list="{{ weekBars }}" as="b" hint-placeholder-count="7">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; height: 100%; justify-content: flex-end;">
+                <div style="{{ b.barStyle }}"></div>
+                <span style="{{ b.dayStyle }}">{{ b.day }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin-top: 16px; padding-top: 14px; border-top: 0.5px solid var(--line);">{{ weekFoot }}</div>
+        </div>
+      </div>
+
+      <!-- knee note -->
+      <div style="padding: 16px 22px 0;">
+        <div style="border-radius: var(--radius-card); background: color-mix(in srgb, var(--amber) 9%, var(--bg-elev)); border: 0.5px solid color-mix(in srgb, var(--amber) 26%, var(--line)); padding: 18px 20px; display: flex; align-items: flex-start; gap: 14px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-bubble); flex-shrink: 0; background: var(--amber); color: #fff;">{{ heartEl }}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--ink);">{{ kneeTitle }}</div>
+            <div style="font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); margin-top: 5px;">{{ kneeBody }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- still ahead -->
+      <div style="padding: 12px 22px 0;">
+        <a href="Goals for Ranjit.dc.html" style="display: flex; align-items: center; gap: 14px; text-decoration: none; border-radius: var(--radius-card); background: var(--bg-elev); border: 0.5px solid var(--line); box-shadow: var(--shadow-soft); padding: 18px 20px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-bubble); flex-shrink: 0; background: var(--sage); color: var(--sage-ink);">{{ walkEl }}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-mute);">Still ahead today</div>
+            <div style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: var(--ink); margin-top: 3px;">Evening walk · 6:00 PM</div>
+            <div style="font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-top: 2px;">A gentle round at an easy pace — it's on your plan.</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M9 5l7 7-7 7"></path></svg>
+        </a>
+      </div>
+
+      <!-- closing line -->
+      <div style="padding: 22px 30px 22px; font-size: 12.5px; line-height: 1.55; color: var(--ink-mute); text-align: center;">{{ closingLine }}</div>
+
+      <!-- gesture bar -->
+      <div style="height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i style="width: 124px; height: 4px; border-radius: 4px; background: var(--ink); opacity: .26; display: block;"></i>
+      </div>
+    </div>
+
+    <!-- bottom nav -->
+    <x-import component-from-global-scope="SahayakDesignSystem_f4b29a.BottomNav" active="{{ tab }}" onnav="{{ onNav }}" hint-size="100%,64px"></x-import>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 412, &quot;height&quot;: 892 },
+  &quot;tone&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;warm&quot;, &quot;options&quot;: [&quot;warm&quot;, &quot;clinical&quot;, &quot;chatty&quot;] },
+  &quot;theme&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;warm&quot;, &quot;options&quot;: [&quot;warm&quot;, &quot;cool&quot;, &quot;dark&quot;] }
+}">
+class Component extends DCLogic {
+  state = { tab: 'home' };
+
+  componentDidMount() {
+    if (!window.SahayakDesignSystem_f4b29a?.Icon) {
+      const t = setInterval(() => {
+        if (window.SahayakDesignSystem_f4b29a?.Icon) { clearInterval(t); this.forceUpdate(); }
+      }, 60);
+      setTimeout(() => clearInterval(t), 3000);
+    }
+  }
+
+  renderVals() {
+    const Icon = window.SahayakDesignSystem_f4b29a?.Icon;
+    const mk = (name, size, color) => Icon ? React.createElement(Icon, { name, size: size || 18, color: color || 'currentColor', stroke: 1.7 }) : null;
+
+    const tone = this.props.tone ?? 'warm';
+    const copy = {
+      warm: {
+        eyebrow: 'Past your goal',
+        head: 'You walked past your goal today, Ranjit.',
+        body: 'The morning walk with Sunita did most of the work — your best day this week, and it isn\u2019t even lunch.',
+        hourFoot: 'Almost all of it in one go — the seven o\u2019clock walk with Sunita. The rest of the day is still yours.',
+        weekFoot: 'Averaging 3,800 a day — active all week, even through Saturday\u2019s rain.',
+        kneeTitle: 'A kind word for your knee',
+        kneeBody: 'Flat walks are healing it better than rest alone. Keep to level ground, and skip the stairs when you can.',
+        closing: 'Every step here counts itself — you just keep walking. We\u2019ll tally again tomorrow.',
+      },
+      clinical: {
+        eyebrow: 'Goal reached',
+        head: 'Step goal reached: 4,120 of 4,000.',
+        body: 'Primary activity: morning walk, 2,600 steps. Highest daily total in the last 7 days.',
+        hourFoot: 'Peak activity 7\u20138 AM: 2,320 steps (morning walk). Counting continues through the day.',
+        weekFoot: '7-day average: 3,800 steps/day. Activity consistent across the week.',
+        kneeTitle: 'Knee care reminder',
+        kneeBody: 'Post-replacement recovery: prefer level walking. Avoid stairs and inclines where possible.',
+        closing: 'Steps are logged automatically. Next summary tomorrow morning.',
+      },
+      chatty: {
+        eyebrow: 'Goal done, already',
+        head: 'Look at you — past your goal before lunch.',
+        body: 'That morning walk with Sunita did the heavy lifting. Best day of your week, easily.',
+        hourFoot: 'One big burst at seven — that walk with Sunita. Plenty of day left to add more.',
+        weekFoot: 'About 3,800 a day this week — you kept moving even in Saturday\u2019s rain.',
+        kneeTitle: 'Quick word about the knee',
+        kneeBody: 'Flat walks are doing it a world of good. Stick to level ground and give the stairs a miss.',
+        closing: 'The counting happens on its own — you just keep walking. See you tomorrow.',
+      },
+    };
+    const C = copy[tone] || copy.warm;
+
+    // hour by hour (day so far — it's 9:30 AM)
+    const hours = [
+      { label: '6a', v: 180 },
+      { label: '',   v: 2320, peak: true },
+      { label: '',   v: 1040 },
+      { label: '9a', v: 580 },
+      { label: '' }, { label: '' },
+      { label: '12p' },
+      { label: '' }, { label: '' },
+      { label: '3p' },
+      { label: '' }, { label: '' },
+      { label: '6p' },
+      { label: '' }, { label: '' },
+      { label: '9p' },
+    ];
+    const hourMax = 2320;
+    const hourBars = hours.map((h, i) => {
+      const future = h.v === undefined;
+      return {
+        label: h.label,
+        val: h.peak ? '2,320' : '',
+        barStyle: future
+          ? { width: '100%', maxWidth: 12, height: 3, borderRadius: 3, background: 'var(--muted)' }
+          : {
+              width: '100%', maxWidth: 12, borderRadius: 4,
+              height: Math.max(4, Math.round((h.v / hourMax) * 72)) + 'px',
+              background: h.peak ? 'var(--sage)' : 'color-mix(in srgb, var(--sage) 45%, var(--muted))',
+              transformOrigin: 'bottom',
+              animation: 'barsRise .5s cubic-bezier(.3,.7,.4,1) both',
+              animationDelay: (i * 0.03) + 's',
+            },
+      };
+    });
+
+    // last seven days
+    const week = [
+      { day: 'W', v: 3620 }, { day: 'T', v: 3840 }, { day: 'F', v: 3410 },
+      { day: 'S', v: 3980 }, { day: 'S', v: 4050 }, { day: 'M', v: 3760 },
+      { day: 'T', v: 4120, today: true },
+    ];
+    const goal = 4000; // Can be null if not set
+    const avg = 3800;
+    
+    const validGoal = (typeof goal === 'number' && goal > 0);
+    // If goal is missing, max is just the max of the week
+    const max = validGoal ? Math.max(goal, ...week.map(d => d.v)) : Math.max(...week.map(d => d.v), 1);
+    
+    const baseOffset = 22;
+    const goalPx = validGoal ? Math.round((goal / max) * 72) : 0;
+    const avgPx = Math.round((avg / max) * 72);
+    
+    const goalLineBottom = baseOffset + goalPx;
+    const goalTextBottom = goalLineBottom + 4;
+    const avgBottom = baseOffset + avgPx;
+    
+    const goalDisplay = validGoal ? 'block' : 'none';
+    const goalText = validGoal ? goal.toLocaleString() : '';
+    
+    const weekBars = week.map((d, i) => ({
+      day: d.day,
+      barStyle: {
+        width: '100%', maxWidth: 30, borderRadius: 7,
+        height: Math.round((d.v / max) * 72) + 'px',
+        background: d.today ? 'var(--sage)' : 'var(--muted)',
+        transformOrigin: 'bottom',
+        animation: 'barsRise .5s cubic-bezier(.3,.7,.4,1) both',
+        animationDelay: (i * 0.04) + 's',
+      },
+      dayStyle: { fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.05em', textTransform: 'uppercase', color: d.today ? 'var(--ink)' : 'var(--ink-mute)', fontWeight: d.today ? 700 : 400 },
+    }));
+
+    return {
+      goalDisplay,
+      goalText,
+      goalLineBottom,
+      goalTextBottom,
+      avgBottom,
+      themeVal: this.props.theme ?? 'warm',
+      heroEyebrow: C.eyebrow,
+      heroHead: C.head,
+      heroBody: C.body,
+      weekFoot: C.weekFoot,
+      kneeTitle: C.kneeTitle,
+      kneeBody: C.kneeBody,
+      closingLine: C.closing,
+      hourBars,
+      hourFoot: C.hourFoot,
+      weekBars,
+      heartEl: mk('heart', 20, '#fff'),
+      walkEl: mk('walk', 20, 'var(--sage-ink)'),
+      tab: this.state.tab,
+      onNav: (id) => this.setState({ tab: id }),
+    };
+  }
+}
+</script>
+
+
+</body></html>
