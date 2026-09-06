@@ -44,7 +44,7 @@ class HealthDataSyncWorker(
 
         return try {
             val lastSyncedPatient = syncPrefsManager.getLastSyncedPatientId()
-            val forceBackfill = workerParams.inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
+            val forceBackfill = inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
             
             if (lastSyncedPatient != patientId) {
                 println("New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous token.")
