@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -30,29 +31,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.wallet.theme.*
 
-data class DocumentItem(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val docType: String,
-    val dateStr: String,
-    val iconLetters: String,
-    val iconColor: Color
-)
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HealthWalletScreen(
     viewModel: HealthWalletViewModel,
-    onNavigateToLabReport: (String) -> Unit = {}
+    onNavigateToLabReport: (String) -> Unit = {},
+    onNavigateBack: () -> Unit = {},
+    onNavigateToUpload: () -> Unit = {}
 ) {
     val groupedDocuments by viewModel.groupedDocuments.collectAsState()
+    val allDocuments by viewModel.allDocuments.collectAsState()
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val categoryCounts by viewModel.categoryCounts.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val uploadState by viewModel.uploadState.collectAsState()
     val context = LocalContext.current
 
@@ -100,9 +98,16 @@ fun HealthWalletScreen(
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    TopHeaderArea()
+                    TopHeaderArea(
+                        totalCount = allDocuments.size,
+                        onNavigateBack = onNavigateBack,
+                        onNavigateToUpload = onNavigateToUpload
+                    )
                     Spacer(modifier = Modifier.height(24.dp))
-                    SearchBarArea()
+                    SearchBarArea(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.setSearchQuery(it) }
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -114,7 +119,11 @@ fun HealthWalletScreen(
                         .background(ZivaaTheme.colors.bg)
                         .padding(bottom = 16.dp)
                 ) {
-                    FilterChipsRow()
+                    FilterChipsRow(
+                        selectedCategory = selectedCategory,
+                        categoryCounts = categoryCounts,
+                        onSelectCategory = { viewModel.setCategory(it) }
+                    )
                 }
             }
 
@@ -202,27 +211,54 @@ fun HealthWalletScreen(
                 }
             }
 
-            groupedDocuments.forEach { (groupName, docs) ->
-                stickyHeader {
-                    SectionHeader(groupName, modifier = Modifier.padding(horizontal = 20.dp))
+            if (groupedDocuments.isEmpty() && uploadState !is com.zivaa.app.data.remote.GlobalUploadState.Uploading && uploadState !is com.zivaa.app.data.remote.GlobalUploadState.Processing) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "No matching documents" else "No documents yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ZivaaTheme.colors.textStrong
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (searchQuery.isNotBlank()) 
+                                "Try searching for a different test or doctor name."
+                            else 
+                                "Upload your lab reports, prescriptions, or scans to keep them organized in one place.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ZivaaTheme.colors.textBody,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-                items(docs) { doc ->
-                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        DocumentCard(doc, onClick = { onNavigateToLabReport(doc.id) })
+            } else {
+                groupedDocuments.forEach { (groupName, docs) ->
+                    stickyHeader {
+                        SectionHeader(groupName, modifier = Modifier.padding(horizontal = 20.dp))
+                    }
+                    items(docs, key = { it.id }) { doc ->
+                        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                            DocumentCard(doc, onClick = { onNavigateToLabReport(doc.id) })
+                        }
                     }
                 }
             }
 
             item {
                 Text(
-                    text = "Everything here is private to the family — and ready in Dr.\nKulkarni's hand before each visit.",
+                    text = "Everything is Private",
                     style = MaterialTheme.typography.bodyMedium,
                     color = ZivaaTheme.colors.textBody,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                         .padding(vertical = 32.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -230,7 +266,12 @@ fun HealthWalletScreen(
 }
 
 @Composable
-fun TopHeaderArea(modifier: Modifier = Modifier) {
+fun TopHeaderArea(
+    totalCount: Int,
+    onNavigateBack: () -> Unit,
+    onNavigateToUpload: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -241,7 +282,7 @@ fun TopHeaderArea(modifier: Modifier = Modifier) {
             modifier = Modifier.weight(1f)
         ) {
             IconButton(
-                onClick = { /* TODO */ },
+                onClick = onNavigateBack,
                 modifier = Modifier
                     .size(40.dp)
                     .border(1.dp, ZivaaTheme.colors.borderStrong, CircleShape)
@@ -259,8 +300,9 @@ fun TopHeaderArea(modifier: Modifier = Modifier) {
                     color = ZivaaTheme.colors.textStrong
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val docLabel = if (totalCount == 1) "1 DOCUMENT" else "$totalCount DOCUMENTS"
                 Text(
-                    text = "20 DOCUMENTS — ALL OF PAPA'S PAPERS, ONE PLACE",
+                    text = "$docLabel — ALL YOUR PAPERS, ONE PLACE",
                     style = MaterialTheme.typography.labelSmall,
                     color = ZivaaTheme.colors.textBody
                 )
@@ -268,14 +310,14 @@ fun TopHeaderArea(modifier: Modifier = Modifier) {
         }
         
         IconButton(
-            onClick = { /* TODO */ },
+            onClick = onNavigateToUpload,
             modifier = Modifier
                 .size(40.dp)
                 .background(ZivaaTheme.colors.accent, CircleShape)
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Add",
+                contentDescription = "Add Document",
                 tint = ZivaaTheme.colors.textOnAccent
             )
         }
@@ -283,7 +325,11 @@ fun TopHeaderArea(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SearchBarArea(modifier: Modifier = Modifier) {
+fun SearchBarArea(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -300,29 +346,60 @@ fun SearchBarArea(modifier: Modifier = Modifier) {
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "Search... try 'knee' or 'Dr. Kulkarni'",
-            style = MaterialTheme.typography.bodyLarge,
-            color = ZivaaTheme.colors.textBody
-        )
+        Box(modifier = Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text(
+                    text = "Search... try 'knee' or 'Dr. Kulkarni'",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = ZivaaTheme.colors.textBody
+                )
+            }
+            androidx.compose.foundation.text.BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = ZivaaTheme.colors.textStrong),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (query.isNotEmpty()) {
+            IconButton(
+                onClick = { onQueryChange("") },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear search",
+                    tint = ZivaaTheme.colors.textBody,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun FilterChipsRow() {
-    val filters = listOf("All · 12", "Lab reports · 4", "Prescriptions · 2", "X-rays · 2")
+fun FilterChipsRow(
+    selectedCategory: DocumentCategory,
+    categoryCounts: Map<DocumentCategory, Int>,
+    onSelectCategory: (DocumentCategory) -> Unit
+) {
+    val categories = DocumentCategory.values()
     
     LazyRow(
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(filters.size) { index ->
-            val isSelected = index == 0
-            val text = filters[index]
+        items(categories) { category ->
+            val isSelected = category == selectedCategory
+            val count = categoryCounts[category] ?: 0
+            val text = "${category.label} · $count"
             
             Box(
                 modifier = Modifier
                     .height(36.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { onSelectCategory(category) }
                     .border(
                         width = 1.dp,
                         color = if (isSelected) Color.Transparent else ZivaaTheme.colors.borderStrong,

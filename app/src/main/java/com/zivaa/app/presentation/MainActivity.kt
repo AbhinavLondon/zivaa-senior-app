@@ -523,7 +523,9 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToLabReport = { reportId -> 
                                         currentReportId = reportId
                                         currentScreen = "lab_report" 
-                                    }
+                                    },
+                                    onNavigateBack = { currentScreen = "dashboard" },
+                                    onNavigateToUpload = { currentScreen = "upload_document" }
                                 )
                             }
                             "lab_report" -> {
