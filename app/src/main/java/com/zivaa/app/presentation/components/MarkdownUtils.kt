@@ -98,17 +98,17 @@ fun MarkdownText(
             }
 
             // 3. Bullets
-            val isBullet = trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")
+            val isBullet = trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ") || trimmedLine.startsWith("• ")
             val isNumbered = trimmedLine.matches(Regex("^[0-9]+\\. .*"))
 
             if (isBullet || isNumbered) {
                 flushBlock()
                 
                 val bulletBuilder = AnnotatedString.Builder()
-                val processedLine = if (isBullet) {
-                    "• " + trimmedLine.substring(2)
-                } else {
-                    trimmedLine
+                val processedLine = when {
+                    trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ") -> "• " + trimmedLine.substring(2)
+                    trimmedLine.startsWith("• ") -> trimmedLine
+                    else -> trimmedLine
                 }
 
                 bulletBuilder.withStyle(style = ParagraphStyle(textIndent = TextIndent(restLine = 20.sp))) {
