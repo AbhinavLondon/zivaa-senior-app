@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "1.0.14"
+        versionCode = 16
+        versionName = "1.0.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.14 - Backend and frontend FHIR category fixes"
+                releaseNotes = "Zivaa v1.0.15 - Replace Sahayak with Zivaa Plain Summary in Lab Summary"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
