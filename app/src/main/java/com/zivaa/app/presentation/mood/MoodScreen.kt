@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.mood.components.MoodActionCard
 import com.zivaa.app.presentation.mood.components.MoodCheckInCard
 import com.zivaa.app.presentation.mood.components.MoodHeroCard
-import com.zivaa.app.presentation.mood.components.MoodInsightCard
 import com.zivaa.app.presentation.mood.components.MoodWeeklyHistory
 import com.zivaa.app.presentation.mood.theme.SahayakTheme
 
@@ -112,8 +111,6 @@ fun MoodScreen(
                     modifier = Modifier.fillMaxWidth(),
                     checkins = state.checkins
                 )
-                
-                MoodInsightCard(modifier = Modifier.fillMaxWidth())
                 
                 MoodActionCard(
                     modifier = Modifier.fillMaxWidth(),
