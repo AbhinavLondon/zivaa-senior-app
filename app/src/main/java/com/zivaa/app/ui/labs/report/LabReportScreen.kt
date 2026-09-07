@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
+import com.zivaa.app.presentation.components.MarkdownText
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.theme.ZivaaTheme
 
@@ -161,10 +162,9 @@ fun HeroSection(state: LabReportState) {
                 color = ZivaaTheme.colors.sageInk
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
+            MarkdownText(
                 text = state.heroText,
-                style = MaterialTheme.typography.bodyLarge,
-                color = ZivaaTheme.colors.sageInk.copy(alpha = 0.8f)
+                color = ZivaaTheme.colors.sageInk.copy(alpha = 0.9f)
             )
         }
     }
