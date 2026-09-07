@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.wallet.theme.*
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -425,12 +426,12 @@ fun FilterChipsRow(
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelSmall,
-        color = ZivaaTheme.colors.textBody,
+        text = title.toEyebrowTitleCase(),
+        style = com.zivaa.app.ui.theme.ZivaaTheme.typography.eyebrow,
+        color = androidx.compose.ui.graphics.Color(0xFF111111),
         modifier = modifier
             .fillMaxWidth()
-            .background(ZivaaTheme.colors.bg)
+            .background(com.zivaa.app.ui.theme.ZivaaTheme.colors.bg)
             .padding(vertical = 8.dp)
     )
 }

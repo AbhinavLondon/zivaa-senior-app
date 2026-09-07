@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.zivaa.app.presentation.nutrition.components.DayItem
 import com.zivaa.app.presentation.nutrition.components.DaySelectorRow
@@ -47,6 +48,7 @@ import com.zivaa.app.presentation.nutrition.components.MealCard
 import com.zivaa.app.presentation.nutrition.components.NutritionSummaryCard
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import java.time.LocalDate
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
@@ -212,9 +214,9 @@ fun NutritionScreen(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "FOOD - WHAT YOU ATE",
+                        text = "Food · What You Ate",
                         style = typography.eyebrow,
-                        color = colors.textMeta
+                        color = Color(0xFF111111)
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
@@ -254,14 +256,14 @@ fun NutritionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "MEALS TODAY",
+                            text = "Meals Today",
                             style = typography.eyebrow,
-                            color = colors.textMeta
+                            color = Color(0xFF111111)
                         )
                         Text(
-                            text = "$loggedMealsCount OF 4 LOGGED",
+                            text = "$loggedMealsCount Of 4 Logged",
                             style = typography.eyebrow,
-                            color = colors.textMeta
+                            color = Color(0xFF111111)
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))

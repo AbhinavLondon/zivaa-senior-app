@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
@@ -140,9 +141,9 @@ fun PlanScreen(
                     item {
                         val category = task.category ?: periodName
                         val tagText = if (!task.time.isNullOrEmpty()) {
-                            "${category.uppercase()} • ${task.time}"
+                            "${category.toEyebrowTitleCase()} • ${task.time}"
                         } else {
-                            category.uppercase()
+                            category.toEyebrowTitleCase()
                         }
                         
                         val (icon, bgColor, _) = com.zivaa.app.presentation.dashboard.getGoalIconAndColors(task.task)
@@ -193,9 +194,9 @@ fun PlanScreenHeader() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "YOUR DAY • TUE 16 JUN",
+            text = "Your Day • Tue 16 Jun",
             style = typography.eyebrow,
-            color = colors.inkMute
+            color = androidx.compose.ui.graphics.Color(0xFF111111)
         )
 
         Box(
@@ -240,7 +241,7 @@ fun PlanScreenHero(summary: String = "") {
     ) {
         Column {
             Text(
-                text = "TODAY • TUE 16 JUN",
+                text = "Today • Tue 16 Jun",
                 style = typography.eyebrow,
                 color = colors.sageInk.copy(alpha = 0.7f)
             )
@@ -341,7 +342,7 @@ fun PlanSectionHeader(
             Text(
                 text = timeRange,
                 style = typography.eyebrow,
-                color = colors.inkSoft
+                color = androidx.compose.ui.graphics.Color(0xFF111111)
             )
         }
 
@@ -426,7 +427,7 @@ fun PlanTaskCard(
                 Text(
                     text = tag,
                     style = typography.eyebrow,
-                    color = colors.inkMute
+                    color = androidx.compose.ui.graphics.Color(0xFF111111)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

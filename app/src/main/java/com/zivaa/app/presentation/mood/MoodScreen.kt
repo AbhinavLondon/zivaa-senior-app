@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +24,7 @@ import com.zivaa.app.presentation.mood.components.MoodCheckInCard
 import com.zivaa.app.presentation.mood.components.MoodHeroCard
 import com.zivaa.app.presentation.mood.components.MoodWeeklyHistory
 import com.zivaa.app.presentation.mood.theme.SahayakTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,7 +47,7 @@ fun MoodScreen(
     val todayCheckins = state.checkins.filter { it.date == todayStr }
     val mostRecentToday = todayCheckins.maxByOrNull { it.date } // Or rely on list order since it's ordered by date.desc, created_at.desc
     
-    val dateDisplay = LocalDate.now().format(DateTimeFormatter.ofPattern("EEE dd MMM", Locale.ENGLISH)).uppercase()
+    val dateDisplay = LocalDate.now().format(DateTimeFormatter.ofPattern("EEE dd MMM", Locale.ENGLISH))
     SahayakTheme(darkTheme = isDarkTheme) {
         Column(
             modifier = modifier
@@ -79,9 +81,9 @@ fun MoodScreen(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "MOOD · $dateDisplay",
+                    text = "Mood · ${dateDisplay.toEyebrowTitleCase()}",
                     style = SahayakTheme.typography.eyebrow,
-                    color = SahayakTheme.colors.inkMute
+                    color = Color(0xFF111111)
                 )
             }
 

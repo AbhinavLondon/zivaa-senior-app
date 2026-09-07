@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @Composable
 fun LabSummaryScreen(
@@ -74,7 +75,7 @@ fun LabSummaryScreen(
             if (state.biomarkers.isNotEmpty()) {
                 val notSoGood = state.biomarkers.filter { it.badgeTone == "watch" }
                 if (notSoGood.isNotEmpty() && (selectedFilter == null || selectedFilter == "watch")) {
-                    item { CategoryEyebrow(text = "NOT SO GOOD - SMALL FIXES", color = ZivaaTheme.colors.amber) }
+                    item { CategoryEyebrow(text = "Not So Good - Small Fixes", color = ZivaaTheme.colors.amber) }
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                     notSoGood.forEach { biomarker ->
                         item {
@@ -101,7 +102,7 @@ fun LabSummaryScreen(
 
                 val good = state.biomarkers.filter { it.badgeTone == "good" }
                 if (good.isNotEmpty() && (selectedFilter == null || selectedFilter == "good")) {
-                    item { CategoryEyebrow(text = "GOOD", color = ZivaaTheme.colors.leaf) }
+                    item { CategoryEyebrow(text = "Good", color = ZivaaTheme.colors.leaf) }
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                     good.forEach { biomarker ->
                         item {
@@ -128,7 +129,7 @@ fun LabSummaryScreen(
 
                 val bad = state.biomarkers.filter { it.badgeTone == "bad" }
                 if (bad.isNotEmpty() && (selectedFilter == null || selectedFilter == "bad")) {
-                    item { CategoryEyebrow(text = "BAD", color = ZivaaTheme.colors.muted) } // Placeholder color for bad
+                    item { CategoryEyebrow(text = "Bad", color = ZivaaTheme.colors.muted) } // Placeholder color for bad
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                     bad.forEach { biomarker ->
                         item {
@@ -155,7 +156,7 @@ fun LabSummaryScreen(
             
             // What it means
             item { Spacer(modifier = Modifier.height(32.dp)) }
-            item { CategoryEyebrow(text = "WHAT IT MEANS, DAY TO DAY", color = ZivaaTheme.colors.textMeta) }
+            item { CategoryEyebrow(text = "What It Means, Day To Day", color = ZivaaTheme.colors.textMeta) }
             item { Spacer(modifier = Modifier.height(16.dp)) }
             item { AdviceCard() }
             
@@ -378,9 +379,9 @@ fun CategoryEyebrow(text: String, color: Color) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = text,
+            text = text.toEyebrowTitleCase(),
             style = ZivaaTheme.typography.eyebrow,
-            color = color
+            color = Color(0xFF111111)
         )
     }
 }

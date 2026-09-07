@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 // removed NavController
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.time.LocalDate
@@ -96,10 +97,10 @@ fun SleepScreen(
                     isHeroInsightLoading = viewModel.isHeroInsightLoading
                 )
 
-                SectionHeader(title = "How the night went")
+                SectionHeader(title = "How The Night Went")
                 NightEventsList(events = viewModel.nightEvents)
 
-                SectionHeader(title = "Your last seven nights")
+                SectionHeader(title = "Your Last Seven Nights")
                 WeeklySleepChart(
                     history = viewModel.sleepHistory,
                     averageSleep = viewModel.averageSleepHoursText,
@@ -288,11 +289,10 @@ private fun HeroCard(latestSleep: String, latestSleepStartEndTime: String, summa
 
 @Composable
 private fun SectionHeader(title: String) {
-    val colors = ZivaaTheme.colors
     Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = colors.inkMute,
+        text = title.toEyebrowTitleCase(),
+        style = ZivaaTheme.typography.eyebrow,
+        color = androidx.compose.ui.graphics.Color(0xFF111111),
         modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 24.dp, bottom = 10.dp)
     )
 }

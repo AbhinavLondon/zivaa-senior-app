@@ -16,6 +16,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -27,12 +31,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.mood.components.FaceIcon
 import com.zivaa.app.presentation.mood.theme.SahayakTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 // --- Data Models & Constants ---
 
@@ -46,16 +54,48 @@ val MOOD_DESCRIPTIONS = listOf(
 )
 
 val EMOTION_SETS = listOf(
-    listOf("Joyful", "Grateful", "Peaceful", "Loved", "Excited", "Light", "Playful", "Thankful"),
-    listOf("Content", "Hopeful", "Relaxed", "Cheerful", "Calm", "At ease", "Warm", "Settled"),
-    listOf("Fine", "Quiet", "Bored", "A little tired", "Indifferent", "Steady", "Flat", "Calm"),
-    listOf("Sad", "Worried", "Tired", "Frustrated", "Restless", "Missing someone", "Lonely", "Heavy"),
-    listOf("Anxious", "Lonely", "Overwhelmed", "Hurt", "Hopeless", "Empty", "Afraid", "Drained")
+    // 0: Wonderful
+    listOf(
+        "Joyful", "Grateful", "Peaceful", "Loved", "Excited", "Light", "Playful", "Thankful",
+        "Blessed", "Energetic", "Optimistic", "Vibrant", "Proud", "Inspired", "Full of life", "Refreshed"
+    ),
+    // 1: Good
+    listOf(
+        "Content", "Hopeful", "Relaxed", "Cheerful", "Calm", "At ease", "Warm", "Settled",
+        "Comfortable", "Pleased", "Satisfied", "Safe", "Appreciated", "Reassured", "Gentle", "Balanced"
+    ),
+    // 2: Okay
+    listOf(
+        "Fine", "Quiet", "Bored", "A little tired", "Indifferent", "Steady", "Flat", "Calm",
+        "Neutral", "Distracted", "Unmotivated", "Reflective", "Slow", "Routine", "Just getting by"
+    ),
+    // 3: Low
+    listOf(
+        "Sad", "Worried", "Tired", "Frustrated", "Restless", "Missing someone", "Lonely", "Heavy",
+        "Disappointed", "Uneasy", "Downcast", "Stressed", "Irritable", "Nostalgic", "Unsettled", "Low energy"
+    ),
+    // 4: Very low
+    listOf(
+        "Anxious", "Lonely", "Overwhelmed", "Hurt", "Hopeless", "Empty", "Afraid", "Drained",
+        "Exhausted", "Helpless", "In pain", "Isolated", "Heartbroken", "Panicky", "Grieving", "Struggling"
+    )
 )
 
-val CAUSE_POS = listOf("Family time", "A good rest", "Feeling healthy", "A friend visited", "Time in the garden", "A call from the children", "Prayer & temple", "A good meal")
-val CAUSE_NEU = listOf("How I slept", "The weather", "A quiet day", "My health", "Family", "Just one of those days", "A bit of both", "Nothing in particular")
-val CAUSE_LOW = listOf("Missing family", "Aches & pains", "Poor sleep", "Feeling alone", "Worry about my health", "The weather", "Too quiet at home", "Nothing in particular")
+val CAUSE_POS = listOf(
+    "Family time", "A good rest & sleep", "Feeling healthy & strong", "A friend visited", "Time in the garden",
+    "Call from children", "Prayer & spiritual time", "A good meal", "Morning walk", "Good health checkup",
+    "Grandchildren visit", "Enjoyed a hobby / music", "Accomplished a task", "Sunny pleasant weather", "Peaceful home"
+)
+val CAUSE_NEU = listOf(
+    "How I slept", "The weather", "A quiet day at home", "My health", "Family matters",
+    "Daily routine", "Waiting for news", "Just one of those days", "A bit of both", "Household chores",
+    "Resting today", "Doctor visit coming up", "Nothing in particular"
+)
+val CAUSE_LOW = listOf(
+    "Missing family", "Aches & joint pain", "Poor sleep / insomnia", "Feeling alone", "Worry about health",
+    "Medication side effects", "Fatigue & low energy", "Disagreement or friction", "Gloomy weather", "Financial worries",
+    "Too quiet at home", "Recent loss or grief", "Digestive issues", "Feeling dependent", "Nothing in particular"
+)
 
 val CAUSE_SETS = listOf(CAUSE_POS, CAUSE_POS, CAUSE_NEU, CAUSE_LOW, CAUSE_LOW)
 
@@ -141,9 +181,9 @@ fun MoodCheckInScreen(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "MOOD CHECK-IN",
+                    text = "Mood Check-In",
                     style = SahayakTheme.typography.eyebrow,
-                    color = SahayakTheme.colors.inkMute
+                    color = Color(0xFF111111)
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 
@@ -183,6 +223,7 @@ fun MoodCheckInScreen(
                     ) {
                         when (currentStep) {
                             0 -> StepMood(
+                                userName = viewModel.getUserName(),
                                 onMoodSelected = { 
                                     selectedMood = it
                                     selectedEmotions = emptySet()
@@ -218,6 +259,7 @@ fun MoodCheckInScreen(
                                 }
                             )
                             3 -> StepSummary(
+                                userName = viewModel.getUserName(),
                                 moodIndex = selectedMood ?: 0,
                                 moodColor = moodColor,
                                 selectedEmotions = selectedEmotions,
@@ -339,16 +381,16 @@ fun MoodCheckInScreen(
 // --- Step 0: Mood ---
 
 @Composable
-fun StepMood(onMoodSelected: (Int) -> Unit) {
+fun StepMood(userName: String, onMoodSelected: (Int) -> Unit) {
     Column {
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 8.dp)) {
             Text(
-                text = "TUE 16 JUN · STEP 1 OF 3",
+                text = "Tue 16 Jun · Step 1 Of 3",
                 style = SahayakTheme.typography.eyebrow,
-                color = SahayakTheme.colors.inkMute
+                color = Color(0xFF111111)
             )
             Text(
-                text = "How are you feeling today,\nRanjit?",
+                text = "How are you feeling today, $userName?",
                 style = SahayakTheme.typography.display.copy(fontSize = 31.sp, lineHeight = 33.sp),
                 color = SahayakTheme.colors.ink,
                 modifier = Modifier.padding(top = 8.dp)
@@ -445,6 +487,87 @@ fun MoodSelectionCard(
 // --- Step 1: Emotions ---
 
 @Composable
+fun CustomInputRow(
+    placeholder: String,
+    accentColor: Color,
+    onAdd: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+
+    val submit = {
+        val trimmed = text.trim()
+        if (trimmed.isNotEmpty()) {
+            onAdd(trimmed)
+            text = ""
+            focusManager.clearFocus()
+        }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(SahayakTheme.colors.bgElev)
+            .border(1.dp, SahayakTheme.colors.lineStrong, RoundedCornerShape(18.dp))
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BasicTextField(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 8.dp),
+            textStyle = SahayakTheme.typography.body.copy(
+                fontSize = 15.sp,
+                color = SahayakTheme.colors.ink
+            ),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { submit() }
+            ),
+            decorationBox = { innerTextField ->
+                if (text.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = SahayakTheme.typography.body.copy(
+                            fontSize = 15.sp,
+                            color = SahayakTheme.colors.inkMute
+                        )
+                    )
+                }
+                innerTextField()
+            }
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        val canAdd = text.isNotBlank()
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(if (canAdd) accentColor else SahayakTheme.colors.lineStrong.copy(alpha = 0.5f))
+                .clickable(enabled = canAdd, onClick = submit),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add custom item",
+                tint = if (canAdd) Color.White else SahayakTheme.colors.inkMute,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun StepEmotions(
     moodIndex: Int,
     moodColor: Color,
@@ -452,6 +575,14 @@ fun StepEmotions(
     selectedEmotions: Set<String>,
     onEmotionToggle: (String) -> Unit
 ) {
+    var customEmotions by remember(moodIndex) {
+        mutableStateOf(selectedEmotions.filter { it !in EMOTION_SETS[moodIndex] }.toSet())
+    }
+
+    val allEmotions = remember(moodIndex, customEmotions) {
+        (EMOTION_SETS[moodIndex] + customEmotions).distinct()
+    }
+
     Column {
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 8.dp)) {
             // Mood pill
@@ -465,7 +596,7 @@ fun StepEmotions(
             ) {
                 FaceIcon(moodIndex = moodIndex, size = 26.dp, color = moodColor)
                 Text(
-                    text = "FEELING ${MOOD_LABELS[moodIndex].uppercase()}",
+                    text = "Feeling ${MOOD_LABELS[moodIndex].toEyebrowTitleCase()}",
                     style = SahayakTheme.typography.eyebrow,
                     color = moodColor
                 )
@@ -473,9 +604,9 @@ fun StepEmotions(
             
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "STEP 2 OF 3",
+                text = "Step 2 Of 3",
                 style = SahayakTheme.typography.eyebrow,
-                color = SahayakTheme.colors.inkMute
+                color = Color(0xFF111111)
             )
             Text(
                 text = "Which feeling fits best?",
@@ -484,7 +615,7 @@ fun StepEmotions(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                text = "Pick as many as feel true — you can choose more than one.",
+                text = "Pick as many as feel true — or type your own below.",
                 style = SahayakTheme.typography.body.copy(fontSize = 15.sp, lineHeight = 22.sp),
                 color = SahayakTheme.colors.inkSoft,
                 modifier = Modifier.padding(top = 10.dp)
@@ -494,11 +625,11 @@ fun StepEmotions(
         // FlowRow for chips
         @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
         FlowRow(
-            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 24.dp),
+            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(11.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            EMOTION_SETS[moodIndex].forEach { emotion ->
+            allEmotions.forEach { emotion ->
                 val isSelected = selectedEmotions.contains(emotion)
                 Chip(
                     text = emotion,
@@ -507,6 +638,28 @@ fun StepEmotions(
                     onClick = { onEmotionToggle(emotion) }
                 )
             }
+        }
+
+        // Manual entry field
+        Column(
+            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 16.dp)
+        ) {
+            Text(
+                text = "Type your own feeling:",
+                style = SahayakTheme.typography.eyebrow.copy(fontSize = 11.sp),
+                color = SahayakTheme.colors.inkMute,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            CustomInputRow(
+                placeholder = "e.g. Relieved, Nostalgic, Inspired...",
+                accentColor = moodColor,
+                onAdd = { newEmotion ->
+                    customEmotions = customEmotions + newEmotion
+                    if (!selectedEmotions.contains(newEmotion)) {
+                        onEmotionToggle(newEmotion)
+                    }
+                }
+            )
         }
     }
 }
@@ -522,6 +675,14 @@ fun StepCauses(
     selectedCauses: Set<String>,
     onCauseToggle: (String) -> Unit
 ) {
+    var customCauses by remember(moodIndex) {
+        mutableStateOf(selectedCauses.filter { it !in CAUSE_SETS[moodIndex] }.toSet())
+    }
+
+    val allCauses = remember(moodIndex, customCauses) {
+        (CAUSE_SETS[moodIndex] + customCauses).distinct()
+    }
+
     Column {
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 8.dp)) {
             // Mood pill
@@ -534,9 +695,9 @@ fun StepCauses(
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 FaceIcon(moodIndex = moodIndex, size = 26.dp, color = moodColor)
-                val summaryText = if (selectedEmotions.isNotEmpty()) selectedEmotions.joinToString(", ") else "CHOOSING A FEELING"
+                val summaryText = if (selectedEmotions.isNotEmpty()) selectedEmotions.joinToString(", ") else "Choosing A Feeling"
                 Text(
-                    text = summaryText.uppercase(),
+                    text = summaryText.toEyebrowTitleCase(),
                     style = SahayakTheme.typography.eyebrow,
                     color = moodColor
                 )
@@ -544,9 +705,9 @@ fun StepCauses(
             
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "STEP 3 OF 3",
+                text = "Step 3 Of 3",
                 style = SahayakTheme.typography.eyebrow,
-                color = SahayakTheme.colors.inkMute
+                color = Color(0xFF111111)
             )
             Text(
                 text = "What makes you feel that way?",
@@ -555,7 +716,7 @@ fun StepCauses(
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
-                text = "Choose anything that's on your mind today.",
+                text = "Choose from the list, or type what's behind it today.",
                 style = SahayakTheme.typography.body.copy(fontSize = 15.sp, lineHeight = 22.sp),
                 color = SahayakTheme.colors.inkSoft,
                 modifier = Modifier.padding(top = 10.dp)
@@ -565,11 +726,11 @@ fun StepCauses(
         // FlowRow for chips
         @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
         FlowRow(
-            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 24.dp),
+            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(11.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            CAUSE_SETS[moodIndex].forEach { cause ->
+            allCauses.forEach { cause ->
                 val isSelected = selectedCauses.contains(cause)
                 Chip(
                     text = cause,
@@ -579,6 +740,28 @@ fun StepCauses(
                 )
             }
         }
+
+        // Manual entry field
+        Column(
+            modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 16.dp)
+        ) {
+            Text(
+                text = "Type what's behind it:",
+                style = SahayakTheme.typography.eyebrow.copy(fontSize = 11.sp),
+                color = SahayakTheme.colors.inkMute,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            CustomInputRow(
+                placeholder = "e.g. Garden bloomed, Knees were aching...",
+                accentColor = moodColor,
+                onAdd = { newCause ->
+                    customCauses = customCauses + newCause
+                    if (!selectedCauses.contains(newCause)) {
+                        onCauseToggle(newCause)
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -586,6 +769,7 @@ fun StepCauses(
 
 @Composable
 fun StepSummary(
+    userName: String,
     moodIndex: Int,
     moodColor: Color,
     selectedEmotions: Set<String>,
@@ -621,7 +805,7 @@ fun StepSummary(
                     Spacer(modifier = Modifier.height(18.dp))
                     
                     Text(
-                        text = "Thank you for sharing,\nRanjit.",
+                        text = "Thank you for sharing,\n$userName.",
                         style = SahayakTheme.typography.display.copy(fontSize = 30.sp, lineHeight = 33.sp),
                         color = Color.White
                     )
@@ -639,9 +823,9 @@ fun StepSummary(
         // Summary details
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 8.dp)) {
             Text(
-                text = "WHAT YOU TOLD ME",
+                text = "What You Told Me",
                 style = SahayakTheme.typography.eyebrow,
-                color = SahayakTheme.colors.inkMute
+                color = Color(0xFF111111)
             )
             
             Surface(
@@ -710,9 +894,9 @@ fun SummaryRow(label: String, content: @Composable () -> Unit) {
         verticalAlignment = Alignment.Top
     ) {
         Text(
-            text = label.uppercase(),
+            text = label.toEyebrowTitleCase(),
             style = SahayakTheme.typography.eyebrow.copy(fontSize = 10.sp),
-            color = SahayakTheme.colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier
                 .width(64.dp)
                 .padding(top = 5.dp)

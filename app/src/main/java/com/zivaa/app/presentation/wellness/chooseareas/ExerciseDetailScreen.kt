@@ -22,12 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.data.remote.SupabaseExerciseRecord
 import com.zivaa.app.presentation.wellness.chooseareas.theme.ChooseAreasTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @Composable
 fun ExerciseDetailScreen(
@@ -216,9 +218,9 @@ private fun DetailSection(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = title.uppercase(),
+                text = title.toEyebrowTitleCase(),
                 style = ChooseAreasTheme.typography.eyebrow.copy(fontWeight = FontWeight.Bold),
-                color = color
+                color = Color(0xFF111111)
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
