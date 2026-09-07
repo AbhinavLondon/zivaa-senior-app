@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.R
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.theme.zivaaShadow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -179,9 +180,9 @@ fun EverydayMedicinesScreen(
                             )
                         }
                         Text(
-                            text = category.title.uppercase(),
+                            text = category.title.toEyebrowTitleCase(),
                             style = typography.eyebrow,
-                            color = colors.inkMute,
+                            color = Color(0xFF111111),
                             modifier = Modifier.padding(end = 40.dp)
                         )
                         Spacer(modifier = Modifier.width(38.dp))

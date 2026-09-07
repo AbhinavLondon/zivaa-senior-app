@@ -146,9 +146,9 @@ fun ChooseAreasScreen(
                 
                 // Ready-made sets
                 Text(
-                    text = "READY-MADE SETS",
+                    text = "Ready-Made Sets",
                     style = ChooseAreasTheme.typography.eyebrow,
-                    color = ChooseAreasTheme.colors.inkMute,
+                    color = Color(0xFF111111),
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
                 Text(
@@ -193,9 +193,9 @@ fun ChooseAreasScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "OR CHOOSE YOUR OWN · HEAD TO TOE",
+                        text = "Or Choose Your Own · Head To Toe",
                         style = ChooseAreasTheme.typography.eyebrow,
-                        color = ChooseAreasTheme.colors.inkMute
+                        color = Color(0xFF111111)
                     )
                     Text(
                         text = "Clear",
@@ -280,9 +280,9 @@ fun HeaderSection(selectedParts: List<String>, onBackClick: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.size(12.dp))
                 Text(
-                    text = "BODY · CHOOSE AREAS",
+                    text = "Body · Choose Areas",
                     style = ChooseAreasTheme.typography.eyebrow,
-                    color = ChooseAreasTheme.colors.inkMute
+                    color = Color(0xFF111111)
                 )
             }
 
@@ -567,7 +567,7 @@ fun FooterSection(selectedCount: Int, totalMins: Int, onBuildClick: () -> Unit) 
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (selectedCount == 0) "NOTHING SELECTED" else "$selectedCount AREAS · $totalMins MINS",
+                        text = if (selectedCount == 0) "Nothing Selected" else "$selectedCount Areas · $totalMins Mins",
                         style = ChooseAreasTheme.typography.meta,
                         color = ChooseAreasTheme.colors.inkMute
                     )

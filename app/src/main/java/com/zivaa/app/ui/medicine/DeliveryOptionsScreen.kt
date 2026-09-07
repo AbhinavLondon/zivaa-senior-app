@@ -128,9 +128,9 @@ fun DeliveryOptionsScreen(
                             )
                         }
                         Text(
-                            text = "WHEN & WHERE",
+                            text = "When & Where",
                             style = typography.eyebrow,
-                            color = colors.inkMute,
+                            color = Color(0xFF111111),
                             modifier = Modifier.padding(end = 40.dp)
                         )
                         Spacer(modifier = Modifier.width(38.dp))
@@ -160,9 +160,9 @@ fun DeliveryOptionsScreen(
 
                 item {
                     Text(
-                        text = "DELIVERY TIME",
+                        text = "Delivery Time",
                         style = typography.eyebrow,
-                        color = colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp)
                     )
                 }
@@ -221,9 +221,9 @@ fun DeliveryOptionsScreen(
 
                 item {
                     Text(
-                        text = "DELIVER TO",
+                        text = "Deliver To",
                         style = typography.eyebrow,
-                        color = colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp)
                     )
                     
@@ -261,9 +261,9 @@ fun DeliveryOptionsScreen(
                             Text(text = "12 Gulmohar Lane, Koregaon Park, Pune", style = typography.bodySmall, color = colors.inkSoft, modifier = Modifier.padding(top = 4.dp))
                         }
                         Text(
-                            text = "CHANGE",
+                            text = "Change",
                             style = typography.eyebrow.copy(fontWeight = FontWeight.Bold),
-                            color = colors.sage,
+                            color = Color(0xFF111111),
                             modifier = Modifier.padding(start = 12.dp)
                         )
                     }

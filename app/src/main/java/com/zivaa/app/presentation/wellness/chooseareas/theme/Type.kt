@@ -78,10 +78,11 @@ val DefaultChooseAreasTypography = ChooseAreasTypography(
     ),
     eyebrow = TextStyle(
         fontFamily = ManropeFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = 11.sp,
         lineHeight = 16.sp, // ~1.45
-        letterSpacing = 0.08.sp
+        letterSpacing = 0.04.sp,
+        color = androidx.compose.ui.graphics.Color(0xFF111111)
     ),
     meta = TextStyle(
         fontFamily = ManropeFontFamily,

@@ -37,11 +37,11 @@ import com.zivaa.app.presentation.mindfulness.theme.MindfulnessTheme
 @Composable
 fun ActiveBreathingScreen(
     onBack: () -> Unit = {},
-    rhythmName: String = "BOX BREATH",
+    rhythmName: String = "Box Breath",
     instructionTitle: String = "Hold",
-    instructionSubtitle: String = "4 SECONDS",
+    instructionSubtitle: String = "4 Seconds",
     hintText: String = "Shoulders soft. Let the belly do the breathing, not\nthe chest.",
-    roundText: String = "ROUND 1"
+    roundText: String = "Round 1"
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

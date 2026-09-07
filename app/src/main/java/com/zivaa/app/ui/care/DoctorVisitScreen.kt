@@ -123,9 +123,9 @@ fun DoctorVisitScreen(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "TALK TO A DOCTOR",
+                        text = "Talk To A Doctor",
                         style = typography.eyebrow,
-                        color = colors.inkMute
+                        color = Color(0xFF111111)
                     )
                 }
             }
@@ -170,7 +170,7 @@ fun DoctorVisitScreen(
                             }
                             Spacer(modifier = Modifier.width(9.dp))
                             Text(
-                                text = "NOT SURE WHO TO SEE?",
+                                text = "Not Sure Who To See?",
                                 style = typography.meta.copy(letterSpacing = 0.08.sp),
                                 color = colors.inkMute
                             )
@@ -210,7 +210,7 @@ fun DoctorVisitScreen(
                         }
 
                         Text(
-                            text = "OR TAP A COMMON ONE",
+                            text = "Or Tap A Common One",
                             style = typography.meta.copy(fontSize = 9.5.sp),
                             color = colors.inkMute,
                             modifier = Modifier.padding(top = 16.dp, bottom = 10.dp)
@@ -246,9 +246,9 @@ fun DoctorVisitScreen(
 
             item {
                 Text(
-                    text = "OR CHOOSE SOMEONE YOURSELF",
+                    text = "Or Choose Someone Yourself",
                     style = typography.eyebrow,
-                    color = colors.inkMute,
+                    color = Color(0xFF111111),
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
                 )
             }
@@ -354,12 +354,12 @@ fun DoctorVisitScreen(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
-                        text = "NEED A SPECIALIST?",
+                        text = "Need A Specialist?",
                         style = typography.eyebrow,
-                        color = colors.inkMute
+                        color = Color(0xFF111111)
                     )
                     Text(
-                        text = "ALL VERIFIED",
+                        text = "All Verified",
                         style = typography.meta.copy(fontSize = 9.5.sp),
                         color = colors.inkMute
                     )

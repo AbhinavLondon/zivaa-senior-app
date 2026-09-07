@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.InstrumentSerif
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,9 +67,9 @@ fun LogMealBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "ADD TO ${mealName.uppercase()}",
+                text = "Add To ${mealName.toEyebrowTitleCase()}",
                 style = typography.eyebrow,
-                color = colors.textMeta
+                color = Color(0xFF111111)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(

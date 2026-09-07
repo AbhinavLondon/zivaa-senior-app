@@ -113,9 +113,9 @@ fun BasketScreen(
                             )
                         }
                         Text(
-                            text = "YOUR ORDER",
+                            text = "Your Order",
                             style = typography.eyebrow,
-                            color = colors.inkMute,
+                            color = Color(0xFF111111),
                             modifier = Modifier.padding(end = 40.dp)
                         )
                         Spacer(modifier = Modifier.width(38.dp))

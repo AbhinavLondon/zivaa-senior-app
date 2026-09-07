@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.mood.theme.SahayakTheme
 import com.zivaa.app.presentation.mood.theme.coloredShadow
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @Composable
 fun getHeroBackgroundColor(moodLabel: String?): Color {
@@ -104,7 +105,7 @@ fun MoodHeroCard(
                             )
                     )
                     Spacer(modifier = Modifier.width(7.dp))
-                    val eyebrowText = if (todayCheckinsCount > 0) "FEELING ${recentMoodLabel?.uppercase() ?: "UNKNOWN"}" else "NO CHECK-INS"
+                    val eyebrowText = if (todayCheckinsCount > 0) "Feeling ${recentMoodLabel?.toEyebrowTitleCase() ?: "Unknown"}" else "No Check-Ins"
                     Text(
                         text = eyebrowText,
                         style = SahayakTheme.typography.eyebrow,

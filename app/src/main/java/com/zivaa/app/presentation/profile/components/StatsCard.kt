@@ -15,11 +15,15 @@ import com.zivaa.app.ui.theme.ZivaaTheme
 
 @Composable
 fun StatsCard(
+    morningReports: Int = 0,
+    homeVisits: Int = 0,
+    doctorCalls: Int = 0,
+    sosResolved: Int = 0,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "ZIVAA SO FAR",
+            text = "Zivaa So Far",
             style = ProfileTheme.typography.sectionHeader
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -31,13 +35,13 @@ fun StatsCard(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatItem(number = "365", label = "morning\nreports", modifier = Modifier.weight(1f))
+            StatItem(number = morningReports.toString(), label = "morning\nreports", modifier = Modifier.weight(1f))
             VerticalDivider(color = ProfileTheme.colors.divider, modifier = Modifier.height(48.dp))
-            StatItem(number = "9", label = "home visits", modifier = Modifier.weight(1f))
+            StatItem(number = homeVisits.toString(), label = "home visits", modifier = Modifier.weight(1f))
             VerticalDivider(color = ProfileTheme.colors.divider, modifier = Modifier.height(48.dp))
-            StatItem(number = "5", label = "doctor calls", modifier = Modifier.weight(1f))
+            StatItem(number = doctorCalls.toString(), label = "doctor calls", modifier = Modifier.weight(1f))
             VerticalDivider(color = ProfileTheme.colors.divider, modifier = Modifier.height(48.dp))
-            StatItem(number = "1", label = "SOS resolved", modifier = Modifier.weight(1f))
+            StatItem(number = sosResolved.toString(), label = "SOS resolved", modifier = Modifier.weight(1f))
         }
     }
 }

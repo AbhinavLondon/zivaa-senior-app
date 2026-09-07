@@ -97,7 +97,7 @@ fun MindfulnessLandingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "MINDFULNESS • TUESDAY EVENING",
+                    text = "Mindfulness • Tuesday Evening",
                     style = MindfulnessTheme.typography.eyebrow.copy(letterSpacing = 0.2.em),
                     color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.5f)
                 )
@@ -147,13 +147,13 @@ fun MindfulnessLandingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "MOOD CHECK-IN",
+                            text = "Mood Check-In",
                             style = MindfulnessTheme.typography.eyebrow.copy(letterSpacing = 0.2.em),
                             color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.5f)
                         )
                         if (selectedMood != null) {
                             Text(
-                                text = "CHANGE",
+                                text = "Change",
                                 style = MindfulnessTheme.typography.eyebrow.copy(letterSpacing = 0.2.em),
                                 color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.5f),
                                 modifier = Modifier.clickable { selectedMood = null }

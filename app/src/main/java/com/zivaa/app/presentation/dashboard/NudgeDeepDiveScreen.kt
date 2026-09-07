@@ -102,9 +102,9 @@ fun NudgeDeepDiveScreen(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "NUDGE · DEEP DIVE",
+                    text = "Nudge · Deep Dive",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.inkMute
+                    color = Color(0xFF111111)
                 )
             }
 
@@ -160,7 +160,7 @@ fun NudgeDeepDiveScreen(
                         }
                         
                         if (formattedDate.isNotEmpty()) {
-                            val eyebrowBase = if (isHighRisk) "NEEDS ATTENTION NOW" else "A PATTERN WORTH A LOOK"
+                            val eyebrowBase = if (isHighRisk) "Needs Attention Now" else "A Pattern Worth A Look"
                             Text(
                                 text = "$eyebrowBase • $formattedDate",
                                 style = ZivaaTheme.typography.meta.copy(
@@ -193,9 +193,9 @@ fun NudgeDeepDiveScreen(
                 if (whyFlaggedData != null && whyFlaggedData.vitals.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        text = "WHY WE'RE NUDGING YOU",
+                        text = "Why We're Nudging You",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -206,9 +206,9 @@ fun NudgeDeepDiveScreen(
                 if (actionStepsData != null) {
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        text = "WHAT WE RECOMMEND",
+                        text = "What We Recommend",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -226,9 +226,9 @@ fun NudgeDeepDiveScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "THE FULL PICTURE",
+                        text = "The Full Picture",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
@@ -542,9 +542,9 @@ fun WhyFlaggedSection(data: WhyFlaggedData, riskLevel: String) {
         if (data.supportingVitals.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "SUPPORTING FACTORS",
+                text = "Supporting Factors",
                 style = ZivaaTheme.typography.eyebrow,
-                color = inkSoftColor,
+                color = Color(0xFF111111),
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))

@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.InstrumentSerif
 import com.zivaa.app.ui.theme.LocalZivaaColors
@@ -96,9 +97,9 @@ fun MealCard(
                         color = colors.textStrong
                     )
                     Text(
-                        text = timeRange,
+                        text = timeRange.toEyebrowTitleCase(),
                         style = typography.eyebrow,
-                        color = colors.textMeta
+                        color = androidx.compose.ui.graphics.Color(0xFF111111)
                     )
                 }
                 if (totalCalories != null) {

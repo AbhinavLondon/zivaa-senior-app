@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.zivaa.app">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Declare visibility for Health Connect app (required for Android 13 and lower) -->
     <queries>

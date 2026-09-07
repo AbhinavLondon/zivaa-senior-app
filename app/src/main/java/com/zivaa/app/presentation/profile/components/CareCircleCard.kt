@@ -44,7 +44,7 @@ fun CareCircleCard(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "CARE CIRCLE",
+            text = "Care Circle",
             style = ProfileTheme.typography.sectionHeader,
             modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
         )

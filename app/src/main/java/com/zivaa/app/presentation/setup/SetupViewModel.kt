@@ -101,7 +101,15 @@ class SetupViewModel : ViewModel() {
             // The DB trigger creates a skeleton row with dateOfBirth = NULL.
             val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
             
-            if (hasCompletedOnboarding) {
+            if (hasCompletedOnboarding && patient != null) {
+                // Cache profile locally in AuthManager
+                auth.savePatientProfile(
+                    fullName = patient.fullName,
+                    locationCity = patient.locationCity,
+                    createdAt = patient.createdAt,
+                    dob = patient.dateOfBirth,
+                    profilePicUrl = patient.profilePicUrl
+                )
                 // Existing user who previously completed onboarding, bypass to dashboard
                 _state.value = _state.value.copy(
                     isSetupComplete = true,

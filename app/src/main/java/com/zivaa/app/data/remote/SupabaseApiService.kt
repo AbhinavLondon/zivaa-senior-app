@@ -81,6 +81,12 @@ interface SupabaseApiService {
         @retrofit2.http.Query("limit") limit: Int = 1
     ): Response<List<MorningBriefingRecord>>
 
+    @retrofit2.http.GET("rest/v1/daily_morning_briefings")
+    suspend fun getMorningBriefings(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("select") select: String = "id,date,created_at"
+    ): Response<List<MorningBriefingItem>>
+
     // Supabase Auth Endpoints
     @POST("rest/v1/rpc/delete_user_account")
     suspend fun deleteUserAccount(): Response<Void>
@@ -238,6 +244,12 @@ data class MorningBriefingRecord(
     val date: String,
     val summary: String,
     val headline: String? = null
+)
+
+data class MorningBriefingItem(
+    val id: String? = null,
+    val date: String? = null,
+    val created_at: String? = null
 )
 
 data class InsightResponse(

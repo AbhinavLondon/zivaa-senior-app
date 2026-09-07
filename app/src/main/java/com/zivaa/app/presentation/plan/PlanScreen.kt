@@ -243,7 +243,7 @@ fun PlanScreenHero(summary: String = "") {
             Text(
                 text = "Today • Tue 16 Jun",
                 style = typography.eyebrow,
-                color = colors.sageInk.copy(alpha = 0.7f)
+                color = androidx.compose.ui.graphics.Color(0xFF111111)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(

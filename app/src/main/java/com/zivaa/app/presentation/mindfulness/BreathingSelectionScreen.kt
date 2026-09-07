@@ -54,10 +54,10 @@ data class BreathingRhythm(
 )
 
 val breathingOptions = listOf(
-    BreathingRhythm("box", "Box", "44", "In 4 • hold 4 • out 4 • hold 4.", "Steadying, like a square drawn slowly.", "STEADY", listOf(0f, 1f, 1f, 0f, 0f)),
-    BreathingRhythm("exhale", "Long Exhale", "48", "In for 4, out for 8.", "The quickest way to calm a racing evening.", "CALMING", listOf(0f, 1f, 0f)),
-    BreathingRhythm("equal", "Equal", "55", "In 5, out 5 — a gentle, even tide.", "Good for beginners.", "GENTLE", listOf(0f, 1f, 0f)),
-    BreathingRhythm("custom", "Custom", "?", "Set your own in and out.", "Your breath, your rules.", "YOURS", listOf(0f, 0.5f, 1f, 0f))
+    BreathingRhythm("box", "Box", "44", "In 4 • hold 4 • out 4 • hold 4.", "Steadying, like a square drawn slowly.", "Steady", listOf(0f, 1f, 1f, 0f, 0f)),
+    BreathingRhythm("exhale", "Long Exhale", "48", "In for 4, out for 8.", "The quickest way to calm a racing evening.", "Calming", listOf(0f, 1f, 0f)),
+    BreathingRhythm("equal", "Equal", "55", "In 5, out 5 — a gentle, even tide.", "Good for beginners.", "Gentle", listOf(0f, 1f, 0f)),
+    BreathingRhythm("custom", "Custom", "?", "Set your own in and out.", "Your breath, your rules.", "Yours", listOf(0f, 0.5f, 1f, 0f))
 )
 
 @Composable
@@ -98,7 +98,7 @@ fun BreathingSelectionScreen(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "BREATHING",
+                        text = "Breathing",
                         style = MindfulnessTheme.typography.eyebrow,
                         color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.6f)
                     )

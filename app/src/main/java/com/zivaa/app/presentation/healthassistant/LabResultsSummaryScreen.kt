@@ -76,10 +76,10 @@ fun LabResultsSummaryScreen(
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "FULL-BODY CHECK - 18 JUN - VS 12 MAR",
+                text = "Full-Body Check · 18 Jun · Vs 12 Mar",
                 style = typography.eyebrow,
                 fontFamily = IBMPlexMono,
-                color = bgColors.textMeta
+                color = Color(0xFF111111)
             )
         }
 
@@ -177,7 +177,7 @@ fun LabResultsSummaryScreen(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "SAHAYAK - PLAIN SUMMARY",
+                    text = "Sahayak · Plain Summary",
                     style = typography.eyebrow,
                     fontFamily = IBMPlexMono,
                     color = cardText.copy(alpha = 0.8f)
@@ -237,7 +237,7 @@ fun LabResultsSummaryScreen(
         Row(modifier = Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(bgColors.toneWatch))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("WORTH A GENTLE LOOK", style = typography.eyebrow, fontFamily = IBMPlexMono, color = bgColors.toneWatch)
+            Text("Worth A Gentle Look", style = typography.eyebrow, fontFamily = IBMPlexMono, color = Color(0xFF111111))
         }
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -305,7 +305,7 @@ fun LabResultsSummaryScreen(
         Row(modifier = Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(bgColors.toneOk))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("IMPROVING & STEADY", style = typography.eyebrow, fontFamily = IBMPlexMono, color = bgColors.toneOk)
+            Text("Improving & Steady", style = typography.eyebrow, fontFamily = IBMPlexMono, color = Color(0xFF111111))
         }
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -351,10 +351,10 @@ fun LabResultsSummaryScreen(
 
         // What it means section
         Text(
-            text = "WHAT IT MEANS, DAY TO DAY",
+            text = "What It Means, Day To Day",
             style = typography.eyebrow,
             fontFamily = IBMPlexMono,
-            color = bgColors.textMeta,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))

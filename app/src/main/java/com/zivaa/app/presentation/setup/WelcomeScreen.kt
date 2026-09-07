@@ -68,9 +68,9 @@ fun WelcomeScreen(
         Spacer(modifier = Modifier.height(32.dp))
         
         Text(
-            text = "Let's set things up together".uppercase(),
+            text = "Let's Set Things Up Together",
             style = ZivaaTheme.typography.eyebrow,
-            color = ZivaaTheme.colors.inkMute
+            color = androidx.compose.ui.graphics.Color(0xFF111111)
         )
         
         Spacer(modifier = Modifier.height(14.dp))
@@ -81,10 +81,11 @@ fun WelcomeScreen(
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
                     append("questions")
                 }
-                append(",")
-                // We'll append name if we have it, else "Ranjit" as in prototype
-                val name = if (state.name.isNotBlank()) state.name else "Ranjit"
-                append("\n$name.")
+                if (state.name.isNotBlank()) {
+                    append(",\n${state.name}.")
+                } else {
+                    append(".")
+                }
             },
             style = ZivaaTheme.typography.displayLarge,
             color = ZivaaTheme.colors.ink,
@@ -104,9 +105,9 @@ fun WelcomeScreen(
         Spacer(modifier = Modifier.height(22.dp))
         
         Text(
-            text = "Takes about 3 minutes · 5 steps",
+            text = "Takes About 3 Minutes · 5 Steps",
             style = ZivaaTheme.typography.eyebrow,
-            color = ZivaaTheme.colors.inkMute
+            color = androidx.compose.ui.graphics.Color(0xFF111111)
         )
         
         Spacer(modifier = Modifier.height(30.dp))

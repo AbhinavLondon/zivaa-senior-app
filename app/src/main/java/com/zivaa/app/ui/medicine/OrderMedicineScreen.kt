@@ -81,9 +81,9 @@ fun OrderMedicineScreen(
                         )
                     }
                     Text(
-                        text = "ORDER MEDICINE",
+                        text = "Order Medicine",
                         style = typography.eyebrow,
-                        color = colors.inkMute,
+                        color = Color(0xFF111111),
                         modifier = Modifier.padding(end = 40.dp) // optical center
                     )
                     Spacer(modifier = Modifier.width(38.dp))
@@ -141,7 +141,7 @@ fun OrderMedicineScreen(
                             }
                             Spacer(modifier = Modifier.width(14.dp))
                             Text(
-                                text = "THE EASIEST WAY",
+                                text = "The Easiest Way",
                                 style = typography.meta.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.08.em),
                                 color = colors.sageInk.copy(alpha = 0.8f)
                             )
@@ -182,9 +182,9 @@ fun OrderMedicineScreen(
 
             item {
                 Text(
-                    text = "NO PRESCRIPTION? NO PROBLEM",
+                    text = "No Prescription? No Problem",
                     style = typography.eyebrow,
-                    color = colors.inkMute,
+                    color = Color(0xFF111111),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
                 )
                 

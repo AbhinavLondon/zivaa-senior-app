@@ -119,7 +119,8 @@ val defaultZivaaTypography = ZivaaTypography(
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = (14 * 1.45).sp, // Using default leading
-        letterSpacing = 0.08.em
+        letterSpacing = 0.04.em,
+        color = androidx.compose.ui.graphics.Color(0xFF111111)
     ),
     meta = TextStyle(
         fontFamily = Manrope,
@@ -129,3 +130,14 @@ val defaultZivaaTypography = ZivaaTypography(
         letterSpacing = 0.06.em
     )
 )
+
+fun String.toEyebrowTitleCase(): String {
+    return this.split(" ").joinToString(" ") { word ->
+        if (word.isBlank()) word
+        else {
+            word.split("-").joinToString("-") { part ->
+                part.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            }
+        }
+    }
+}

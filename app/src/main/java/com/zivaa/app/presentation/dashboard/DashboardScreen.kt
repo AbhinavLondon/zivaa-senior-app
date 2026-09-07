@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.data.remote.DailyPlanTask
 import com.zivaa.app.data.remote.NudgeAlert
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.data.remote.SupabasePatientCheckin
 import com.zivaa.app.presentation.mood.components.FaceIcon
 import com.zivaa.app.presentation.mood.components.getHeroBackgroundColor
@@ -100,11 +101,12 @@ fun DashboardScreen(
     val dateString = remember {
         val today = LocalDate.now()
         val formatter = DateTimeFormatter.ofPattern("EEE dd MMM", Locale.ENGLISH)
-        today.format(formatter).uppercase(Locale.ENGLISH)
+        today.format(formatter)
     }
 
     val currentDate = remember(cityName) {
-        if (cityName.isNotEmpty()) "TODAY · $dateString · $cityName" else "TODAY · $dateString"
+        val cityFormatted = if (cityName.isNotEmpty()) cityName.split(" ").joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } } else ""
+        if (cityFormatted.isNotEmpty()) "Today · $dateString · $cityFormatted" else "Today · $dateString"
     }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -214,7 +216,7 @@ fun DashboardScreen(
                     Text(
                         text = currentDate,
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.inkMute,
+                        color = Color(0xFF111111),
                     )
 
 
@@ -325,9 +327,9 @@ fun DashboardScreen(
 
                 // Section Header: How your day went
                 Text(
-                    text = "HOW YOUR DAY WENT",
+                    text = "How Your Day Went",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.inkMute,
+                    color = Color(0xFF111111),
                     modifier = Modifier.padding(top = 24.dp, start = 22.dp, end = 22.dp, bottom = 10.dp)
                 )
 
@@ -356,9 +358,9 @@ fun DashboardScreen(
 
                 // Section Header: Just in for you
                 Text(
-                    text = "JUST IN FOR YOU",
+                    text = "Just In For You",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.inkMute,
+                    color = Color(0xFF111111),
                     modifier = Modifier.padding(top = 24.dp, start = 22.dp, end = 22.dp, bottom = 10.dp)
                 )
 
@@ -628,9 +630,9 @@ fun HeroCardContent(
     val colors = ZivaaTheme.colors
     
     val eyebrowText = when (period) {
-        "afternoon" -> "AFTERNOON CHECK-IN"
-        "evening" -> "EVENING CHECK-IN"
-        else -> "ALL WELL TODAY"
+        "afternoon" -> "Afternoon Check-In"
+        "evening" -> "Evening Check-In"
+        else -> "All Well Today"
     }
     
     val eyebrowDotColor = when (period) {
@@ -1035,9 +1037,9 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "YOUR PLAN",
+                        text = "Your Plan",
                         style = ZivaaTheme.typography.meta,
-                        color = ZivaaTheme.colors.sage
+                        color = Color(0xFF111111)
                     )
                 }
                 
@@ -1176,7 +1178,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                 
                 allGoals.forEach { (period, originalIndex, task) ->
                     val titleText = task.task
-                    val metaText = task.time ?: period.uppercase()
+                    val metaText = task.time ?: period.replaceFirstChar { it.uppercase() }
                     
                     val (iconVector, bgTone, textTone) = getGoalIconAndColors(titleText)
                     Row(
@@ -1221,9 +1223,9 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = metaText.uppercase(),
+                                text = metaText.toEyebrowTitleCase(),
                                 style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, letterSpacing = 0.05.em),
-                                color = ZivaaTheme.colors.inkMute
+                                color = Color(0xFF111111)
                             )
                         }
                         
@@ -1992,7 +1994,7 @@ fun NudgeAlertCard(
         ""
     }
     
-    val eyebrowBase = if (isHighRisk) "NEEDS ATTENTION NOW" else "A PATTERN WORTH A LOOK"
+    val eyebrowBase = if (isHighRisk) "Needs Attention Now" else "A Pattern Worth A Look"
     val eyebrowText = if (formattedDate.isNotEmpty()) "$eyebrowBase • $formattedDate" else eyebrowBase
     
     Box(

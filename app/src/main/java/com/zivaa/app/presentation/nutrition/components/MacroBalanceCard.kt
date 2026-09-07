@@ -47,9 +47,9 @@ fun MacroBalanceCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "THE BALANCE",
+                    text = "The Balance",
                     style = typography.eyebrow,
-                    color = colors.textMeta
+                    color = Color(0xFF111111)
                 )
                 Text(
                     text = "Against your usual day",

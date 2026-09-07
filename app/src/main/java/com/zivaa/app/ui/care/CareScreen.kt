@@ -206,9 +206,9 @@ private fun TopHeader(onMessageClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "CARE",
+            text = "Care",
             style = typography.eyebrow,
-            color = colors.inkMute
+            color = Color(0xFF111111)
         )
         Box(
             modifier = Modifier
@@ -268,9 +268,9 @@ private fun UpcomingSection() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "UPCOMING FOR YOU",
+                text = "Upcoming For You",
                 style = typography.eyebrow,
-                color = colors.ink
+                color = Color(0xFF111111)
             )
             Text(
                 text = "SEE ALL 3 ›",
@@ -328,9 +328,9 @@ private fun UpcomingSection() {
                         )
                     }
                     Text(
-                        text = "TODAY · 4:00 PM",
+                        text = "Today · 4:00 PM",
                         style = typography.eyebrow.copy(fontWeight = FontWeight.SemiBold),
-                        color = colors.sageInk
+                        color = Color(0xFF111111)
                     )
                 }
 
@@ -410,9 +410,9 @@ private fun SuggestedSection(nudges: List<NudgeItem>, onClick: (NudgeItem) -> Un
 
     Column(modifier = Modifier.padding(top = 24.dp)) {
         Text(
-            text = "SUGGESTED TODAY",
+            text = "Suggested Today",
             style = typography.eyebrow,
-            color = colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
         )
 
@@ -470,9 +470,9 @@ private fun ServicesGrid(services: List<ServiceItem>, onClick: (ServiceItem) -> 
 
     Column(modifier = Modifier.padding(top = 26.dp)) {
         Text(
-            text = "HOME CARE SERVICES",
+            text = "Home Care Services",
             style = typography.eyebrow,
-            color = colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
         )
 
@@ -661,7 +661,7 @@ private fun BookingDetailsView(service: ServiceItem, onRequestVisit: () -> Unit,
                     }
                     .padding(horizontal = 14.dp, vertical = 13.dp)
             ) {
-                Text(text = "TYPICAL COST", style = typography.meta.copy(fontSize = 9.sp), color = colors.inkMute)
+                Text(text = "Typical Cost", style = typography.meta.copy(fontSize = 9.sp), color = Color(0xFF111111))
                 Text(text = service.price, style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.ink, modifier = Modifier.padding(top = 4.dp))
             }
             Column(
@@ -678,15 +678,15 @@ private fun BookingDetailsView(service: ServiceItem, onRequestVisit: () -> Unit,
                     }
                     .padding(horizontal = 14.dp, vertical = 13.dp)
             ) {
-                Text(text = "SOONEST", style = typography.meta.copy(fontSize = 9.sp), color = colors.inkMute)
+                Text(text = "Soonest", style = typography.meta.copy(fontSize = 9.sp), color = Color(0xFF111111))
                 Text(text = service.eta, style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.ink, modifier = Modifier.padding(top = 4.dp))
             }
         }
 
         Text(
-            text = "WHAT'S INCLUDED",
+            text = "What's Included",
             style = typography.meta.copy(fontSize = 10.sp),
-            color = colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
         )
 

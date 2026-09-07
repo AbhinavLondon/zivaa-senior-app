@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.data.remote.SupabaseExerciseRecord
 import com.zivaa.app.presentation.wellness.chooseareas.theme.ChooseAreasTheme
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @Composable
 fun ExerciseListScreen(
@@ -91,9 +92,9 @@ fun ExerciseListScreen(
 
                     item {
                         Text(
-                            text = "THE MOVES · IN ORDER",
+                            text = "The Moves · In Order",
                             style = ChooseAreasTheme.typography.eyebrow,
-                            color = ChooseAreasTheme.colors.inkMute,
+                            color = Color(0xFF111111),
                             modifier = Modifier.padding(horizontal = 24.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -216,9 +217,9 @@ fun ExerciseHeader(onBackClick: () -> Unit, bodyPartName: String) {
             }
             Spacer(modifier = Modifier.size(12.dp))
             Text(
-                text = "BODY · ${bodyPartName.uppercase()}",
+                text = "Body · ${bodyPartName.toEyebrowTitleCase()}",
                 style = ChooseAreasTheme.typography.eyebrow,
-                color = ChooseAreasTheme.colors.inkMute
+                color = Color(0xFF111111)
             )
         }
 

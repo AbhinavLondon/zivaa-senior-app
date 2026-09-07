@@ -105,9 +105,9 @@ fun MovementScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "MOVEMENT · TODAY",
+                        text = "Movement · Today",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.inkMute
+                        color = androidx.compose.ui.graphics.Color(0xFF111111)
                     )
                 }
 
@@ -118,18 +118,18 @@ fun MovementScreen(
 
                 // Hourly Chart
                 Text(
-                    text = "YOUR STEPS, HOUR BY HOUR",
+                    text = "Your Steps, Hour By Hour",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.inkMute,
+                    color = androidx.compose.ui.graphics.Color(0xFF111111),
                     modifier = Modifier.padding(top = 32.dp, start = 22.dp, end = 22.dp, bottom = 12.dp)
                 )
                 HourlyStepsChartCard(viewModel = viewModel)
 
                 // Weekly Chart
                 Text(
-                    text = "YOUR LAST SEVEN DAYS",
+                    text = "Your Last Seven Days",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.inkMute,
+                    color = androidx.compose.ui.graphics.Color(0xFF111111),
                     modifier = Modifier.padding(top = 32.dp, start = 22.dp, end = 22.dp, bottom = 12.dp)
                 )
                 WeeklyStepsChartCard(viewModel = viewModel)
@@ -188,9 +188,9 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                             .background(ZivaaTheme.colors.sageInk.copy(alpha = 0.3f))
                     )
                     Text(
-                        text = if (viewModel.isGoalMet) "PAST YOUR GOAL" else "MAKING PROGRESS",
+                        text = if (viewModel.isGoalMet) "Past Your Goal" else "Making Progress",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.sageInk.copy(alpha = 0.9f)
+                        color = androidx.compose.ui.graphics.Color(0xFF111111)
                     )
                 }
             }
@@ -226,9 +226,9 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                 )
                 if (viewModel.goalSteps != null) {
                     Text(
-                        text = "STEPS · GOAL ${java.text.NumberFormat.getNumberInstance().format(viewModel.goalSteps)}",
+                        text = "Steps · Goal ${java.text.NumberFormat.getNumberInstance().format(viewModel.goalSteps)}",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.sageInk.copy(alpha = 0.7f),
+                        color = androidx.compose.ui.graphics.Color(0xFF111111),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 } else {
@@ -242,9 +242,9 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "+ ADD STEP GOAL",
+                            text = "+ Add Step Goal",
                             style = ZivaaTheme.typography.eyebrow,
-                            color = ZivaaTheme.colors.sageInk,
+                            color = androidx.compose.ui.graphics.Color(0xFF111111),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -567,9 +567,9 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "GOAL",
+                                text = "Goal",
                                 style = ZivaaTheme.typography.eyebrow,
-                                color = ZivaaTheme.colors.sage,
+                                color = androidx.compose.ui.graphics.Color(0xFF111111),
                                 fontSize = 8.sp
                             )
                             Text(
@@ -588,9 +588,9 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "AVG",
+                            text = "Avg",
                             style = ZivaaTheme.typography.eyebrow,
-                            color = ZivaaTheme.colors.inkMute,
+                            color = androidx.compose.ui.graphics.Color(0xFF111111),
                             fontSize = 8.sp
                         )
                         Text(

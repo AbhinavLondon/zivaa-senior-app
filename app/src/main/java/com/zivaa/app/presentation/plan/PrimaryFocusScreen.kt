@@ -120,9 +120,9 @@ fun PrimaryFocusScreen(
                         // Top spacing and eyebrow
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Step 1 of 2 · Your plan",
+                            text = "Step 1 Of 2 · Your Plan",
                             style = typography.eyebrow,
-                            color = colors.inkMute,
+                            color = androidx.compose.ui.graphics.Color(0xFF111111),
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )

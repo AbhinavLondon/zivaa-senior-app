@@ -100,11 +100,11 @@ fun NutritionSummaryCard(
                 ) {
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.sage)) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF111111))) {
                                 append("$remaining ")
                             }
-                            withStyle(SpanStyle(color = colors.sage, fontWeight = FontWeight.SemiBold)) {
-                                append("KCAL LEFT")
+                            withStyle(SpanStyle(color = androidx.compose.ui.graphics.Color(0xFF111111), fontWeight = FontWeight.SemiBold)) {
+                                append("Kcal Left")
                             }
                         },
                         style = typography.eyebrow

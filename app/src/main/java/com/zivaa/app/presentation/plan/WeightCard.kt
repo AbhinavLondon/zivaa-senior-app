@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.Manrope
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import kotlin.math.roundToInt
 
 @Composable
@@ -78,11 +79,11 @@ fun WeightCard(
                         .padding(top = 1.dp)
                 ) {
                     Text(
-                        text = eyebrow.uppercase(),
+                        text = eyebrow.toEyebrowTitleCase(),
                         fontFamily = Manrope,
                         fontSize = 10.sp,
-                        letterSpacing = 0.7.sp,
-                        color = PlanSetupTheme.InkMute,
+                        letterSpacing = 0.2.sp,
+                        color = Color(0xFF111111),
                         fontWeight = FontWeight.SemiBold
                     )
                     

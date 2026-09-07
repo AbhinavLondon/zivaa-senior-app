@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.theme.ZivaaTheme
 
 @Composable
@@ -167,9 +168,10 @@ fun SetupSuccessScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Header Section
-                val name = if (state.name.isNotBlank()) state.name else "Ranjit"
+                val name = if (state.name.isNotBlank()) state.name else ""
+                val greeting = if (name.isNotBlank()) "All Set, ${name.toEyebrowTitleCase()}" else "All Set"
                 Text(
-                    text = "ALL SET, ${name.uppercase()}",
+                    text = greeting,
                     style = ZivaaTheme.typography.eyebrow,
                     color = Color.White.copy(alpha = 0.7f)
                 )

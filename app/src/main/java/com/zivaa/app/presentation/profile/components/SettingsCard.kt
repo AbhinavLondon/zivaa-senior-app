@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.zivaa.app.presentation.profile.theme.ProfileTheme
 import com.zivaa.app.ui.theme.ZivaaTheme
 
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
+
 data class SettingToggle(
     val title: String,
     val subtitle: String,
@@ -31,7 +33,7 @@ fun SettingsCard(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = header.uppercase(),
+            text = header.toEyebrowTitleCase(),
             style = ProfileTheme.typography.sectionHeader
         )
         Spacer(modifier = Modifier.height(16.dp))

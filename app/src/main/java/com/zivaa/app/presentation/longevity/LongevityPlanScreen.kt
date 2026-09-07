@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import androidx.compose.runtime.*
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Tab
@@ -228,7 +229,7 @@ fun CategoryCard(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = category.uppercase(),
+                text = category.toEyebrowTitleCase(),
                 color = Color.White.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,

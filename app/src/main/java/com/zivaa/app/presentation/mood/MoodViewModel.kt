@@ -51,6 +51,11 @@ class MoodViewModel(
         }
     }
 
+    fun getUserName(): String {
+        val fullName = authManager.getPatientProfile()["full_name"] ?: ""
+        return fullName.split(" ").firstOrNull()?.takeIf { it.isNotBlank() } ?: "there"
+    }
+
     fun saveCheckIn(moodLabel: String, emotions: Set<String>, causes: Set<String>, onComplete: () -> Unit) {
         viewModelScope.launch {
             val patientId = authManager.getUserId()

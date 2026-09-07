@@ -49,12 +49,12 @@ fun ActiveMeditationScreen(
     }
 
     val displaySoundName = when (soundId) {
-        "tanpura" -> "TANPURA DRONE"
-        "bansuri" -> "BANSURI AT DAWN"
-        "rain" -> "RAIN ON NEEM LEAVES"
-        "om" -> "OM CHANTING"
-        "silence" -> "SILENCE"
-        else -> soundId.uppercase()
+        "tanpura" -> "Tanpura Drone"
+        "bansuri" -> "Bansuri At Dawn"
+        "rain" -> "Rain On Neem Leaves"
+        "om" -> "Om Chanting"
+        "silence" -> "Silence"
+        else -> soundId.replaceFirstChar { it.uppercase() }
     }
 
     DisposableEffect(soundId) {
@@ -175,7 +175,7 @@ fun ActiveMeditationScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "REMAINING",
+                        text = "Remaining",
                         style = MindfulnessTheme.typography.eyebrow,
                         color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.7f)
                     )

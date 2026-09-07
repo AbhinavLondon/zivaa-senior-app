@@ -123,7 +123,7 @@ fun WearableConnectionScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "RECOMMENDED FOR YOU",
+                                    text = "Recommended For You",
                                     color = ZivaaTheme.colors.bgElev,
                                     style = ZivaaTheme.typography.eyebrow.copy(fontSize = 10.sp)
                                 )
@@ -211,9 +211,9 @@ fun WearableConnectionScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "OR CONNECT SOMETHING YOU HAVE",
+                text = "Or Connect Something You Have",
                 style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.inkMute,
+                color = Color(0xFF111111),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 

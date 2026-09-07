@@ -115,7 +115,7 @@ fun MeditationSelectionScreen(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "MEDITATION",
+                        text = "Meditation",
                         style = MindfulnessTheme.typography.eyebrow,
                         color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.6f)
                     )
@@ -145,7 +145,7 @@ fun MeditationSelectionScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 Text(
-                    text = "SOUND",
+                    text = "Sound",
                     style = MindfulnessTheme.typography.eyebrow,
                     color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.6f)
                 )
@@ -210,7 +210,7 @@ fun MeditationSelectionScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    text = "SUPPORT",
+                    text = "Support",
                     style = MindfulnessTheme.typography.eyebrow,
                     color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.6f)
                 )
@@ -244,7 +244,7 @@ fun MeditationSelectionScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 Text(
-                    text = "HOW LONG",
+                    text = "How Long",
                     style = MindfulnessTheme.typography.eyebrow,
                     color = MindfulnessTheme.typography.bodyLarge.color.copy(alpha = 0.6f)
                 )

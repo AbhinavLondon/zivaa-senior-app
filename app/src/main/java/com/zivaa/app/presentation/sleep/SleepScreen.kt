@@ -143,9 +143,9 @@ private fun TopRow(onBackClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = "SLEEP · TUE 16 JUN",
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.inkMute
+            text = "Sleep · Tue 16 Jun",
+            style = ZivaaTheme.typography.eyebrow,
+            color = androidx.compose.ui.graphics.Color(0xFF111111)
         )
     }
 }
@@ -184,10 +184,10 @@ private fun HeroCard(latestSleep: String, latestSleepStartEndTime: String, summa
         val isAct = heroInsightText.contains("[NEEDS ATTENTION]") || heroInsightText.contains("[ATTN]")
 
         val badgeText = when {
-            isWatch -> "WORTH ATTENTION"
-            isAct -> "NEEDS ATTENTION"
-            isSteady -> "STEADY"
-            else -> "RESTED WELL"
+            isWatch -> "Worth Attention"
+            isAct -> "Needs Attention"
+            isSteady -> "Steady"
+            else -> "Rested Well"
         }
         
         val brightAmber = Color(0xFFFFC278) // Brightened for dark background
@@ -476,7 +476,7 @@ private fun WeeklySleepChart(history: List<SleepNightSummary>, averageSleep: Str
                 margins = dimensionsOf(bottom = 4.dp)
             ),
             labelHorizontalPosition = ThresholdLine.LabelHorizontalPosition.Start,
-            thresholdLabel = "AVG ${averageSleep.uppercase()}"
+            thresholdLabel = "Avg $averageSleep"
         )
 
         val columns = List(7) { index ->

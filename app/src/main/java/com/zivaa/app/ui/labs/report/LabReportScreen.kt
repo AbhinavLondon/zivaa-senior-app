@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.theme.ZivaaTheme
 
 @Composable
@@ -109,15 +110,15 @@ fun TopAppBarArea(title: String, onNavigateBack: () -> Unit) {
             }
             Column {
                 Text(
-                    text = title.uppercase(),
+                    text = title.toEyebrowTitleCase(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = ZivaaTheme.colors.textBody
+                    color = Color(0xFF111111)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "READ JUST NOW · 21 JUL",
+                    text = "Read Just Now · 21 Jul",
                     style = MaterialTheme.typography.labelSmall,
-                    color = ZivaaTheme.colors.textBody
+                    color = Color(0xFF111111)
                 )
             }
         }
@@ -315,12 +316,12 @@ fun CategoryHeader(state: LabReportState) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "BY CATEGORY",
+            text = "By Category",
             style = MaterialTheme.typography.labelSmall,
-            color = ZivaaTheme.colors.textBody
+            color = Color(0xFF111111)
         )
         Text(
-            text = "$outCount OF $totalCount NEED A LOOK",
+            text = "$outCount Of $totalCount Need A Look",
             style = MaterialTheme.typography.labelSmall,
             color = ZivaaTheme.colors.toneWatch
         )

@@ -36,6 +36,10 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(viewModel) {
+        viewModel.loadProfile()
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -75,7 +79,7 @@ fun ProfileScreen(
                     .padding(bottom = 32.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text("CONDITIONS", style = ProfileTheme.typography.sectionHeader)
+                Text("Conditions", style = ProfileTheme.typography.sectionHeader)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Add a condition", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -196,7 +200,7 @@ fun ProfileScreen(
                     .padding(bottom = 32.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text("CARE CIRCLE", style = ProfileTheme.typography.sectionHeader)
+                Text("Care Circle", style = ProfileTheme.typography.sectionHeader)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Add someone", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -261,7 +265,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    "WHO THEY ARE TO ${state.fullName.substringBefore(" ").uppercase()}",
+                    "Who They Are To ${state.fullName.substringBefore(" ").lowercase().replaceFirstChar { it.uppercase() }}",
                     style = ProfileTheme.typography.sectionHeader
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -349,7 +353,7 @@ fun ProfileScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "PROFILE",
+                            text = "Profile",
                             style = ProfileTheme.typography.sectionHeader
                         )
                     },
@@ -418,11 +422,17 @@ fun ProfileScreen(
                 }
 
                 item {
-                    StatsCard()
+                    StatsCard(
+                        morningReports = state.morningReportsCount,
+                        homeVisits = state.homeVisitsCount,
+                        doctorCalls = state.doctorCallsCount,
+                        sosResolved = state.sosResolvedCount
+                    )
                 }
 
                 item {
                     HealthWalletCard(
+                        documentsCount = state.documentsCount,
                         onClick = onNavigateToHealthWallet
                     )
                 }
@@ -520,7 +530,7 @@ fun ProfileScreen(
 
                 item {
                     SettingsCard(
-                        header = "ALERTS & REMINDERS",
+                        header = "Alerts & Reminders",
                         toggles = listOf(
                             SettingToggle("Fall detection", "Auto-SOS if a fall is detected", fallDetection) { fallDetection = it },
                             SettingToggle("Quiet hours", "Hold non-urgent alerts 10 PM–7 AM", quietHours) { quietHours = it },
@@ -605,7 +615,7 @@ fun ProfileScreen(
                 item {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "ACCOUNT SETTINGS",
+                            text = "Account Settings",
                             style = ProfileTheme.typography.sectionHeader
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -693,7 +703,7 @@ fun ProfileScreen(
                             .padding(horizontal = 24.dp)
                             .padding(bottom = 32.dp)
                     ) {
-                        Text("ALERT SENSITIVITY", style = ProfileTheme.typography.sectionHeader)
+                        Text("Alert Sensitivity", style = ProfileTheme.typography.sectionHeader)
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         val options = listOf(

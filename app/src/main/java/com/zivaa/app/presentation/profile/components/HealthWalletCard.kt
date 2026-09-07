@@ -20,6 +20,7 @@ import com.zivaa.app.presentation.profile.theme.ProfileTheme
 
 @Composable
 fun HealthWalletCard(
+    documentsCount: Int = 0,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
@@ -54,8 +55,9 @@ fun HealthWalletCard(
                 style = ProfileTheme.typography.cardTitle.copy(fontSize = 18.sp, color = ProfileTheme.colors.textPrimary)
             )
             Spacer(modifier = Modifier.height(4.dp))
+            val documentsText = if (documentsCount == 1) "1 document" else "$documentsCount documents"
             Text(
-                text = "20 documents · 5 medicines",
+                text = documentsText,
                 style = ProfileTheme.typography.cardSubtitle.copy(fontSize = 14.sp, color = ProfileTheme.colors.textSecondary)
             )
         }

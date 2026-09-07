@@ -29,7 +29,7 @@ fun ConditionsCard(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "CONDITIONS",
+            text = "Conditions",
             style = ProfileTheme.typography.sectionHeader
         )
         Spacer(modifier = Modifier.height(16.dp))

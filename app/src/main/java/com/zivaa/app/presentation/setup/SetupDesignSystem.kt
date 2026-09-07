@@ -1,5 +1,6 @@
 package com.zivaa.app.presentation.setup
 
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,9 +62,9 @@ fun ZivaaHeader(title: androidx.compose.ui.text.AnnotatedString, subtitle: Strin
     ) {
         if (label != null) {
             Text(
-                text = label.uppercase(),
+                text = label.toEyebrowTitleCase(),
                 style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.leaf,
+                color = Color(0xFF111111),
                 modifier = Modifier.padding(bottom = 10.dp)
             )
         }
@@ -129,9 +130,9 @@ fun ZivaaTextField(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = label.uppercase(),
+            text = label.toEyebrowTitleCase(),
             style = ZivaaTheme.typography.eyebrow,
-            color = ZivaaTheme.colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(bottom = 6.dp)
         )
         OutlinedTextField(
@@ -169,9 +170,9 @@ fun ZivaaSegmentedGenderSelection(
     val options = listOf("Male", "Female", "Other")
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "GENDER",
+            text = "Gender",
             style = ZivaaTheme.typography.eyebrow,
-            color = ZivaaTheme.colors.inkMute,
+            color = Color(0xFF111111),
             modifier = Modifier.padding(bottom = 6.dp)
         )
         Row(
@@ -386,7 +387,7 @@ fun ZivaaTopBar(
         Text(
             text = "$stepNo/$totalSteps",
             style = ZivaaTheme.typography.eyebrow,
-            color = ZivaaTheme.colors.inkMute
+            color = Color(0xFF111111)
         )
     }
 }

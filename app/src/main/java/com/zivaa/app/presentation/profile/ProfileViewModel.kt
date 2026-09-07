@@ -30,6 +30,11 @@ data class ProfileState(
     val wearables: List<String> = emptyList(),
     val batteryLevel: Int? = null,
     val caregiverNudgePreference: String = "HIGH",
+    val morningReportsCount: Int = 0,
+    val homeVisitsCount: Int = 0,
+    val doctorCallsCount: Int = 0,
+    val sosResolvedCount: Int = 0,
+    val documentsCount: Int = 0,
     val error: String? = null
 )
 
@@ -57,11 +62,16 @@ class ProfileViewModel(
         appSettingsManager.setShowLongevityPlan(enabled)
     }
 
-    private fun loadProfile() {
+    fun loadProfile() {
         val userId = authManager.getUserId()
         if (userId == null) {
-            _state.value = _state.value.copy(error = "User not logged in", isLoading = false)
+            _state.value = ProfileState(error = "User not logged in", isLoading = false)
             return
+        }
+
+        // If the user changed or state was empty, clear out previous profile data immediately
+        if (_state.value.patientId != userId) {
+            _state.value = ProfileState(patientId = userId, isLoading = true)
         }
 
         // 1. Load from Cache first for immediate display
@@ -142,6 +152,31 @@ class ProfileViewModel(
                     }
                 } catch (e: Exception) {
                     // Ignore battery fetch error
+                }
+
+                // Fetch Morning Briefings Count (distinct morning briefings generated for this user)
+                try {
+                    val briefingsRes = RetrofitClient.apiService.getMorningBriefings("eq.$userId")
+                    if (briefingsRes.isSuccessful) {
+                        val briefings = briefingsRes.body() ?: emptyList()
+                        val distinctCount = briefings.mapNotNull {
+                            it.date?.take(10) ?: it.created_at?.take(10) ?: it.id
+                        }.distinct().size
+                        _state.value = _state.value.copy(morningReportsCount = distinctCount)
+                    }
+                } catch (e: Exception) {
+                    // Ignore error, keep default 0
+                }
+
+                // Fetch Diagnostic Reports / Documents Count
+                try {
+                    val docsRes = RetrofitClient.apiService.getDiagnosticReports("eq.$userId", select = "id")
+                    if (docsRes.isSuccessful) {
+                        val count = docsRes.body()?.size ?: 0
+                        _state.value = _state.value.copy(documentsCount = count)
+                    }
+                } catch (e: Exception) {
+                    // Ignore error, keep default 0
                 }
 
                 _state.value = _state.value.copy(isLoading = false, error = null)
@@ -327,6 +362,7 @@ class ProfileViewModel(
     }
 
     fun signOut() {
+        _state.value = ProfileState()
         authManager.clearSession()
         syncPrefsManager.setSetupComplete(false)
     }

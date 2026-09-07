@@ -50,7 +50,7 @@ object ProfileTheme {
             val t = LocalProfileTypography.current
             return t.copy(
                 heroName = t.heroName.copy(color = c.textPrimary),
-                sectionHeader = t.sectionHeader.copy(color = c.textSecondary),
+                sectionHeader = t.sectionHeader.copy(color = androidx.compose.ui.graphics.Color(0xFF111111)),
                 cardTitle = t.cardTitle.copy(color = c.textPrimary),
                 cardSubtitle = t.cardSubtitle.copy(color = c.textSecondary),
                 statNumber = t.statNumber.copy(color = c.accentGreen),

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.zivaa.app.ui.theme.Manrope
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import com.zivaa.app.ui.theme.ZivaaTheme
 import kotlinx.coroutines.delay
 import java.io.File
@@ -146,9 +147,9 @@ fun UploadDocumentScreen(
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = label.uppercase(),
-                style = ZivaaTheme.typography.meta.copy(letterSpacing = 0.1.sp),
-                color = bgColors.textMeta
+                text = label.toEyebrowTitleCase(),
+                style = ZivaaTheme.typography.eyebrow,
+                color = Color(0xFF111111)
             )
         }
 

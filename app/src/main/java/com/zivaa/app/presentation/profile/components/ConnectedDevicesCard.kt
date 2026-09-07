@@ -45,7 +45,7 @@ fun ConnectedDevicesCard(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "CONNECTED DEVICES",
+            text = "Connected Devices",
             style = ProfileTheme.typography.sectionHeader,
             modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
         )

@@ -251,6 +251,7 @@ class MainActivity : ComponentActivity() {
                 authManager.authEvents.collect {
                     if (!authManager.hasValidSession()) {
                         showSetup = true
+                        currentScreen = "dashboard"
                     }
                     
                     if (!showSetup && authManager.hasValidSession()) {
@@ -291,10 +292,13 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
+                        val activeUserId = authManager.getUserId() ?: "guest"
                         val viewModel: DashboardViewModel = viewModel(
+                            key = "dashboard_$activeUserId",
                             factory = DashboardViewModelFactory(application, healthConnectManager, prefsManager, appSettingsManager)
                         )
                         val moodViewModel: com.zivaa.app.presentation.mood.MoodViewModel = viewModel(
+                            key = "mood_$activeUserId",
                             factory = com.zivaa.app.presentation.mood.MoodViewModelFactory(authManager)
                         )
 
@@ -468,11 +472,12 @@ class MainActivity : ComponentActivity() {
                             )
                             "longevity" -> {
                                 val longevityViewModel: com.zivaa.app.presentation.longevity.LongevityViewModel = viewModel(
+                                    key = "longevity_$activeUserId",
                                     factory = com.zivaa.app.presentation.longevity.LongevityViewModelFactory(application)
                                 )
                                 com.zivaa.app.presentation.longevity.LongevityPlanScreen(
                                     viewModel = longevityViewModel,
-                                    patientId = authManager.getUserId() ?: "",
+                                    patientId = activeUserId,
                                     onBack = { currentScreen = "dashboard" }
                                 )
                             }
@@ -492,6 +497,7 @@ class MainActivity : ComponentActivity() {
                             )
                             "profile" -> {
                                 val profileViewModel: com.zivaa.app.presentation.profile.ProfileViewModel = viewModel(
+                                    key = "profile_$activeUserId",
                                     factory = com.zivaa.app.presentation.profile.ProfileViewModelFactory(authManager, appSettingsManager, prefsManager)
                                 )
                                 com.zivaa.app.presentation.profile.ProfileScreen(
@@ -510,6 +516,7 @@ class MainActivity : ComponentActivity() {
                             }
                             "health_wallet" -> {
                                 val healthWalletViewModel: com.zivaa.app.ui.wallet.HealthWalletViewModel = viewModel(
+                                    key = "wallet_$activeUserId",
                                     factory = com.zivaa.app.ui.wallet.HealthWalletViewModelFactory(
                                         repository = com.zivaa.app.data.DiagnosticReportRepository(
                                             apiService = com.zivaa.app.data.remote.RetrofitClient.apiService,
@@ -950,7 +957,7 @@ class MainActivity : ComponentActivity() {
                                                     icon = androidx.compose.material.icons.Icons.Outlined.Mood,
                                                     iconBg = com.zivaa.app.ui.theme.ZivaaTheme.colors.amber,
                                                     title = "Log Mood",
-                                                    onClick = { showHealthAssistSheet = false; currentScreen = "mood" }
+                                                    onClick = { showHealthAssistSheet = false; currentScreen = "mood_check_in" }
                                                 )
                                             }
                                             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(32.dp))

@@ -73,10 +73,11 @@ val defaultMoodTypography = MoodTypography(
     ),
     eyebrow = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = 11.sp,
         lineHeight = (11 * 1.45).sp,
-        letterSpacing = 0.08.em
+        letterSpacing = 0.04.em,
+        color = androidx.compose.ui.graphics.Color(0xFF111111)
     ),
     meta = TextStyle(
         fontFamily = Manrope,
