@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -356,21 +355,6 @@ fun ProfileScreen(
                             text = "Profile",
                             style = ProfileTheme.typography.sectionHeader
                         )
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { },
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .background(Color.White, shape = androidx.compose.foundation.shape.CircleShape)
-                                .size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreHoriz,
-                                contentDescription = "More options",
-                                tint = ProfileTheme.colors.textPrimary
-                            )
-                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent

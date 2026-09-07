@@ -35,9 +35,9 @@ val defaultProfileTypography = ProfileTypography(
     sectionHeader = TextStyle(
         fontFamily = ManropeProfile,
         fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
+        fontSize = 14.sp,
         letterSpacing = 0.04.em,
-        color = androidx.compose.ui.graphics.Color(0xFF111111)
+        color = androidx.compose.ui.graphics.Color.Unspecified
     ),
     cardTitle = TextStyle(
         fontFamily = ManropeProfile,
