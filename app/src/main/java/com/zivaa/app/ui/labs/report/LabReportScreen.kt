@@ -38,7 +38,8 @@ import com.zivaa.app.ui.theme.ZivaaTheme
 fun LabReportScreen(
     viewModel: LabReportViewModel,
     onNavigateBack: () -> Unit = {},
-    onCategoryClick: (String) -> Unit = {}
+    onCategoryClick: (String) -> Unit = {},
+    onStatsBoxClick: (String) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     Scaffold(
@@ -74,8 +75,8 @@ fun LabReportScreen(
                 }
             } else {
                 item { HeroSection(state) }
-                item { SummaryStatsSection(state) }
-                item { ProgressBarSection(state) }
+                item { SummaryStatsSection(state, onStatsBoxClick) }
+                item { ProgressBarSection(state, onStatsBoxClick) }
                 item { CategoryHeader(state) }
                 item { CategoryGridSection(state, onCategoryClick) }
                 item { BottomActionsSection() }
@@ -171,7 +172,10 @@ fun HeroSection(state: LabReportState) {
 }
 
 @Composable
-fun SummaryStatsSection(state: LabReportState) {
+fun SummaryStatsSection(
+    state: LabReportState,
+    onStatsBoxClick: (String) -> Unit = {}
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -181,7 +185,9 @@ fun SummaryStatsSection(state: LabReportState) {
             modifier = Modifier
                 .weight(1f)
                 .defaultMinSize(minHeight = 150.dp)
-                .border(1.dp, ZivaaTheme.colors.borderStrong, RoundedCornerShape(20.dp)),
+                .border(1.dp, ZivaaTheme.colors.borderStrong, RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
+                .clickable { onStatsBoxClick("good") },
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = ZivaaTheme.colors.bgElev)
         ) {
@@ -220,7 +226,9 @@ fun SummaryStatsSection(state: LabReportState) {
             modifier = Modifier
                 .weight(1f)
                 .defaultMinSize(minHeight = 150.dp)
-                .border(1.dp, ZivaaTheme.colors.toneWatch.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+                .border(1.dp, ZivaaTheme.colors.toneWatch.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
+                .clickable { onStatsBoxClick("watch") },
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = ZivaaTheme.colors.bgElev)
         ) {
@@ -249,7 +257,10 @@ fun SummaryStatsSection(state: LabReportState) {
 }
 
 @Composable
-fun ProgressBarSection(state: LabReportState) {
+fun ProgressBarSection(
+    state: LabReportState,
+    onStatsBoxClick: (String) -> Unit = {}
+) {
     Column {
         Row(
             modifier = Modifier
@@ -263,6 +274,7 @@ fun ProgressBarSection(state: LabReportState) {
                         .weight(if (state.totalCount > 0) state.inRangeCount.toFloat() else 1f)
                         .fillMaxHeight()
                         .background(ZivaaTheme.colors.sage)
+                        .clickable { onStatsBoxClick("good") }
                 )
             }
             if (state.outOfRangeCount > 0) {
@@ -271,6 +283,7 @@ fun ProgressBarSection(state: LabReportState) {
                         .weight(state.outOfRangeCount.toFloat())
                         .fillMaxHeight()
                         .background(ZivaaTheme.colors.toneWatch)
+                        .clickable { onStatsBoxClick("watch") }
                 )
             }
         }
@@ -282,12 +295,14 @@ fun ProgressBarSection(state: LabReportState) {
             Text(
                 text = "${state.inRangeCount} IN RANGE",
                 style = MaterialTheme.typography.labelSmall,
-                color = ZivaaTheme.colors.sage
+                color = ZivaaTheme.colors.sage,
+                modifier = Modifier.clickable { onStatsBoxClick("good") }
             )
             Text(
                 text = "${state.outOfRangeCount} OUT",
                 style = MaterialTheme.typography.labelSmall,
-                color = ZivaaTheme.colors.toneWatch
+                color = ZivaaTheme.colors.toneWatch,
+                modifier = Modifier.clickable { onStatsBoxClick("watch") }
             )
         }
     }

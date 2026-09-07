@@ -27,6 +27,7 @@ data class BiomarkerUiModel(
 data class LabSummaryState(
     val isLoading: Boolean = true,
     val error: String? = null,
+    val title: String = "Lab Summary",
     val goodCount: Int = 0,
     val notSoGoodCount: Int = 0,
     val badCount: Int = 0,
@@ -47,6 +48,7 @@ class LabSummaryViewModel(
 
     init {
         fetchData()
+        fetchCategorySummary()
     }
 
     private fun fetchData() {
@@ -60,12 +62,21 @@ class LabSummaryViewModel(
                 }
                 
                 val allObservations = obsResponse.body() ?: emptyList()
+                val isAll = categoryName.equals("All", ignoreCase = true) || categoryName.equals("All Biomarkers", ignoreCase = true)
                 
-                // Filter by consumer category
-                val categoryObs = allObservations.filter { obs ->
-                    val consumerCoding = obs.resource?.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
-                    val catDisplay = consumerCoding?.display ?: "Other"
-                    catDisplay == categoryName
+                val reportRes = supabaseApiService.getDiagnosticReportById("eq.$reportId")
+                val performer = reportRes.body()?.firstOrNull()?.performer?.takeIf { it.isNotBlank() } ?: "Lab Report"
+                val displayTitle = if (isAll) "All Biomarkers · $performer" else "$categoryName · $performer"
+                
+                // Filter by consumer category if not "All"
+                val categoryObs = if (isAll) {
+                    allObservations
+                } else {
+                    allObservations.filter { obs ->
+                        val consumerCoding = obs.resource?.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
+                        val catDisplay = consumerCoding?.display ?: "Other"
+                        catDisplay.equals(categoryName, ignoreCase = true)
+                    }
                 }
 
                 var good = 0
@@ -165,6 +176,7 @@ class LabSummaryViewModel(
 
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    title = displayTitle,
                     goodCount = good,
                     notSoGoodCount = notSoGood,
                     badCount = bad,
@@ -181,6 +193,16 @@ class LabSummaryViewModel(
     private fun fetchCategorySummary() {
         viewModelScope.launch {
             try {
+                val isAll = categoryName.equals("All", ignoreCase = true) || categoryName.equals("All Biomarkers", ignoreCase = true)
+                if (isAll) {
+                    val reportRes = supabaseApiService.getDiagnosticReportById("eq.$reportId")
+                    if (reportRes.isSuccessful && !reportRes.body().isNullOrEmpty()) {
+                        val report = reportRes.body()!!.first()
+                        val summary = report.summaryExplanation
+                        _state.value = _state.value.copy(categorySummary = summary, isSummaryLoading = false)
+                        return@launch
+                    }
+                }
                 val response = zivaaApiService.getCategorySummary(reportId, categoryName)
                 if (response.isSuccessful) {
                     val summary = response.body()?.summary
@@ -193,11 +215,6 @@ class LabSummaryViewModel(
                 _state.value = _state.value.copy(isSummaryLoading = false)
             }
         }
-    }
-    
-    init {
-        fetchData()
-        fetchCategorySummary()
     }
 }
 

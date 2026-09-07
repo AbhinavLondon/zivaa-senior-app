@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
     private var selectedMedicineCategory by mutableStateOf("everyday")
     private var currentReportId by mutableStateOf<String?>(null)
     private var currentCategoryName by mutableStateOf<String?>(null)
+    private var currentBiomarkerFilter by mutableStateOf<String?>(null)
     private var selectedBodyPart by mutableStateOf("neck")
     private var selectedExercise by mutableStateOf<com.zivaa.app.data.remote.SupabaseExerciseRecord?>(null)
     private lateinit var authManager: com.zivaa.app.data.remote.AuthManager
@@ -549,6 +550,12 @@ class MainActivity : ComponentActivity() {
                                         onNavigateBack = { currentScreen = "health_wallet" },
                                         onCategoryClick = { categoryName ->
                                             currentCategoryName = categoryName
+                                            currentBiomarkerFilter = null
+                                            currentScreen = "lab_summary"
+                                        },
+                                        onStatsBoxClick = { filter ->
+                                            currentCategoryName = "All"
+                                            currentBiomarkerFilter = filter
                                             currentScreen = "lab_summary"
                                         }
                                     )
@@ -571,6 +578,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                     com.zivaa.app.ui.labs.summary.LabSummaryScreen(
                                         viewModel = labSummaryViewModel,
+                                        initialFilter = currentBiomarkerFilter,
                                         onNavigateBack = { currentScreen = "lab_report" }
                                     )
                                 } else {

@@ -20,18 +20,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zivaa.app.presentation.components.MarkdownText
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
 @Composable
 fun LabSummaryScreen(
     viewModel: LabSummaryViewModel,
+    initialFilter: String? = null,
     onNavigateBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    var selectedFilter by remember { mutableStateOf<String?>(null) }
+    var selectedFilter by remember(initialFilter) { mutableStateOf(initialFilter) }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = ZivaaTheme.colors.bg
@@ -43,7 +46,7 @@ fun LabSummaryScreen(
             contentPadding = PaddingValues(top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding(), bottom = 130.dp)
         ) {
             item { Spacer(modifier = Modifier.height(24.dp)) }
-            item { SummaryTopBar(onNavigateBack) }
+            item { SummaryTopBar(state.title, onNavigateBack) }
             item { Spacer(modifier = Modifier.height(32.dp)) }
             // HeroTitleSection() is removed per requirements
             item { SegmentedControlSection() }
@@ -73,15 +76,15 @@ fun LabSummaryScreen(
             
             // Render Dynamic Biomarkers
             if (state.biomarkers.isNotEmpty()) {
-                val notSoGood = state.biomarkers.filter { it.badgeTone == "watch" }
-                if (notSoGood.isNotEmpty() && (selectedFilter == null || selectedFilter == "watch")) {
-                    item { CategoryEyebrow(text = "Not So Good - Small Fixes", color = ZivaaTheme.colors.amber) }
+                val outOfRange = state.biomarkers.filter { it.badgeTone == "watch" || it.badgeTone == "bad" }
+                if (outOfRange.isNotEmpty() && (selectedFilter == null || selectedFilter == "watch" || selectedFilter == "bad")) {
+                    item { CategoryEyebrow(text = "Out of Range - Needs Attention", color = ZivaaTheme.colors.amber) }
                     item { Spacer(modifier = Modifier.height(16.dp)) }
-                    notSoGood.forEach { biomarker ->
+                    outOfRange.forEach { biomarker ->
                         item {
                             MetricCard(
                                 title = biomarker.headline,
-                                subtitle = "", // Not provided by model yet
+                                subtitle = "",
                                 value = biomarker.value,
                                 unit = biomarker.unit,
                                 badgeText = biomarker.badgeText,
@@ -102,7 +105,7 @@ fun LabSummaryScreen(
 
                 val good = state.biomarkers.filter { it.badgeTone == "good" }
                 if (good.isNotEmpty() && (selectedFilter == null || selectedFilter == "good")) {
-                    item { CategoryEyebrow(text = "Good", color = ZivaaTheme.colors.leaf) }
+                    item { CategoryEyebrow(text = "In Range - Looking Good", color = ZivaaTheme.colors.leaf) }
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                     good.forEach { biomarker ->
                         item {
@@ -125,32 +128,6 @@ fun LabSummaryScreen(
                         item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
                     item { Spacer(modifier = Modifier.height(16.dp)) }
-                }
-
-                val bad = state.biomarkers.filter { it.badgeTone == "bad" }
-                if (bad.isNotEmpty() && (selectedFilter == null || selectedFilter == "bad")) {
-                    item { CategoryEyebrow(text = "Bad", color = ZivaaTheme.colors.muted) } // Placeholder color for bad
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-                    bad.forEach { biomarker ->
-                        item {
-                            MetricCard(
-                                title = biomarker.headline,
-                                subtitle = "",
-                                value = biomarker.value,
-                                unit = biomarker.unit,
-                                badgeText = biomarker.badgeText,
-                                badgeColor = ZivaaTheme.colors.muted,
-                                comparisonText = "",
-                                insight = biomarker.insight,
-                                progress = biomarker.progress,
-                                rangeStartProgress = biomarker.rangeStartProgress,
-                                rangeEndProgress = biomarker.rangeEndProgress,
-                                rangeText = biomarker.rangeText,
-                                hasReferenceRange = biomarker.hasReferenceRange
-                            )
-                        }
-                        item { Spacer(modifier = Modifier.height(16.dp)) }
-                    }
                 }
             }
             
@@ -179,7 +156,7 @@ fun LabSummaryScreen(
 }
 
 @Composable
-fun SummaryTopBar(onNavigateBack: () -> Unit) {
+fun SummaryTopBar(title: String, onNavigateBack: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -197,9 +174,11 @@ fun SummaryTopBar(onNavigateBack: () -> Unit) {
             )
         }
         Text(
-            text = "FULL-BODY CHECK · 18 JUN · VS 12 MAR",
+            text = title.uppercase(),
             style = ZivaaTheme.typography.meta,
-            color = ZivaaTheme.colors.textMeta
+            color = ZivaaTheme.colors.textMeta,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -282,9 +261,8 @@ fun ZivaaSummaryCard(summaryText: String?, isLoading: Boolean) {
                 )
             }
         } else {
-            Text(
+            MarkdownText(
                 text = summaryText ?: "No summary available for this category.",
-                style = ZivaaTheme.typography.leadParagraph,
                 color = ZivaaTheme.colors.sageInk
             )
         }
@@ -297,6 +275,7 @@ fun StatBoxesSection(
     selectedFilter: String?,
     onFilterClick: (String) -> Unit
 ) {
+    val outCount = state.notSoGoodCount + state.badCount
     Row(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -304,19 +283,19 @@ fun StatBoxesSection(
         StatBox(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             count = state.goodCount.toString(),
-            label = "GOOD",
-            subLabel = "KEEP IT UP",
+            label = "IN RANGE",
+            subLabel = "LOOKING GOOD",
             color = ZivaaTheme.colors.leaf,
             isActive = selectedFilter == null || selectedFilter == "good",
             onClick = { onFilterClick("good") }
         )
         StatBox(
             modifier = Modifier.weight(1f).fillMaxHeight(),
-            count = state.notSoGoodCount.toString(),
-            label = "NEEDS\nATTENTION",
-            subLabel = "SMALL FIXES",
+            count = outCount.toString(),
+            label = "OUT OF RANGE",
+            subLabel = "NEEDS ATTENTION",
             color = ZivaaTheme.colors.amber,
-            isActive = selectedFilter == null || selectedFilter == "watch",
+            isActive = selectedFilter == null || selectedFilter == "watch" || selectedFilter == "bad",
             onClick = { onFilterClick("watch") }
         )
     }
@@ -381,7 +360,7 @@ fun CategoryEyebrow(text: String, color: Color) {
         Text(
             text = text.toEyebrowTitleCase(),
             style = ZivaaTheme.typography.eyebrow,
-            color = Color(0xFF111111)
+            color = ZivaaTheme.colors.eyebrow
         )
     }
 }
