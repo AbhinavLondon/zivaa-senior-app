@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.CheckCircle
@@ -20,13 +23,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.components.MarkdownText
+import com.zivaa.app.ui.theme.Manrope
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
@@ -391,15 +399,19 @@ fun MetricCard(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val tagText = if (badgeTone == "good") "Within Range" else "Out of Range"
+    val isTextValue = value.any { it.isLetter() } || value.length > 6
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(ZivaaTheme.colors.bgElev)
+            .border(1.dp, ZivaaTheme.colors.lineStrong.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
             .clickable { isExpanded = !isExpanded }
-            .animateContentSize()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .animateContentSize(
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+            )
+            .padding(horizontal = 18.dp, vertical = 13.dp)
     ) {
         // Non-expanded header row (always visible)
         Row(
@@ -407,6 +419,7 @@ fun MetricCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Biomarker Name & Subtitle
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -414,76 +427,153 @@ fun MetricCard(
             ) {
                 Text(
                     text = title,
-                    style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = ZivaaTheme.colors.ink
+                    style = TextStyle(
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.SemiBold,
+                        fontStyle = FontStyle.Normal,
+                        fontSize = 14.5.sp,
+                        letterSpacing = (-0.01).em,
+                        lineHeight = 20.sp
+                    ),
+                    color = ZivaaTheme.colors.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (subtitle.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle,
-                        style = ZivaaTheme.typography.bodySmall,
+                        style = TextStyle(
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Normal,
+                            fontStyle = FontStyle.Normal,
+                            fontSize = 11.5.sp
+                        ),
                         color = ZivaaTheme.colors.textMeta
                     )
                 }
             }
 
-            Column(
-                horizontalAlignment = Alignment.End
+            // Right side: Value, Unit, Status Tag, and Animated Chevron
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    horizontalAlignment = Alignment.End
                 ) {
-                    val isTextValue = value.any { it.isLetter() } || value.length > 6
-                    val formattedValue = if (unit.isNotBlank()) "$value $unit" else value
-                    Text(
-                        text = formattedValue,
-                        style = if (isTextValue) ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                        else ZivaaTheme.typography.cardTitle.copy(fontWeight = FontWeight.Bold),
-                        color = ZivaaTheme.colors.ink
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = ZivaaTheme.colors.textMeta,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    // Value and half-size unit (both strictly non-italic)
+                    Row(
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = value,
+                            style = TextStyle(
+                                fontFamily = Manrope,
+                                fontWeight = FontWeight.Bold,
+                                fontStyle = FontStyle.Normal,
+                                fontSize = if (isTextValue) 13.5.sp else 18.sp,
+                                letterSpacing = (-0.02).em
+                            ),
+                            color = ZivaaTheme.colors.ink
+                        )
+                        if (unit.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = unit,
+                                style = TextStyle(
+                                    fontFamily = Manrope,
+                                    fontWeight = FontWeight.Medium,
+                                    fontStyle = FontStyle.Normal,
+                                    fontSize = 9.sp, // Half size of the numerical value
+                                    letterSpacing = 0.02.em
+                                ),
+                                color = ZivaaTheme.colors.textMeta,
+                                modifier = Modifier.padding(bottom = 1.5.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Polished status micro-tag
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(badgeColor.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                            .border(0.75.dp, badgeColor.copy(alpha = 0.22f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(4.5.dp)
+                                .background(badgeColor, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(4.5.dp))
+                        Text(
+                            text = tagText.uppercase(),
+                            style = TextStyle(
+                                fontFamily = Manrope,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontStyle = FontStyle.Normal,
+                                letterSpacing = 0.05.em
+                            ),
+                            color = badgeColor
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Smoothly rotating chevron indicator inside soft circular target
+                val rotationState by animateFloatAsState(
+                    targetValue = if (isExpanded) 180f else 0f,
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                    label = "chevron_rotation"
+                )
                 Box(
                     modifier = Modifier
-                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .size(24.dp)
+                        .background(ZivaaTheme.colors.muted.copy(alpha = 0.22f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = tagText,
-                        style = ZivaaTheme.typography.meta.copy(fontWeight = FontWeight.SemiBold),
-                        color = badgeColor
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = ZivaaTheme.colors.textMeta,
+                        modifier = Modifier
+                            .size(15.dp)
+                            .rotate(rotationState)
                     )
                 }
             }
         }
 
-        // Expanded details (graphical representation & insight)
+        // Expanded details (graphical representation & clinical explanation)
         if (isExpanded) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             HorizontalDivider(
-                color = ZivaaTheme.colors.line.copy(alpha = 0.6f),
-                thickness = 1.dp
+                color = ZivaaTheme.colors.line.copy(alpha = 0.35f),
+                thickness = 0.75.dp
             )
 
             if (comparisonText.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = comparisonText,
-                    style = ZivaaTheme.typography.bodySmall.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                    style = TextStyle(
+                        fontFamily = com.zivaa.app.ui.theme.IBMPlexMono,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
                     color = badgeColor,
                     modifier = Modifier.align(Alignment.End)
                 )
             }
 
             if (hasReferenceRange && progress != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Progress Bar Dynamically Calculated
                 BoxWithConstraints(
@@ -498,8 +588,8 @@ fun MetricCard(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(8.dp)
-                            .background(ZivaaTheme.colors.muted.copy(alpha = 0.5f), CircleShape)
+                            .height(6.dp)
+                            .background(ZivaaTheme.colors.muted.copy(alpha = 0.4f), CircleShape)
                     ) {
                         // Green range section
                         Box(
@@ -507,18 +597,18 @@ fun MetricCard(
                                 .width(greenWidth)
                                 .offset(x = greenStart)
                                 .fillMaxHeight()
-                                .background(ZivaaTheme.colors.leaf.copy(alpha = 0.4f))
+                                .background(ZivaaTheme.colors.leaf.copy(alpha = 0.45f))
                         )
                     }
 
                     // Thumb
-                    val thumbOffset = totalWidth * progress - 10.dp
+                    val thumbOffset = (totalWidth * progress - 8.dp).coerceIn(0.dp, totalWidth - 16.dp)
                     Box(
                         modifier = Modifier
                             .offset(x = thumbOffset)
-                            .size(20.dp)
+                            .size(16.dp)
                             .background(badgeColor, CircleShape)
-                            .border(3.dp, ZivaaTheme.colors.bgElev, CircleShape)
+                            .border(2.5.dp, ZivaaTheme.colors.bgElev, CircleShape)
                     )
                 }
 
@@ -530,8 +620,13 @@ fun MetricCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "GREEN = HEALTHY",
-                            style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                            text = "HEALTHY RANGE",
+                            style = TextStyle(
+                                fontFamily = com.zivaa.app.ui.theme.IBMPlexMono,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.05.em
+                            ),
                             color = ZivaaTheme.colors.leaf
                         )
                         if (rangeText.isNotBlank()) {
@@ -540,26 +635,50 @@ fun MetricCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = rangeText,
-                                style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                                style = TextStyle(
+                                    fontFamily = com.zivaa.app.ui.theme.IBMPlexMono,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    letterSpacing = 0.04.em
+                                ),
                                 color = ZivaaTheme.colors.leaf
                             )
                         }
                     }
                     Text(
-                        text = if (badgeText.isNotBlank() && badgeText != tagText) "YOU ARE HERE · $badgeText" else "YOU ARE HERE",
-                        style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                        text = if (badgeText.isNotBlank() && badgeText != tagText) "YOU: $value ($badgeText)" else "YOU ARE HERE",
+                        style = TextStyle(
+                            fontFamily = com.zivaa.app.ui.theme.IBMPlexMono,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.05.em
+                        ),
                         color = badgeColor
                     )
                 }
             }
 
             if (insight.isNotBlank()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = insight,
-                    style = ZivaaTheme.typography.bodyMedium,
-                    color = ZivaaTheme.colors.textBody
-                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ZivaaTheme.colors.muted.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = insight,
+                        style = TextStyle(
+                            fontFamily = Manrope,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontStyle = FontStyle.Normal,
+                            lineHeight = 18.sp
+                        ),
+                        color = ZivaaTheme.colors.textBody
+                    )
+                }
             }
         }
     }

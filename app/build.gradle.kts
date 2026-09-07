@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.18"
+        versionCode = 20
+        versionName = "1.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.18 - Expandable biomarker cards and streamlined filtered report summary"
+                releaseNotes = "Zivaa v1.0.19 - Premium biomarker card design: non-italic values, half-size units, refined typography, and smooth chevron animation"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
