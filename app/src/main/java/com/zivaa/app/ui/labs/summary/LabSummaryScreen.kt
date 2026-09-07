@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.*
@@ -47,12 +50,14 @@ fun LabSummaryScreen(
         ) {
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item { SummaryTopBar(state.title, onNavigateBack) }
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-            // HeroTitleSection() is removed per requirements
-            item { SegmentedControlSection() }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            item { ZivaaSummaryCard(state.categorySummary, state.isSummaryLoading) }
             item { Spacer(modifier = Modifier.height(24.dp)) }
+            // Summary card and segmented control - only shown when not filtered
+            if (selectedFilter == null) {
+                item { SegmentedControlSection() }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { ZivaaSummaryCard(state.categorySummary, state.isSummaryLoading) }
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+            }
             item { 
                 StatBoxesSection(
                     state = state, 
@@ -88,6 +93,7 @@ fun LabSummaryScreen(
                                 value = biomarker.value,
                                 unit = biomarker.unit,
                                 badgeText = biomarker.badgeText,
+                                badgeTone = biomarker.badgeTone,
                                 badgeColor = ZivaaTheme.colors.amber,
                                 comparisonText = "",
                                 insight = biomarker.insight,
@@ -115,6 +121,7 @@ fun LabSummaryScreen(
                                 value = biomarker.value,
                                 unit = biomarker.unit,
                                 badgeText = biomarker.badgeText,
+                                badgeTone = biomarker.badgeTone,
                                 badgeColor = ZivaaTheme.colors.leaf,
                                 comparisonText = "",
                                 insight = biomarker.insight,
@@ -372,6 +379,7 @@ fun MetricCard(
     value: String,
     unit: String,
     badgeText: String,
+    badgeTone: String,
     badgeColor: Color,
     comparisonText: String,
     insight: String,
@@ -381,148 +389,179 @@ fun MetricCard(
     rangeText: String,
     hasReferenceRange: Boolean
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val tagText = if (badgeTone == "good") "Within Range" else "Out of Range"
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ZivaaTheme.colors.bgElev, RoundedCornerShape(20.dp))
-            .padding(20.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(ZivaaTheme.colors.bgElev)
+            .clickable { isExpanded = !isExpanded }
+            .animateContentSize()
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
+        // Non-expanded header row (always visible)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp)
+            ) {
                 Text(
                     text = title,
                     style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = ZivaaTheme.colors.ink
                 )
-                Text(
-                    text = subtitle,
-                    style = ZivaaTheme.typography.bodyMedium,
-                    color = ZivaaTheme.colors.textMeta
-                )
+                if (subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = ZivaaTheme.typography.bodySmall,
+                        color = ZivaaTheme.colors.textMeta
+                    )
+                }
             }
-            Box(
-                modifier = Modifier
-                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Text(
-                    text = badgeText,
-                    style = ZivaaTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = badgeColor
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(20.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                val isTextValue = value.any { it.isLetter() } || value.length > 6
-                Text(
-                    text = value,
-                    style = if (isTextValue) ZivaaTheme.typography.leadParagraph else ZivaaTheme.typography.displayMedium,
-                    color = ZivaaTheme.colors.ink,
-                    modifier = Modifier.padding(bottom = if (isTextValue) 4.dp else 0.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = unit,
-                    style = ZivaaTheme.typography.meta,
-                    color = ZivaaTheme.colors.textMeta,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-            }
-            Text(
-                text = comparisonText,
-                style = ZivaaTheme.typography.bodySmall.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
-                color = badgeColor,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-        }
-        
-        if (hasReferenceRange && progress != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Progress Bar Dynamically Calculated
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                val totalWidth = maxWidth
-                val greenStart = totalWidth * (rangeStartProgress ?: 0f)
-                val greenWidth = totalWidth * ((rangeEndProgress ?: 1f) - (rangeStartProgress ?: 0f))
-                
-                // Track
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isTextValue = value.any { it.isLetter() } || value.length > 6
+                    val formattedValue = if (unit.isNotBlank()) "$value $unit" else value
+                    Text(
+                        text = formattedValue,
+                        style = if (isTextValue) ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        else ZivaaTheme.typography.cardTitle.copy(fontWeight = FontWeight.Bold),
+                        color = ZivaaTheme.colors.ink
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = ZivaaTheme.colors.textMeta,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .background(ZivaaTheme.colors.muted.copy(alpha = 0.5f), CircleShape)
+                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    // Green range section
+                    Text(
+                        text = tagText,
+                        style = ZivaaTheme.typography.meta.copy(fontWeight = FontWeight.SemiBold),
+                        color = badgeColor
+                    )
+                }
+            }
+        }
+
+        // Expanded details (graphical representation & insight)
+        if (isExpanded) {
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(
+                color = ZivaaTheme.colors.line.copy(alpha = 0.6f),
+                thickness = 1.dp
+            )
+
+            if (comparisonText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = comparisonText,
+                    style = ZivaaTheme.typography.bodySmall.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                    color = badgeColor,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+
+            if (hasReferenceRange && progress != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Progress Bar Dynamically Calculated
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    val totalWidth = maxWidth
+                    val greenStart = totalWidth * (rangeStartProgress ?: 0f)
+                    val greenWidth = totalWidth * ((rangeEndProgress ?: 1f) - (rangeStartProgress ?: 0f))
+
+                    // Track
                     Box(
                         modifier = Modifier
-                            .width(greenWidth)
-                            .offset(x = greenStart)
-                            .fillMaxHeight()
-                            .background(ZivaaTheme.colors.leaf.copy(alpha = 0.4f))
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .background(ZivaaTheme.colors.muted.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        // Green range section
+                        Box(
+                            modifier = Modifier
+                                .width(greenWidth)
+                                .offset(x = greenStart)
+                                .fillMaxHeight()
+                                .background(ZivaaTheme.colors.leaf.copy(alpha = 0.4f))
+                        )
+                    }
+
+                    // Thumb
+                    val thumbOffset = totalWidth * progress - 10.dp
+                    Box(
+                        modifier = Modifier
+                            .offset(x = thumbOffset)
+                            .size(20.dp)
+                            .background(badgeColor, CircleShape)
+                            .border(3.dp, ZivaaTheme.colors.bgElev, CircleShape)
                     )
                 }
-                
-                // Thumb
-                val thumbOffset = totalWidth * (progress ?: 0.5f) - 10.dp
-                Box(
-                    modifier = Modifier
-                        .offset(x = thumbOffset)
-                        .size(20.dp)
-                        .background(badgeColor, CircleShape)
-                        .border(3.dp, ZivaaTheme.colors.bgElev, CircleShape)
-                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "GREEN = HEALTHY",
+                            style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                            color = ZivaaTheme.colors.leaf
+                        )
+                        if (rangeText.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(modifier = Modifier.size(3.dp).background(ZivaaTheme.colors.leaf, CircleShape))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = rangeText,
+                                style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                                color = ZivaaTheme.colors.leaf
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (badgeText.isNotBlank() && badgeText != tagText) "YOU ARE HERE · $badgeText" else "YOU ARE HERE",
+                        style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
+                        color = badgeColor
+                    )
+                }
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "GREEN = HEALTHY",
-                        style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
-                        color = ZivaaTheme.colors.leaf
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(modifier = Modifier.size(3.dp).background(ZivaaTheme.colors.leaf, CircleShape))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = rangeText,
-                        style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
-                        color = ZivaaTheme.colors.leaf
-                    )
-                }
+
+            if (insight.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "YOU ARE HERE",
-                    style = ZivaaTheme.typography.meta.copy(fontFamily = com.zivaa.app.ui.theme.IBMPlexMono),
-                    color = badgeColor
+                    text = insight,
+                    style = ZivaaTheme.typography.bodyMedium,
+                    color = ZivaaTheme.colors.textBody
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = insight,
-            style = ZivaaTheme.typography.bodyMedium,
-            color = ZivaaTheme.colors.textBody
-        )
     }
 }
 
@@ -561,7 +600,7 @@ fun AdviceCard() {
                 )
             }
             if (index < advices.size - 1) {
-                Divider(
+                HorizontalDivider(
                     color = ZivaaTheme.colors.line,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
