@@ -71,15 +71,17 @@ fun MarkdownText(
             val h3 = Regex("^### (.*)").find(trimmedLine)
             val h4 = Regex("^#### (.*)").find(trimmedLine)
             val h5 = Regex("^##### (.*)").find(trimmedLine)
+            val boldHeading = Regex("^\\*\\*([^*]+)\\*\\*:?$").find(trimmedLine)
 
-            if (h1 != null || h2 != null || h3 != null || h4 != null || h5 != null) {
+            if (h1 != null || h2 != null || h3 != null || h4 != null || h5 != null || boldHeading != null) {
                 flushBlock()
-                val headingText = h1?.groupValues?.get(1) ?: h2?.groupValues?.get(1) ?: h3?.groupValues?.get(1) ?: h4?.groupValues?.get(1) ?: h5?.groupValues?.get(1) ?: ""
+                val headingText = h1?.groupValues?.get(1) ?: h2?.groupValues?.get(1) ?: h3?.groupValues?.get(1) ?: h4?.groupValues?.get(1) ?: h5?.groupValues?.get(1) ?: boldHeading?.groupValues?.get(1) ?: ""
                 val fontSize = when {
                     h1 != null -> 24.sp
                     h2 != null -> 20.sp
                     h3 != null -> 18.sp
                     h4 != null -> 16.sp
+                    boldHeading != null -> 16.sp
                     else -> 14.sp
                 }
 
@@ -91,8 +93,8 @@ fun MarkdownText(
                 Text(
                     text = headingBuilder.toAnnotatedString(),
                     color = color,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                    lineHeight = (fontSize.value * 1.2f).sp
+                    modifier = Modifier.padding(top = if (boldHeading != null) 10.dp else 8.dp, bottom = 6.dp),
+                    lineHeight = (fontSize.value * 1.25f).sp
                 )
                 continue
             }
@@ -118,7 +120,7 @@ fun MarkdownText(
                 Text(
                     text = bulletBuilder.toAnnotatedString(),
                     color = color,
-                    modifier = Modifier.padding(bottom = 4.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                     lineHeight = 22.sp
                 )
                 continue
