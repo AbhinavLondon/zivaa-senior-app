@@ -7,6 +7,14 @@ import com.zivaa.app.data.remote.SupabaseApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 data class CategoryGroup(
     val title: String,
@@ -18,7 +26,6 @@ data class CategoryGroup(
 data class LabReportState(
     val isLoading: Boolean = true,
     val reportTitle: String = "Lab Report",
-    val heroTitle: String = "THE SHORT VERSION",
     val heroText: String = "",
     val inRangeCount: Int = 0,
     val outOfRangeCount: Int = 0,
@@ -51,7 +58,21 @@ class LabReportViewModel(
                 }
                 val report = reportResponse.body()!!.first()
                 val summaryText = report.summaryExplanation ?: "Your report has been generated. Ask your doctor for more details."
-                val reportTitle = report.resource?.code?.text ?: "Lab Report"
+
+                val performer = report.performer?.takeIf { it.isNotBlank() }
+                    ?: report.resource?.performer?.firstOrNull()?.display?.takeIf { it.isNotBlank() }
+
+                val rawDate = report.effectiveDatetime?.takeIf { it.isNotBlank() }
+                    ?: report.resource?.effectiveDateTime?.takeIf { it.isNotBlank() }
+
+                val formattedDate = formatReportDate(rawDate)
+
+                val reportTitle = when {
+                    !performer.isNullOrBlank() && !formattedDate.isNullOrBlank() -> "$performer · $formattedDate"
+                    !performer.isNullOrBlank() -> performer
+                    !formattedDate.isNullOrBlank() -> formattedDate
+                    else -> report.resource?.code?.text?.takeIf { it.isNotBlank() } ?: "Lab Report"
+                }
 
                 // Fetch observations
                 val obsResponse = apiService.getObservationsByReport("eq.$reportId")
@@ -121,6 +142,53 @@ class LabReportViewModel(
                 _state.value = _state.value.copy(isLoading = false, error = e.localizedMessage)
             }
         }
+    }
+
+    private fun formatReportDate(rawDate: String?): String? {
+        if (rawDate.isNullOrBlank()) return null
+        val trimmed = rawDate.trim()
+
+        try {
+            if (trimmed.contains("T")) {
+                val zonedDateTime = try {
+                    OffsetDateTime.parse(trimmed).toZonedDateTime()
+                } catch (e: Exception) {
+                    try {
+                        Instant.parse(trimmed).atZone(ZoneId.systemDefault())
+                    } catch (e2: Exception) {
+                        LocalDateTime.parse(trimmed).atZone(ZoneId.systemDefault())
+                    }
+                }
+                return zonedDateTime.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
+            } else if (trimmed.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))) {
+                val localDate = LocalDate.parse(trimmed)
+                return localDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
+            }
+        } catch (ignored: Exception) {
+        }
+
+        val candidatePatterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd-MM-yyyy",
+            "dd/MM/yyyy",
+            "d MMM yyyy",
+            "dd MMM yyyy"
+        )
+        for (pattern in candidatePatterns) {
+            try {
+                val sdfIn = SimpleDateFormat(pattern, Locale.US)
+                sdfIn.isLenient = false
+                val parsed = sdfIn.parse(trimmed)
+                if (parsed != null) {
+                    val sdfOut = SimpleDateFormat("d MMM yyyy", Locale.US)
+                    return sdfOut.format(parsed)
+                }
+            } catch (ignored: Exception) {
+            }
+        }
+
+        return trimmed
     }
 }
 

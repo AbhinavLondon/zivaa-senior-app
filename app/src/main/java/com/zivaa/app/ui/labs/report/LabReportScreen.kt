@@ -111,14 +111,14 @@ fun TopAppBarArea(title: String, onNavigateBack: () -> Unit) {
             Column {
                 Text(
                     text = title.toEyebrowTitleCase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF111111)
+                    style = ZivaaTheme.typography.eyebrow,
+                    color = ZivaaTheme.colors.eyebrow
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Read Just Now · 21 Jul",
+                    text = "Read Just Now",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF111111)
+                    color = ZivaaTheme.colors.textMeta
                 )
             }
         }
@@ -156,19 +156,7 @@ fun HeroSection(state: LabReportState) {
             modifier = Modifier.padding(24.dp)
         ) {
             Text(
-                text = state.heroTitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = ZivaaTheme.colors.sageInk.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            // We can replace this static annotated string if we want, but since summary_explanation is a single string we'll just show it.
-            // If the user wants the "Mostly good news, Ranjit" part dynamic, we might need a separate field.
-            // For now, we'll put the heroText in the body.
-            val annotatedString = buildAnnotatedString {
-                append("Report Summary")
-            }
-            Text(
-                text = annotatedString,
+                text = "Report Summary",
                 style = MaterialTheme.typography.headlineMedium,
                 color = ZivaaTheme.colors.sageInk
             )
@@ -317,8 +305,8 @@ fun CategoryHeader(state: LabReportState) {
     ) {
         Text(
             text = "By Category",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFF111111)
+            style = ZivaaTheme.typography.eyebrow,
+            color = ZivaaTheme.colors.eyebrow
         )
         Text(
             text = "$outCount Of $totalCount Need A Look",
