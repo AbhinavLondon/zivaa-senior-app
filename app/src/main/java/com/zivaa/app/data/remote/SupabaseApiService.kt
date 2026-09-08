@@ -36,7 +36,7 @@ interface SupabaseApiService {
     @retrofit2.http.GET("rest/v1/fhir_diagnostic_reports")
     suspend fun getDiagnosticReports(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,
-        @retrofit2.http.Query("select") select: String = "id,patient_id,resource",
+        @retrofit2.http.Query("select") select: String = "id,patient_id,performer,effective_datetime,resource",
         @retrofit2.http.Query("order") order: String = "created_at.desc"
     ): Response<List<SupabaseFhirDiagnosticReport>>
 
@@ -209,6 +209,17 @@ interface SupabaseApiService {
     suspend fun updateDailyPlan(
         @retrofit2.http.Query("id") idQuery: String,
         @Body updates: Map<String, @JvmSuppressWildcards Any>
+    ): Response<Void>
+
+    @retrofit2.http.POST("rest/v1/daily_plans")
+    suspend fun insertDailyPlans(
+        @Body records: List<Map<String, @JvmSuppressWildcards Any>>
+    ): Response<Void>
+
+    @Headers("Prefer: resolution=merge-duplicates")
+    @retrofit2.http.POST("rest/v1/daily_plans")
+    suspend fun insertDailyPlanRecords(
+        @Body records: List<SupabaseDailyPlanRecord>
     ): Response<Void>
 
     @retrofit2.http.GET("rest/v1/nudge_alerts")

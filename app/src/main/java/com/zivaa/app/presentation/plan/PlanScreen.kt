@@ -196,7 +196,7 @@ fun PlanScreenHeader() {
         Text(
             text = "Your Day • Tue 16 Jun",
             style = typography.eyebrow,
-            color = androidx.compose.ui.graphics.Color(0xFF111111)
+            color = colors.eyebrow
         )
 
         Box(
@@ -243,7 +243,7 @@ fun PlanScreenHero(summary: String = "") {
             Text(
                 text = "Today • Tue 16 Jun",
                 style = typography.eyebrow,
-                color = androidx.compose.ui.graphics.Color(0xFF111111)
+                color = colors.eyebrow
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -342,7 +342,7 @@ fun PlanSectionHeader(
             Text(
                 text = timeRange,
                 style = typography.eyebrow,
-                color = androidx.compose.ui.graphics.Color(0xFF111111)
+                color = colors.eyebrow
             )
         }
 
@@ -427,7 +427,7 @@ fun PlanTaskCard(
                 Text(
                     text = tag,
                     style = typography.eyebrow,
-                    color = androidx.compose.ui.graphics.Color(0xFF111111)
+                    color = colors.eyebrow
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.0.19"
+        versionCode = 27
+        versionName = "1.0.26"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -45,8 +45,8 @@ android {
             if (localPropertiesFile.exists()) {
                 properties.load(FileInputStream(localPropertiesFile))
             }
-            buildConfigField("String", "API_BASE_URL", properties.getProperty("API_BASE_URL", "\"http://192.168.1.99:8000/\""))
-            resValue("string", "app_name", "Zivaa Dev")
+            buildConfigField("String", "API_BASE_URL", properties.getProperty("API_BASE_URL", "\"https://zivaa-backend-121011128860.europe-west4.run.app/\""))
+            resValue("string", "app_name", "Zivaa")
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"https://zivaa-backend-121011128860.europe-west4.run.app/\"")
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.19 - Premium biomarker card design: non-italic values, half-size units, refined typography, and smooth chevron animation"
+                releaseNotes = "Zivaa v1.0.26 - Longevity engine integration, interactive biomarker analysis, and UI polish"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -147,3 +147,8 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 }
+
+ksp {
+    arg("room.generateKotlin", "true")
+}
+

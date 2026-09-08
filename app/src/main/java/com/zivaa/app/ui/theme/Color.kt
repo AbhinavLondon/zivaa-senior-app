@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 // Neutrals - Warm Paper
 val ZivaaBg = Color(0xFFF6F3EE)
 val ZivaaBgElev = Color(0xFFFBF9F5)
-val ZivaaInk = Color(0xFF1D211E)
+val ZivaaInk = Color(0xFF111111)
 val ZivaaInkSoft = Color(0xFF5A5A52)
 val ZivaaInkMute = Color(0xFF6B6A5F)
 val ZivaaLine = Color(0x141D211E) // 0.08 alpha
@@ -53,6 +53,7 @@ data class ZivaaColors(
     val textOnAccent: Color = ZivaaSageInk,
     val borderHairline: Color = ZivaaLine,
     val borderStrong: Color = ZivaaLineStrong,
+    val eyebrow: Color = Color(0xFF111111),
     
     // Tones
     val toneOk: Color = ZivaaLeaf,
@@ -106,6 +107,7 @@ fun darkZivaaColors(): ZivaaColors {
         textOnAccent = darkSageInk,
         borderHairline = darkLine,
         borderStrong = darkLineStrong,
+        eyebrow = darkInk,
         
         toneOk = darkLeaf,
         toneWatch = darkAmber,

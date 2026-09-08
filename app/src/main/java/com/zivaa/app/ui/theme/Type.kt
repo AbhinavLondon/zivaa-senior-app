@@ -117,10 +117,10 @@ val defaultZivaaTypography = ZivaaTypography(
     eyebrow = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        lineHeight = (14 * 1.45).sp, // Using default leading
+        fontSize = 15.5.sp,
+        lineHeight = 22.sp,
         letterSpacing = 0.04.em,
-        color = androidx.compose.ui.graphics.Color(0xFF111111)
+        color = androidx.compose.ui.graphics.Color.Unspecified
     ),
     meta = TextStyle(
         fontFamily = Manrope,

@@ -8,13 +8,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -79,7 +87,7 @@ fun LabReportScreen(
                 item { ProgressBarSection(state, onStatsBoxClick) }
                 item { CategoryHeader(state) }
                 item { CategoryGridSection(state, onCategoryClick) }
-                item { BottomActionsSection() }
+                item { BottomActionsSection(state) }
             }
             
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -147,26 +155,161 @@ fun TopAppBarArea(title: String, onNavigateBack: () -> Unit) {
     }
 }
 
+/**
+ * Splits the full lab report summary into two parts:
+ * 1. The initial "Overall Health" paragraph (shown in collapsed view).
+ * 2. All subsequent clinical details (Areas to Keep an Eye On, Suggested Questions, etc., shown in expanded view).
+ */
+fun splitReportSummary(text: String): Pair<String, String> {
+    if (text.isBlank()) return Pair("", "")
+
+    // Match a section break followed by any markdown header (except 'Overall Health')
+    val pattern = Regex("""(?:\r?\n\s*\r?\n)(?=(?:\*\*|#{1,4}\s*)(?!Overall Health)(?:[A-Z]))""")
+    val match = pattern.find(text)
+
+    if (match != null) {
+        val overall = text.substring(0, match.range.first).trim()
+        val remaining = text.substring(match.range.first).trim()
+        if (overall.isNotBlank() && remaining.isNotBlank()) {
+            return Pair(overall, remaining)
+        }
+    }
+
+    // Fallback: If no second header found, split by paragraphs
+    val paragraphs = text.split(Regex("""\r?\n\s*\r?\n""")).map { it.trim() }.filter { it.isNotEmpty() }
+    if (paragraphs.size > 1) {
+        // If first paragraph is a heading like '**Overall Health**', pair it with the second paragraph
+        if (paragraphs[0].startsWith("**") && paragraphs[0].endsWith("**") && paragraphs.size > 2) {
+            val overall = "${paragraphs[0]}\n\n${paragraphs[1]}"
+            val remaining = paragraphs.drop(2).joinToString("\n\n")
+            return Pair(overall, remaining)
+        } else if (paragraphs.size >= 2) {
+            val overall = paragraphs[0]
+            val remaining = paragraphs.drop(1).joinToString("\n\n")
+            return Pair(overall, remaining)
+        }
+    }
+
+    return Pair(text.trim(), "")
+}
+
 @Composable
 fun HeroSection(state: LabReportState) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val (overallHealth, remainingDetails) = remember(state.heroText) {
+        splitReportSummary(state.heroText)
+    }
+    val hasMoreDetails = remainingDetails.isNotBlank()
+
+    val rotationState by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = spring(dampingRatio = 0.85f),
+        label = "summary_chevron_rotation"
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+            ),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = ZivaaTheme.colors.sage)
     ) {
         Column(
             modifier = Modifier.padding(24.dp)
         ) {
-            Text(
-                text = "Report Summary",
-                style = MaterialTheme.typography.headlineMedium,
-                color = ZivaaTheme.colors.sageInk
-            )
+            // Header row with "Report Summary" and animated expand/collapse icon
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (hasMoreDetails) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { isExpanded = !isExpanded }
+                        } else Modifier
+                    ),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Report Summary",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = ZivaaTheme.colors.sageInk
+                )
+                if (hasMoreDetails) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(ZivaaTheme.colors.sageInk.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (isExpanded) "Collapse summary" else "Expand summary",
+                            tint = ZivaaTheme.colors.sageInk,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .rotate(rotationState)
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Non-expandable view: always shows Overall Health paragraph
             MarkdownText(
-                text = state.heroText,
+                text = if (hasMoreDetails) overallHealth else state.heroText,
                 color = ZivaaTheme.colors.sageInk.copy(alpha = 0.9f)
             )
+
+            // Expandable version: shows all other details
+            if (hasMoreDetails && isExpanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(
+                    color = ZivaaTheme.colors.sageInk.copy(alpha = 0.18f),
+                    thickness = 0.75.dp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                MarkdownText(
+                    text = remainingDetails,
+                    color = ZivaaTheme.colors.sageInk.copy(alpha = 0.9f)
+                )
+            }
+
+            // Bottom toggle affordance (pill button) for clarity
+            if (hasMoreDetails) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ZivaaTheme.colors.sageInk.copy(alpha = 0.1f))
+                        .clickable { isExpanded = !isExpanded }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (isExpanded) "Show less" else "View full summary",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp
+                        ),
+                        color = ZivaaTheme.colors.sageInk
+                    )
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = ZivaaTheme.colors.sageInk,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -447,7 +590,8 @@ fun CategoryCard(
 }
 
 @Composable
-fun BottomActionsSection() {
+fun BottomActionsSection(state: LabReportState) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -465,7 +609,13 @@ fun BottomActionsSection() {
                 Text("Ask about this report", style = MaterialTheme.typography.bodyLarge, color = ZivaaTheme.colors.sageInk)
             }
             OutlinedButton(
-                onClick = { /* TODO */ },
+                onClick = {
+                    com.zivaa.app.util.pdf.LabReportPdfGenerator.generateAndShareFullReportPdf(
+                        context = context,
+                        state = state,
+                        categorizedBiomarkers = state.categorizedBiomarkers
+                    )
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, ZivaaTheme.colors.borderStrong),

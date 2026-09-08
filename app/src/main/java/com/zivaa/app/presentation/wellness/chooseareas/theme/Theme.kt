@@ -13,7 +13,11 @@ fun ChooseAreasTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkChooseAreasColors else LightChooseAreasColors
-    val typography = DefaultChooseAreasTypography
+    val typography = DefaultChooseAreasTypography.copy(
+        eyebrow = DefaultChooseAreasTypography.eyebrow.copy(
+            color = if (darkTheme) colors.ink else androidx.compose.ui.graphics.Color(0xFF111111)
+        )
+    )
 
     CompositionLocalProvider(
         LocalChooseAreasColors provides colors,

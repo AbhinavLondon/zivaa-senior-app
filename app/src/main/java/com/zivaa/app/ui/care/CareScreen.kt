@@ -208,7 +208,7 @@ private fun TopHeader(onMessageClick: () -> Unit) {
         Text(
             text = "Care",
             style = typography.eyebrow,
-            color = Color(0xFF111111)
+            color = colors.eyebrow
         )
         Box(
             modifier = Modifier
@@ -270,7 +270,7 @@ private fun UpcomingSection() {
             Text(
                 text = "Upcoming For You",
                 style = typography.eyebrow,
-                color = Color(0xFF111111)
+                color = colors.eyebrow
             )
             Text(
                 text = "SEE ALL 3 ›",
@@ -330,7 +330,7 @@ private fun UpcomingSection() {
                     Text(
                         text = "Today · 4:00 PM",
                         style = typography.eyebrow.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF111111)
+                        color = colors.eyebrow
                     )
                 }
 
@@ -412,7 +412,7 @@ private fun SuggestedSection(nudges: List<NudgeItem>, onClick: (NudgeItem) -> Un
         Text(
             text = "Suggested Today",
             style = typography.eyebrow,
-            color = Color(0xFF111111),
+            color = colors.eyebrow,
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
         )
 
@@ -472,7 +472,7 @@ private fun ServicesGrid(services: List<ServiceItem>, onClick: (ServiceItem) -> 
         Text(
             text = "Home Care Services",
             style = typography.eyebrow,
-            color = Color(0xFF111111),
+            color = colors.eyebrow,
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
         )
 
@@ -661,7 +661,7 @@ private fun BookingDetailsView(service: ServiceItem, onRequestVisit: () -> Unit,
                     }
                     .padding(horizontal = 14.dp, vertical = 13.dp)
             ) {
-                Text(text = "Typical Cost", style = typography.meta.copy(fontSize = 9.sp), color = Color(0xFF111111))
+                Text(text = "Typical Cost", style = typography.meta.copy(fontSize = 9.sp), color = colors.eyebrow)
                 Text(text = service.price, style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.ink, modifier = Modifier.padding(top = 4.dp))
             }
             Column(
@@ -678,7 +678,7 @@ private fun BookingDetailsView(service: ServiceItem, onRequestVisit: () -> Unit,
                     }
                     .padding(horizontal = 14.dp, vertical = 13.dp)
             ) {
-                Text(text = "Soonest", style = typography.meta.copy(fontSize = 9.sp), color = Color(0xFF111111))
+                Text(text = "Soonest", style = typography.meta.copy(fontSize = 9.sp), color = colors.eyebrow)
                 Text(text = service.eta, style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.ink, modifier = Modifier.padding(top = 4.dp))
             }
         }
@@ -686,7 +686,7 @@ private fun BookingDetailsView(service: ServiceItem, onRequestVisit: () -> Unit,
         Text(
             text = "What's Included",
             style = typography.meta.copy(fontSize = 10.sp),
-            color = Color(0xFF111111),
+            color = colors.eyebrow,
             modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
         )
 

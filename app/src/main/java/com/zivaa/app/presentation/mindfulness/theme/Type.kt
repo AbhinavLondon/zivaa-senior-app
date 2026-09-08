@@ -84,8 +84,8 @@ val defaultMindfulnessTypography = MindfulnessTypography(
     eyebrow = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
+        fontSize = 13.5.sp,
+        lineHeight = 19.sp,
         letterSpacing = 0.15.em,
         color = MindfulnessTextPrimary
     ),

@@ -94,7 +94,6 @@ fun ExerciseListScreen(
                         Text(
                             text = "The Moves · In Order",
                             style = ChooseAreasTheme.typography.eyebrow,
-                            color = Color(0xFF111111),
                             modifier = Modifier.padding(horizontal = 24.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -218,8 +217,7 @@ fun ExerciseHeader(onBackClick: () -> Unit, bodyPartName: String) {
             Spacer(modifier = Modifier.size(12.dp))
             Text(
                 text = "Body · ${bodyPartName.toEyebrowTitleCase()}",
-                style = ChooseAreasTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                style = ChooseAreasTheme.typography.eyebrow
             )
         }
 

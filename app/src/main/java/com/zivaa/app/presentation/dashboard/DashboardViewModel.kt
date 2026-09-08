@@ -66,6 +66,7 @@ class DashboardViewModel(
     var sleepInsightText by mutableStateOf<String?>("")
     var middaySummaryText by mutableStateOf<String?>(null)
     var eveningSummaryText by mutableStateOf<String?>(null)
+    var lateNightInsightText by mutableStateOf<String?>(null)
 
     var hasViewedAfternoonSummary by mutableStateOf(false)
         private set
@@ -112,13 +113,51 @@ class DashboardViewModel(
         } else {
             activeHeroPeriod = "morning"
         }
+
+        fetchDailyPlan()
     }
 
     val hasPlanForToday: Boolean
         get() {
             val todayStr = java.time.LocalDate.now().toString()
-            return allWeeklyPlans.any { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
+            val todayPlan = allWeeklyPlans.find { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
+            if (todayPlan == null) return false
+            val schedule = todayPlan.schedule ?: return false
+            val total = (schedule.morning?.size ?: 0) + (schedule.afternoon?.size ?: 0) + (schedule.evening?.size ?: 0) + (schedule.night?.size ?: 0)
+            return total > 0
         }
+
+    val currentStreak: Int
+        get() {
+            var streak = 0
+            val today = java.time.LocalDate.now()
+            for (i in 0..30) {
+                val checkDate = today.minusDays(i.toLong()).toString()
+                val plan = allWeeklyPlans.find { it.date == checkDate }
+                if (plan != null) {
+                    val allTasks = mutableListOf<DailyPlanTask>()
+                    plan.schedule?.morning?.let { allTasks.addAll(it) }
+                    plan.schedule?.afternoon?.let { allTasks.addAll(it) }
+                    plan.schedule?.evening?.let { allTasks.addAll(it) }
+                    plan.schedule?.night?.let { allTasks.addAll(it) }
+                    if (allTasks.isNotEmpty() && allTasks.all { it.completed }) {
+                        streak++
+                    } else if (i > 0) {
+                        break
+                    }
+                } else if (i > 0) {
+                    break
+                }
+            }
+            return streak
+        }
+
+    val isNewUser: Boolean
+        get() {
+            val todayStr = java.time.LocalDate.now().toString()
+            return allWeeklyPlans.none { (it.date ?: "") < todayStr }
+        }
+
     var isGeneratingPlan by mutableStateOf(false)
         private set
     private var currentPlanId: String? = null
@@ -196,11 +235,30 @@ class DashboardViewModel(
         }
     }
 
+    private fun updateAllWeeklyPlansCurrentSchedule() {
+        val targetDate = selectedDate.ifEmpty { java.time.LocalDate.now().toString() }
+        allWeeklyPlans = allWeeklyPlans.map { record ->
+            if (record.date == targetDate || (record.date == null && record.created_at?.startsWith(targetDate) == true)) {
+                record.copy(
+                    schedule = com.zivaa.app.data.remote.DailyPlanSchedule(
+                        morning = morningTasks,
+                        afternoon = afternoonTasks,
+                        evening = eveningTasks,
+                        night = nightTasks
+                    )
+                )
+            } else {
+                record
+            }
+        }
+    }
+
     fun toggleMorningTask(index: Int) {
         val newStatus = !morningTasks[index].completed
         morningTasks = morningTasks.mapIndexed { idx, task ->
             if (idx == index) task.copy(completed = newStatus) else task
         }
+        updateAllWeeklyPlansCurrentSchedule()
         syncTaskStatus("morning", index, newStatus)
     }
 
@@ -209,6 +267,7 @@ class DashboardViewModel(
         afternoonTasks = afternoonTasks.mapIndexed { idx, task ->
             if (idx == index) task.copy(completed = newStatus) else task
         }
+        updateAllWeeklyPlansCurrentSchedule()
         syncTaskStatus("afternoon", index, newStatus)
     }
 
@@ -217,6 +276,7 @@ class DashboardViewModel(
         eveningTasks = eveningTasks.mapIndexed { idx, task ->
             if (idx == index) task.copy(completed = newStatus) else task
         }
+        updateAllWeeklyPlansCurrentSchedule()
         syncTaskStatus("evening", index, newStatus)
     }
 
@@ -225,6 +285,7 @@ class DashboardViewModel(
         nightTasks = nightTasks.mapIndexed { idx, task ->
             if (idx == index) task.copy(completed = newStatus) else task
         }
+        updateAllWeeklyPlansCurrentSchedule()
         syncTaskStatus("night", index, newStatus)
     }
 
@@ -247,13 +308,167 @@ class DashboardViewModel(
                 
                 if (response.isSuccessful) {
                     val records = response.body()
-                    if (!records.isNullOrEmpty()) {
+                    val todayStr = today.toString()
+                    val hasToday = !records.isNullOrEmpty() && records.any { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
+
+                    if (!records.isNullOrEmpty() && hasToday) {
                         allWeeklyPlans = records
                         // Select today by default
-                        selectDate(java.time.LocalDate.now().toString())
+                        selectDate(todayStr)
                     } else {
-                        allWeeklyPlans = emptyList()
+                        // Missing today or empty weekly plans: auto-provision starter routine!
+                        autoProvisionStarterPlans(patientId, records ?: emptyList())
                     }
+                } else {
+                    autoProvisionStarterPlans(patientId, emptyList())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
+                autoProvisionStarterPlans(patientId, emptyList())
+            }
+        }
+    }
+
+    fun autoProvisionStarterPlans(
+        patientId: String,
+        existingWeeklyRecords: List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord> = emptyList()
+    ) {
+        viewModelScope.launch {
+            try {
+                val today = java.time.LocalDate.now()
+                val existingDates = existingWeeklyRecords.mapNotNull { it.date }.toSet()
+
+                val daysToProvision = mutableListOf<java.time.LocalDate>()
+                for (i in 0..6) {
+                    val d = today.plusDays(i.toLong())
+                    if (!existingDates.contains(d.toString())) {
+                        daysToProvision.add(d)
+                    }
+                }
+
+                if (daysToProvision.isEmpty()) return@launch
+
+                val newRecords = daysToProvision.map { date ->
+                    val dateStr = date.toString()
+                    val isFirstDay = (date == today)
+
+                    val schedule = if (isFirstDay) {
+                        com.zivaa.app.data.remote.DailyPlanSchedule(
+                            morning = listOf(
+                                DailyPlanTask(
+                                    task = "Say hello to Zivaa, your AI health coach",
+                                    time = "Morning",
+                                    category = "coach",
+                                    details = "Tap to chat with Zivaa about your day and health goals.",
+                                    completed = false
+                                ),
+                                DailyPlanTask(
+                                    task = "Drink a fresh glass of water",
+                                    time = "8:00 AM",
+                                    category = "hydration",
+                                    details = "Start your day refreshed with a full glass of water.",
+                                    completed = false
+                                )
+                            ),
+                            afternoon = listOf(
+                                DailyPlanTask(
+                                    task = "Log your breakfast or lunch",
+                                    time = "1:00 PM",
+                                    category = "nutrition",
+                                    details = "Take a photo or describe your meal to track your nutrition.",
+                                    completed = false
+                                ),
+                                DailyPlanTask(
+                                    task = "10-minute gentle walk or stretch",
+                                    time = "3:30 PM",
+                                    category = "movement",
+                                    details = "A brief stroll or gentle stretch to keep your circulation flowing.",
+                                    completed = false
+                                )
+                            ),
+                            evening = listOf(
+                                DailyPlanTask(
+                                    task = "Check your blood pressure or vitals",
+                                    time = "7:00 PM",
+                                    category = "vitals",
+                                    details = "Keep track of your vitals or connect your Health Connect data.",
+                                    completed = false
+                                )
+                            ),
+                            night = emptyList()
+                        )
+                    } else {
+                        com.zivaa.app.data.remote.DailyPlanSchedule(
+                            morning = listOf(
+                                DailyPlanTask(
+                                    task = "Morning glass of water",
+                                    time = "8:00 AM",
+                                    category = "hydration",
+                                    details = "Hydrate early to jumpstart your day.",
+                                    completed = false
+                                ),
+                                DailyPlanTask(
+                                    task = "Ask Zivaa for your morning briefing",
+                                    time = "9:00 AM",
+                                    category = "coach",
+                                    details = "Check in with your AI coach on your daily focus.",
+                                    completed = false
+                                )
+                            ),
+                            afternoon = listOf(
+                                DailyPlanTask(
+                                    task = "Log your lunch",
+                                    time = "1:00 PM",
+                                    category = "nutrition",
+                                    details = "Snap a photo of what you ate today.",
+                                    completed = false
+                                ),
+                                DailyPlanTask(
+                                    task = "15-minute afternoon walk",
+                                    time = "4:00 PM",
+                                    category = "movement",
+                                    details = "A gentle stroll to stay active and energized.",
+                                    completed = false
+                                )
+                            ),
+                            evening = listOf(
+                                DailyPlanTask(
+                                    task = "Evening vitals check & unwind",
+                                    time = "8:00 PM",
+                                    category = "vitals",
+                                    details = "Review your vitals and relax before bed.",
+                                    completed = false
+                                )
+                            ),
+                            night = emptyList()
+                        )
+                    }
+
+                    val summary = if (isFirstDay) {
+                        "Welcome to Zivaa! Here is your starter routine to help you get familiar with logging meals, checking vitals, and chatting with your coach."
+                    } else {
+                        "A steady, gentle routine focused on nutrition, hydration, and movement."
+                    }
+
+                    com.zivaa.app.data.remote.SupabaseDailyPlanRecord(
+                        id = java.util.UUID.randomUUID().toString(),
+                        patient_id = patientId,
+                        date = dateStr,
+                        created_at = java.time.Instant.now().toString(),
+                        summary = summary,
+                        schedule = schedule
+                    )
+                }
+
+                val combined = (existingWeeklyRecords + newRecords).sortedBy { it.date ?: "" }
+                allWeeklyPlans = combined
+                selectDate(today.toString())
+
+                try {
+                    com.zivaa.app.data.remote.RetrofitClient.apiService.insertDailyPlanRecords(newRecords)
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardVM", "Failed to insert starter plans into Supabase", e)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -413,17 +628,24 @@ class DashboardViewModel(
 
                 // Fetch morning briefing
                 val todayStr = java.time.LocalDate.now().toString()
+                val isLateNight = java.time.LocalTime.now().hour in 0..4
+                
                 try {
                     val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
                     if (userId != null) {
-                        val briefingResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getMorningBriefing("eq.$userId")
-                        if (briefingResponse.isSuccessful) {
-                            val records = briefingResponse.body()
-                            if (!records.isNullOrEmpty()) {
-                                morningBriefingText = records[0].summary
-                                morningBriefingHeadline = records[0].headline ?: ""
-                                prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline)
+                        if (!isLateNight) {
+                            val briefingResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getMorningBriefing("eq.$userId")
+                            if (briefingResponse.isSuccessful) {
+                                val records = briefingResponse.body()
+                                if (!records.isNullOrEmpty()) {
+                                    morningBriefingText = records[0].summary
+                                    morningBriefingHeadline = records[0].headline ?: ""
+                                    prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline)
+                                }
                             }
+                        } else {
+                            morningBriefingText = ""
+                            morningBriefingHeadline = ""
                         }
                         
                         val patientResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getPatient("eq.$userId")
@@ -487,6 +709,18 @@ class DashboardViewModel(
                             prefsManager.saveEveningSummary(todayStr, eveningSummaryText!!)
                         } else {
                             eveningSummaryText = null
+                        }
+
+                        // Fetch LATENIGHT_CHECKIN
+                        val lateNightResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getUserInsights(
+                            patientIdQuery = "eq.$userId",
+                            insightTypeQuery = "eq.LATENIGHT_CHECKIN",
+                            insightDateQuery = "eq.$todayStr"
+                        )
+                        if (lateNightResponse.isSuccessful && !lateNightResponse.body().isNullOrEmpty()) {
+                            lateNightInsightText = lateNightResponse.body()!![0].insight_text
+                        } else {
+                            lateNightInsightText = null
                         }
                     }
                 } catch (e: Exception) {

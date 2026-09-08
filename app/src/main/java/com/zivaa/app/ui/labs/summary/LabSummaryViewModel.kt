@@ -9,6 +9,14 @@ import com.zivaa.app.data.remote.SupabaseFhirObservation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 data class BiomarkerUiModel(
     val headline: String,
@@ -33,7 +41,11 @@ data class LabSummaryState(
     val badCount: Int = 0,
     val biomarkers: List<BiomarkerUiModel> = emptyList(),
     val categorySummary: String? = null,
-    val isSummaryLoading: Boolean = true
+    val isSummaryLoading: Boolean = true,
+    val patientName: String = "",
+    val performer: String = "",
+    val formattedDate: String = "",
+    val reportId: String = ""
 )
 
 class LabSummaryViewModel(
@@ -65,7 +77,26 @@ class LabSummaryViewModel(
                 val isAll = categoryName.equals("All", ignoreCase = true) || categoryName.equals("All Biomarkers", ignoreCase = true)
                 
                 val reportRes = supabaseApiService.getDiagnosticReportById("eq.$reportId")
-                val performer = reportRes.body()?.firstOrNull()?.performer?.takeIf { it.isNotBlank() } ?: "Lab Report"
+                val reportObj = reportRes.body()?.firstOrNull()
+                val performer = reportObj?.performer?.takeIf { it.isNotBlank() } 
+                    ?: reportObj?.resource?.performer?.firstOrNull()?.display?.takeIf { it.isNotBlank() } 
+                    ?: "Laboratory"
+                val rawDate = reportObj?.effectiveDatetime?.takeIf { it.isNotBlank() }
+                    ?: reportObj?.resource?.effectiveDateTime?.takeIf { it.isNotBlank() }
+                val formattedDate = formatReportDate(rawDate) ?: ""
+
+                var patientName = ""
+                val pId = reportObj?.patientId
+                if (!pId.isNullOrBlank()) {
+                    try {
+                        val patRes = supabaseApiService.getPatient("eq.$pId")
+                        if (patRes.isSuccessful && !patRes.body().isNullOrEmpty()) {
+                            patientName = patRes.body()!!.first().fullName
+                        }
+                    } catch (ignored: Exception) {
+                    }
+                }
+
                 val displayTitle = if (isAll) "All Biomarkers · $performer" else "$categoryName · $performer"
                 
                 // Filter by consumer category if not "All"
@@ -180,7 +211,11 @@ class LabSummaryViewModel(
                     goodCount = good,
                     notSoGoodCount = notSoGood,
                     badCount = bad,
-                    biomarkers = uiModels
+                    biomarkers = uiModels,
+                    patientName = patientName,
+                    performer = performer,
+                    formattedDate = formattedDate,
+                    reportId = reportId
                 )
 
             } catch (e: Exception) {
@@ -215,6 +250,53 @@ class LabSummaryViewModel(
                 _state.value = _state.value.copy(isSummaryLoading = false)
             }
         }
+    }
+
+    private fun formatReportDate(rawDate: String?): String? {
+        if (rawDate.isNullOrBlank()) return null
+        val trimmed = rawDate.trim()
+
+        try {
+            if (trimmed.contains("T")) {
+                val zonedDateTime = try {
+                    OffsetDateTime.parse(trimmed).toZonedDateTime()
+                } catch (e: Exception) {
+                    try {
+                        Instant.parse(trimmed).atZone(ZoneId.systemDefault())
+                    } catch (e2: Exception) {
+                        LocalDateTime.parse(trimmed).atZone(ZoneId.systemDefault())
+                    }
+                }
+                return zonedDateTime.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
+            } else if (trimmed.matches(Regex("""^\d{4}-\d{2}-\d{2}$"""))) {
+                val localDate = LocalDate.parse(trimmed)
+                return localDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
+            }
+        } catch (ignored: Exception) {
+        }
+
+        val candidatePatterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd",
+            "dd-MM-yyyy",
+            "dd/MM/yyyy",
+            "d MMM yyyy",
+            "dd MMM yyyy"
+        )
+        for (pattern in candidatePatterns) {
+            try {
+                val sdfIn = SimpleDateFormat(pattern, Locale.US)
+                sdfIn.isLenient = false
+                val parsed = sdfIn.parse(trimmed)
+                if (parsed != null) {
+                    val sdfOut = SimpleDateFormat("d MMM yyyy", Locale.US)
+                    return sdfOut.format(parsed)
+                }
+            } catch (ignored: Exception) {
+            }
+        }
+
+        return trimmed
     }
 }
 

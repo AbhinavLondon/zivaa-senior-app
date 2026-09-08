@@ -219,8 +219,7 @@ private fun DetailSection(
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = title.toEyebrowTitleCase(),
-                style = ChooseAreasTheme.typography.eyebrow.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFF111111)
+                style = ChooseAreasTheme.typography.eyebrow.copy(fontWeight = FontWeight.Bold)
             )
         }
         Spacer(modifier = Modifier.height(12.dp))

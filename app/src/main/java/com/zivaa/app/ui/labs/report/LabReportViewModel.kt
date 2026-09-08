@@ -16,6 +16,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+import com.zivaa.app.ui.labs.summary.BiomarkerUiModel
+
 data class CategoryGroup(
     val title: String,
     val description: String,
@@ -31,7 +33,12 @@ data class LabReportState(
     val outOfRangeCount: Int = 0,
     val totalCount: Int = 0,
     val categories: List<CategoryGroup> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val patientName: String = "",
+    val performer: String = "",
+    val formattedDate: String = "",
+    val reportId: String = "",
+    val categorizedBiomarkers: Map<String, List<BiomarkerUiModel>> = emptyMap()
 )
 
 class LabReportViewModel(
@@ -74,6 +81,18 @@ class LabReportViewModel(
                     else -> report.resource?.code?.text?.takeIf { it.isNotBlank() } ?: "Lab Report"
                 }
 
+                var patientName = ""
+                val pId = report.patientId
+                if (!pId.isNullOrBlank()) {
+                    try {
+                        val patRes = apiService.getPatient("eq.$pId")
+                        if (patRes.isSuccessful && !patRes.body().isNullOrEmpty()) {
+                            patientName = patRes.body()!!.first().fullName
+                        }
+                    } catch (ignored: Exception) {
+                    }
+                }
+
                 // Fetch observations
                 val obsResponse = apiService.getObservationsByReport("eq.$reportId")
                 if (!obsResponse.isSuccessful) {
@@ -85,19 +104,95 @@ class LabReportViewModel(
                 var inRange = 0
                 var outOfRange = 0
                 val categoryMap = mutableMapOf<String, MutableList<Boolean>>() // isOut
+                val categorizedBiomarkersMap = mutableMapOf<String, MutableList<BiomarkerUiModel>>()
 
                 observations.forEach { obs ->
                     val resource = obs.resource ?: return@forEach
                     
                     // Determine if in range
-                    val interpretationText = resource.interpretation?.firstOrNull()?.text?.lowercase() ?: ""
-                    val isOut = if (interpretationText.isBlank() || interpretationText.contains("within range") || interpretationText.contains("normal")) {
+                    val headline = resource.code?.text ?: "Unknown"
+                    val interpretation = resource.interpretation?.firstOrNull()?.text ?: ""
+                    val interpretationLower = interpretation.lowercase()
+                    val badgeTone = if (interpretationLower.isBlank() || interpretationLower.contains("within range") || interpretationLower.contains("normal")) {
                         inRange++
-                        false
+                        "good"
+                    } else if (interpretationLower.contains("high") || interpretationLower.contains("low") || interpretationLower.contains("out of range")) {
+                        outOfRange++
+                        "watch"
                     } else {
                         outOfRange++
-                        true
+                        "bad"
                     }
+                    val isOut = badgeTone != "good"
+
+                    val badgeText = interpretation.ifBlank { if (badgeTone == "good") "Good" else "Needs Attention" }
+                    
+                    val rawValue = resource.valueQuantity?.value?.takeIf { it != -99999.0 }
+                    val valueObj = resource.valueQuantity
+                    val value = rawValue?.let { if (it % 1 == 0.0) it.toInt().toString() else it.toString() } 
+                        ?: obs.valueString?.takeIf { it.isNotBlank() } 
+                        ?: "--"
+                    val unit = valueObj?.unit ?: ""
+                    
+                    val refRange = resource.referenceRange?.firstOrNull()
+                    val lowVal = refRange?.low?.value
+                    val highVal = refRange?.high?.value
+                    val hasReferenceRange = lowVal != null || highVal != null
+                    
+                    var progress: Float? = null
+                    var rangeStartProgress: Float? = null
+                    var rangeEndProgress: Float? = null
+                    var rangeText = ""
+                    
+                    if (hasReferenceRange) {
+                        val currentVal = rawValue
+                        if (currentVal != null) {
+                            val safeLowVal = lowVal ?: (highVal!! * 0.5)
+                            val safeHighVal = highVal ?: (lowVal!! * 1.5)
+                            
+                            val trackMin = maxOf(0.0, safeLowVal - (safeHighVal - safeLowVal))
+                            val trackMax = safeHighVal + (safeHighVal - safeLowVal)
+                            val trackSpan = trackMax - trackMin
+                            if (trackSpan > 0) {
+                                rangeStartProgress = ((safeLowVal - trackMin) / trackSpan).toFloat().coerceIn(0f, 1f)
+                                rangeEndProgress = ((safeHighVal - trackMin) / trackSpan).toFloat().coerceIn(0f, 1f)
+                                progress = ((currentVal - trackMin) / trackSpan).toFloat().coerceIn(0f, 1f)
+                            } else {
+                                rangeStartProgress = 0f
+                                rangeEndProgress = 1f
+                                progress = 0.5f
+                            }
+                        }
+                        
+                        val lowText = lowVal?.let { if (it % 1 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+                        val highText = highVal?.let { if (it % 1 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+                        
+                        rangeText = if (lowText.isNotEmpty() && highText.isNotEmpty()) {
+                            "$lowText-$highText ${unit.uppercase()}"
+                        } else if (lowText.isNotEmpty()) {
+                            "> $lowText ${unit.uppercase()}"
+                        } else if (highText.isNotEmpty()) {
+                            "< $highText ${unit.uppercase()}"
+                        } else {
+                            ""
+                        }
+                    }
+
+                    val insightText = resource.presentedForm?.firstOrNull()?.title ?: ""
+
+                    val uiModel = BiomarkerUiModel(
+                        headline = headline,
+                        badgeText = badgeText,
+                        badgeTone = badgeTone,
+                        value = value,
+                        unit = unit,
+                        hasReferenceRange = hasReferenceRange,
+                        rangeText = rangeText,
+                        progress = progress,
+                        rangeStartProgress = rangeStartProgress,
+                        rangeEndProgress = rangeEndProgress,
+                        insight = insightText
+                    )
 
                     // Group by consumer category
                     val consumerCoding = resource.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
@@ -106,6 +201,11 @@ class LabReportViewModel(
                         categoryMap[categoryDisplay] = mutableListOf()
                     }
                     categoryMap[categoryDisplay]!!.add(isOut)
+
+                    if (!categorizedBiomarkersMap.containsKey(categoryDisplay)) {
+                        categorizedBiomarkersMap[categoryDisplay] = mutableListOf()
+                    }
+                    categorizedBiomarkersMap[categoryDisplay]!!.add(uiModel)
                 }
 
                 val total = inRange + outOfRange
@@ -134,7 +234,12 @@ class LabReportViewModel(
                     inRangeCount = inRange,
                     outOfRangeCount = outOfRange,
                     totalCount = total,
-                    categories = categories
+                    categories = categories,
+                    patientName = patientName,
+                    performer = performer ?: "Laboratory",
+                    formattedDate = formattedDate ?: "",
+                    reportId = reportId,
+                    categorizedBiomarkers = categorizedBiomarkersMap
                 )
 
             } catch (e: Exception) {

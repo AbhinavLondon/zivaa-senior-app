@@ -18,6 +18,7 @@ object PlanSetupTheme {
     val Ink @Composable get() = LocalZivaaColors.current.ink
     val InkSoft @Composable get() = LocalZivaaColors.current.inkSoft
     val InkMute @Composable get() = LocalZivaaColors.current.inkMute
+    val Eyebrow @Composable get() = LocalZivaaColors.current.eyebrow
     
     val Bg @Composable get() = LocalZivaaColors.current.bg
     val BgElev @Composable get() = LocalZivaaColors.current.bgElev

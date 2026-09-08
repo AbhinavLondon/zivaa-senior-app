@@ -49,7 +49,7 @@ fun MacroBalanceCard(
                 Text(
                     text = "The Balance",
                     style = typography.eyebrow,
-                    color = Color(0xFF111111)
+                    color = colors.eyebrow
                 )
                 Text(
                     text = "Against your usual day",

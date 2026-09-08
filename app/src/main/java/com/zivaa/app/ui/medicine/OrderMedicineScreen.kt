@@ -83,7 +83,7 @@ fun OrderMedicineScreen(
                     Text(
                         text = "Order Medicine",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = colors.eyebrow,
                         modifier = Modifier.padding(end = 40.dp) // optical center
                     )
                     Spacer(modifier = Modifier.width(38.dp))
@@ -184,7 +184,7 @@ fun OrderMedicineScreen(
                 Text(
                     text = "No Prescription? No Problem",
                     style = typography.eyebrow,
-                    color = Color(0xFF111111),
+                    color = colors.eyebrow,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
                 )
                 

@@ -19,7 +19,11 @@ fun SahayakTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkMoodColors else WarmMoodColors
-    val typography = defaultMoodTypography
+    val typography = defaultMoodTypography.copy(
+        eyebrow = defaultMoodTypography.eyebrow.copy(
+            color = if (darkTheme) colors.ink else androidx.compose.ui.graphics.Color(0xFF111111)
+        )
+    )
 
     CompositionLocalProvider(
         LocalMoodColors provides colors,

@@ -79,7 +79,7 @@ fun LabResultsSummaryScreen(
                 text = "Full-Body Check · 18 Jun · Vs 12 Mar",
                 style = typography.eyebrow,
                 fontFamily = IBMPlexMono,
-                color = Color(0xFF111111)
+                color = bgColors.eyebrow
             )
         }
 
@@ -237,7 +237,7 @@ fun LabResultsSummaryScreen(
         Row(modifier = Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(bgColors.toneWatch))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Worth A Gentle Look", style = typography.eyebrow, fontFamily = IBMPlexMono, color = Color(0xFF111111))
+            Text("Worth A Gentle Look", style = typography.eyebrow, fontFamily = IBMPlexMono, color = bgColors.eyebrow)
         }
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -305,7 +305,7 @@ fun LabResultsSummaryScreen(
         Row(modifier = Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(bgColors.toneOk))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Improving & Steady", style = typography.eyebrow, fontFamily = IBMPlexMono, color = Color(0xFF111111))
+            Text("Improving & Steady", style = typography.eyebrow, fontFamily = IBMPlexMono, color = bgColors.eyebrow)
         }
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -354,7 +354,7 @@ fun LabResultsSummaryScreen(
             text = "What It Means, Day To Day",
             style = typography.eyebrow,
             fontFamily = IBMPlexMono,
-            color = Color(0xFF111111),
+            color = bgColors.eyebrow,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))

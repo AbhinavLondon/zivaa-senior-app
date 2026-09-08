@@ -69,7 +69,7 @@ fun LogMealBottomSheet(
             Text(
                 text = "Add To ${mealName.toEyebrowTitleCase()}",
                 style = typography.eyebrow,
-                color = Color(0xFF111111)
+                color = colors.eyebrow
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(

@@ -145,7 +145,7 @@ fun LongevityPlanScreen(
                                     category = category,
                                     protocols = protocols,
                                     onToggleComplete = { protocolId ->
-                                        val currentStatus = protocols.find { it.id == protocolId }?.isCompleted ?: false
+                                        val currentStatus = protocols.find { it.safeId == protocolId }?.isCompleted ?: false
                                         viewModel.toggleProtocolCompletion(patientId, protocolId, currentStatus)
                                     }
                                 )
@@ -209,6 +209,7 @@ fun CategoryCard(
         "lifestyle" -> Pair(Icons.Default.SelfImprovement, Color(0xFFBA68C8)) // Soft Purple
         "nutrition" -> Pair(Icons.Default.Restaurant, Color(0xFF81C784)) // Soft Green
         "mind" -> Pair(Icons.Default.Psychology, Color(0xFF4DD0E1)) // Soft Cyan
+        "app setup" -> Pair(Icons.Default.Star, Color(0xFFFFD700)) // Soft Gold
         else -> Pair(Icons.Default.Star, Color(0xFFE0E0E0))
     }
 
@@ -254,7 +255,7 @@ fun CategoryCard(
                 protocols.forEachIndexed { index, protocol ->
                     ProtocolItem(
                         protocol = protocol,
-                        onToggleComplete = { onToggleComplete(protocol.id) }
+                        onToggleComplete = { onToggleComplete(protocol.safeId) }
                     )
                     if (index < protocols.size - 1) {
                         HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 12.dp))
@@ -295,7 +296,7 @@ fun ProtocolItem(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = protocol.title,
+                    text = protocol.displayTitle,
                     color = Color.White,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold
@@ -353,7 +354,7 @@ fun ProtocolItem(
             exit = fadeOut()
         ) {
             Column(modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)) {
-                if (protocol.is_modified_today && protocol.modification_note != null) {
+                if (protocol.is_modified_today && !protocol.modification_note.isNullOrBlank()) {
                     Surface(
                         color = Color(0xFF64B5F6).copy(alpha = 0.1f), // Soft blue tint
                         shape = RoundedCornerShape(12.dp),
@@ -363,7 +364,7 @@ fun ProtocolItem(
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("MODIFIED FOR TODAY", color = Color(0xFF64B5F6), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(protocol.modification_note, color = Color(0xFFBBDEFB), fontSize = 14.sp)
+                            Text(protocol.modification_note ?: "", color = Color(0xFFBBDEFB), fontSize = 14.sp)
                         }
                     }
                 }
@@ -383,7 +384,7 @@ fun ProtocolItem(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
-                            text = protocol.description,
+                            text = protocol.displayDescription,
                             color = Color.White.copy(alpha = 0.95f),
                             fontSize = 15.sp,
                             lineHeight = 22.sp,
@@ -401,7 +402,7 @@ fun ProtocolItem(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
-                            text = protocol.reasoning,
+                            text = protocol.displayReasoning,
                             color = Color.White.copy(alpha = 0.8f),
                             fontSize = 14.sp,
                             lineHeight = 20.sp
@@ -474,14 +475,14 @@ fun SymptomTimelineCard(symptom: com.zivaa.app.data.model.PatientSymptom, viewMo
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = symptom.name,
+                        text = symptom.name.ifBlank { "Symptom" },
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Status: ${symptom.status}",
+                        text = "Status: ${symptom.status.ifBlank { "Active" }}",
                         color = when (symptom.status) {
                             "Resolved" -> Color(0xFF81C784)
                             "Worse" -> Color(0xFFFF5252)

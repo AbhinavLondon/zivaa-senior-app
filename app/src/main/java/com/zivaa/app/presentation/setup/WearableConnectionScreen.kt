@@ -213,7 +213,7 @@ fun WearableConnectionScreen(
             Text(
                 text = "Or Connect Something You Have",
                 style = ZivaaTheme.typography.eyebrow,
-                color = Color(0xFF111111),
+                color = ZivaaTheme.colors.eyebrow,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 

@@ -122,7 +122,7 @@ fun PrimaryFocusScreen(
                         Text(
                             text = "Step 1 Of 2 · Your Plan",
                             style = typography.eyebrow,
-                            color = androidx.compose.ui.graphics.Color(0xFF111111),
+                            color = colors.eyebrow,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )

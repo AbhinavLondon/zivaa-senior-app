@@ -59,10 +59,8 @@ fun LabSummaryScreen(
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item { SummaryTopBar(state.title, onNavigateBack) }
             item { Spacer(modifier = Modifier.height(24.dp)) }
-            // Summary card and segmented control - only shown when not filtered
+            // Summary card - only shown when not filtered
             if (selectedFilter == null) {
-                item { SegmentedControlSection() }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
                 item { ZivaaSummaryCard(state.categorySummary, state.isSummaryLoading) }
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
@@ -146,15 +144,9 @@ fun LabSummaryScreen(
                 }
             }
             
-            // What it means
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-            item { CategoryEyebrow(text = "What It Means, Day To Day", color = ZivaaTheme.colors.textMeta) }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            item { AdviceCard() }
-            
             // Actions
             item { Spacer(modifier = Modifier.height(32.dp)) }
-            item { ActionButtons() }
+            item { ActionButtons(state, selectedFilter) }
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item { 
                 Text(
@@ -198,42 +190,6 @@ fun SummaryTopBar(title: String, onNavigateBack: () -> Unit) {
     }
 }
 
-@Composable
-fun SegmentedControlSection() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .background(ZivaaTheme.colors.muted.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
-            .padding(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(Color.White, RoundedCornerShape(20.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Simple",
-                style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = ZivaaTheme.colors.ink
-            )
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Clinical",
-                style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = ZivaaTheme.colors.inkMute
-            )
-        }
-    }
-}
 
 @Composable
 fun ZivaaSummaryCard(summaryText: String?, isLoading: Boolean) {
@@ -462,41 +418,40 @@ fun MetricCard(
                 Column(
                     horizontalAlignment = Alignment.End
                 ) {
-                    // Value and half-size unit (both strictly non-italic)
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
+                    // Value
+                    Text(
+                        text = value,
+                        style = TextStyle(
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Bold,
+                            fontStyle = FontStyle.Normal,
+                            fontSize = if (isTextValue) 14.sp else 18.sp,
+                            letterSpacing = (-0.02).em,
+                            textAlign = TextAlign.End
+                        ),
+                        color = ZivaaTheme.colors.ink
+                    )
+
+                    // Unit under the value (increased size from 9sp to 11.5sp)
+                    if (unit.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(1.5.dp))
                         Text(
-                            text = value,
+                            text = unit,
                             style = TextStyle(
                                 fontFamily = Manrope,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Medium,
                                 fontStyle = FontStyle.Normal,
-                                fontSize = if (isTextValue) 13.5.sp else 18.sp,
-                                letterSpacing = (-0.02).em
+                                fontSize = 11.5.sp,
+                                letterSpacing = 0.01.em,
+                                textAlign = TextAlign.End
                             ),
-                            color = ZivaaTheme.colors.ink
+                            color = ZivaaTheme.colors.textMeta
                         )
-                        if (unit.isNotBlank()) {
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = unit,
-                                style = TextStyle(
-                                    fontFamily = Manrope,
-                                    fontWeight = FontWeight.Medium,
-                                    fontStyle = FontStyle.Normal,
-                                    fontSize = 9.sp, // Half size of the numerical value
-                                    letterSpacing = 0.02.em
-                                ),
-                                color = ZivaaTheme.colors.textMeta,
-                                modifier = Modifier.padding(bottom = 1.5.dp)
-                            )
-                        }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
-                    // Polished status micro-tag
+                    // Polished status micro-tag aligned with value and unit
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -663,18 +618,18 @@ fun MetricCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ZivaaTheme.colors.muted.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .background(ZivaaTheme.colors.muted.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
                         text = insight,
                         style = TextStyle(
                             fontFamily = Manrope,
-                            fontSize = 12.5.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Normal,
                             fontStyle = FontStyle.Normal,
-                            lineHeight = 18.sp
+                            lineHeight = 21.sp
                         ),
                         color = ZivaaTheme.colors.textBody
                     )
@@ -684,52 +639,13 @@ fun MetricCard(
     }
 }
 
-@Composable
-fun AdviceCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ZivaaTheme.colors.bgElev, RoundedCornerShape(20.dp))
-            .padding(vertical = 12.dp)
-    ) {
-        val advices = listOf(
-            "A little less ghee and fried food - it nudges the cholesterol down.",
-            "Ten quiet minutes of morning sun for the vitamin D.",
-            "Keep the daily walks and the lighter meals - the sugar numbers show they work."
-        )
-        
-        advices.forEachIndexed { index, text ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = ZivaaTheme.colors.leaf.copy(alpha = 0.5f),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = text,
-                    style = ZivaaTheme.typography.bodyMedium,
-                    color = ZivaaTheme.colors.textStrong
-                )
-            }
-            if (index < advices.size - 1) {
-                HorizontalDivider(
-                    color = ZivaaTheme.colors.line,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
-fun ActionButtons() {
+fun ActionButtons(
+    state: LabSummaryState,
+    selectedFilter: String?
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = { },
@@ -750,7 +666,13 @@ fun ActionButtons() {
         }
         
         OutlinedButton(
-            onClick = { },
+            onClick = {
+                com.zivaa.app.util.pdf.LabReportPdfGenerator.generateAndShareCategoryPdf(
+                    context = context,
+                    state = state,
+                    selectedFilter = selectedFilter
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -763,7 +685,7 @@ fun ActionButtons() {
             Icon(Icons.Outlined.IosShare, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "Share with Dr. Mehta",
+                "Share",
                 style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
             )
         }

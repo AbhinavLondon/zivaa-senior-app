@@ -533,7 +533,7 @@ class MainActivity : ComponentActivity() {
                                         currentScreen = "lab_report" 
                                     },
                                     onNavigateBack = { currentScreen = "dashboard" },
-                                    onNavigateToUpload = { currentScreen = "upload_document" }
+                                    onNavigateToUpload = { currentScreen = "health_assistant_upload_lab_report" }
                                 )
                             }
                             "lab_report" -> {
@@ -908,7 +908,10 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToCare = { currentScreen = "care" },
                                 onNavigateToHealthAssistant = { showHealthAssistSheet = true },
                                 onNavigateToWellness = { currentScreen = "wellness" },
-                                onNavigateToLongevity = { currentScreen = "longevity" }
+                                onNavigateToLongevity = { currentScreen = "longevity" },
+                                onNavigateToMindfulness = { currentScreen = "mindfulness_landing" },
+                                onNavigateToCoachChat = { currentScreen = "coach_chat" },
+                                onNavigateToNutrition = { currentScreen = "nutrition_log_food" }
                             )
                         } // end when
                         

@@ -1,4 +1,4 @@
-﻿*.iml
+*.iml
 .gradle
 /local.properties
 /.idea/caches
@@ -19,3 +19,4 @@ ffmpeg.zip
 ffmpeg/
 logcat*.txt
 log.txt
+*.apk

@@ -148,7 +148,6 @@ fun ChooseAreasScreen(
                 Text(
                     text = "Ready-Made Sets",
                     style = ChooseAreasTheme.typography.eyebrow,
-                    color = Color(0xFF111111),
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
                 Text(
@@ -194,8 +193,7 @@ fun ChooseAreasScreen(
                 ) {
                     Text(
                         text = "Or Choose Your Own · Head To Toe",
-                        style = ChooseAreasTheme.typography.eyebrow,
-                        color = Color(0xFF111111)
+                        style = ChooseAreasTheme.typography.eyebrow
                     )
                     Text(
                         text = "Clear",
@@ -281,8 +279,7 @@ fun HeaderSection(selectedParts: List<String>, onBackClick: () -> Unit) {
                 Spacer(modifier = Modifier.size(12.dp))
                 Text(
                     text = "Body · Choose Areas",
-                    style = ChooseAreasTheme.typography.eyebrow,
-                    color = Color(0xFF111111)
+                    style = ChooseAreasTheme.typography.eyebrow
                 )
             }
 

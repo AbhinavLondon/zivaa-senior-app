@@ -428,7 +428,7 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title.toEyebrowTitleCase(),
         style = com.zivaa.app.ui.theme.ZivaaTheme.typography.eyebrow,
-        color = androidx.compose.ui.graphics.Color(0xFF111111),
+        color = com.zivaa.app.ui.theme.ZivaaTheme.colors.eyebrow,
         modifier = modifier
             .fillMaxWidth()
             .background(com.zivaa.app.ui.theme.ZivaaTheme.colors.bg)

@@ -145,7 +145,7 @@ private fun TopRow(onBackClick: () -> Unit) {
         Text(
             text = "Sleep · Tue 16 Jun",
             style = ZivaaTheme.typography.eyebrow,
-            color = androidx.compose.ui.graphics.Color(0xFF111111)
+            color = ZivaaTheme.colors.eyebrow
         )
     }
 }
@@ -292,7 +292,7 @@ private fun SectionHeader(title: String) {
     Text(
         text = title.toEyebrowTitleCase(),
         style = ZivaaTheme.typography.eyebrow,
-        color = androidx.compose.ui.graphics.Color(0xFF111111),
+        color = ZivaaTheme.colors.eyebrow,
         modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 24.dp, bottom = 10.dp)
     )
 }

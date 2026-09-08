@@ -182,8 +182,7 @@ fun MoodCheckInScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Mood Check-In",
-                    style = SahayakTheme.typography.eyebrow,
-                    color = Color(0xFF111111)
+                    style = SahayakTheme.typography.eyebrow
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 
@@ -386,8 +385,7 @@ fun StepMood(userName: String, onMoodSelected: (Int) -> Unit) {
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 8.dp)) {
             Text(
                 text = "Tue 16 Jun · Step 1 Of 3",
-                style = SahayakTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                style = SahayakTheme.typography.eyebrow
             )
             Text(
                 text = "How are you feeling today, $userName?",
@@ -605,8 +603,7 @@ fun StepEmotions(
             Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = "Step 2 Of 3",
-                style = SahayakTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                style = SahayakTheme.typography.eyebrow
             )
             Text(
                 text = "Which feeling fits best?",
@@ -706,8 +703,7 @@ fun StepCauses(
             Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = "Step 3 Of 3",
-                style = SahayakTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                style = SahayakTheme.typography.eyebrow
             )
             Text(
                 text = "What makes you feel that way?",
@@ -824,8 +820,7 @@ fun StepSummary(
         Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 8.dp)) {
             Text(
                 text = "What You Told Me",
-                style = SahayakTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                style = SahayakTheme.typography.eyebrow
             )
             
             Surface(
@@ -895,8 +890,7 @@ fun SummaryRow(label: String, content: @Composable () -> Unit) {
     ) {
         Text(
             text = label.toEyebrowTitleCase(),
-            style = SahayakTheme.typography.eyebrow.copy(fontSize = 10.sp),
-            color = Color(0xFF111111),
+            style = SahayakTheme.typography.eyebrow.copy(fontSize = 12.sp),
             modifier = Modifier
                 .width(64.dp)
                 .padding(top = 5.dp)

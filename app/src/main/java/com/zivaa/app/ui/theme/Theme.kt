@@ -31,7 +31,9 @@ fun ZivaaTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) darkZivaaColors() else ZivaaColors()
-    val typography = defaultZivaaTypography
+    val typography = defaultZivaaTypography.copy(
+        eyebrow = defaultZivaaTypography.eyebrow.copy(color = colors.eyebrow)
+    )
     val spacing = ZivaaSpacing()
 
     val colorScheme = if (darkTheme) {

@@ -130,7 +130,7 @@ fun DeliveryOptionsScreen(
                         Text(
                             text = "When & Where",
                             style = typography.eyebrow,
-                            color = Color(0xFF111111),
+                            color = colors.eyebrow,
                             modifier = Modifier.padding(end = 40.dp)
                         )
                         Spacer(modifier = Modifier.width(38.dp))
@@ -162,7 +162,7 @@ fun DeliveryOptionsScreen(
                     Text(
                         text = "Delivery Time",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = colors.eyebrow,
                         modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp)
                     )
                 }
@@ -223,7 +223,7 @@ fun DeliveryOptionsScreen(
                     Text(
                         text = "Deliver To",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = colors.eyebrow,
                         modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp)
                     )
                     
@@ -263,7 +263,7 @@ fun DeliveryOptionsScreen(
                         Text(
                             text = "Change",
                             style = typography.eyebrow.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFF111111),
+                            color = colors.eyebrow,
                             modifier = Modifier.padding(start = 12.dp)
                         )
                     }

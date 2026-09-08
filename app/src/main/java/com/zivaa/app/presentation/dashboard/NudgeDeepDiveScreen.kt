@@ -104,7 +104,7 @@ fun NudgeDeepDiveScreen(
                 Text(
                     text = "Nudge · Deep Dive",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = Color(0xFF111111)
+                    color = ZivaaTheme.colors.eyebrow
                 )
             }
 
@@ -195,7 +195,7 @@ fun NudgeDeepDiveScreen(
                     Text(
                         text = "Why We're Nudging You",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = ZivaaTheme.colors.eyebrow,
                         modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -208,7 +208,7 @@ fun NudgeDeepDiveScreen(
                     Text(
                         text = "What We Recommend",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = ZivaaTheme.colors.eyebrow,
                         modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -228,7 +228,7 @@ fun NudgeDeepDiveScreen(
                     Text(
                         text = "The Full Picture",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = ZivaaTheme.colors.eyebrow,
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
@@ -544,7 +544,7 @@ fun WhyFlaggedSection(data: WhyFlaggedData, riskLevel: String) {
             Text(
                 text = "Supporting Factors",
                 style = ZivaaTheme.typography.eyebrow,
-                color = Color(0xFF111111),
+                color = ZivaaTheme.colors.eyebrow,
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))

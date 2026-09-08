@@ -23,10 +23,14 @@ class DiagnosticReportRepository(
                     val reports = response.body() ?: emptyList()
                     val entities = reports.map { report ->
                         val codeText = report.resource?.code?.text ?: ""
-                        val performer = report.resource?.performer?.firstOrNull()?.display ?: ""
+                        val performer = report.performer?.takeIf { it.isNotBlank() }
+                            ?: report.resource?.performer?.firstOrNull()?.display?.takeIf { it.isNotBlank() }
+                            ?: ""
                         val title = codeText.ifEmpty { "Unknown Report" }
                         
-                        val effectiveDate = report.resource?.effectiveDateTime ?: ""
+                        val effectiveDate = report.effectiveDatetime?.takeIf { it.isNotBlank() }
+                            ?: report.resource?.effectiveDateTime?.takeIf { it.isNotBlank() }
+                            ?: ""
                         
                         DiagnosticReportEntity(
                             id = report.id,

@@ -99,7 +99,7 @@ fun MealCard(
                     Text(
                         text = timeRange.toEyebrowTitleCase(),
                         style = typography.eyebrow,
-                        color = androidx.compose.ui.graphics.Color(0xFF111111)
+                        color = colors.eyebrow
                     )
                 }
                 if (totalCalories != null) {

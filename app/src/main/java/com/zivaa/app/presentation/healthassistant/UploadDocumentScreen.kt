@@ -149,7 +149,7 @@ fun UploadDocumentScreen(
             Text(
                 text = label.toEyebrowTitleCase(),
                 style = ZivaaTheme.typography.eyebrow,
-                color = Color(0xFF111111)
+                color = ZivaaTheme.colors.eyebrow
             )
         }
 

@@ -107,7 +107,7 @@ fun MovementScreen(
                     Text(
                         text = "Movement · Today",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = androidx.compose.ui.graphics.Color(0xFF111111)
+                        color = ZivaaTheme.colors.eyebrow
                     )
                 }
 
@@ -120,7 +120,7 @@ fun MovementScreen(
                 Text(
                     text = "Your Steps, Hour By Hour",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = androidx.compose.ui.graphics.Color(0xFF111111),
+                    color = ZivaaTheme.colors.eyebrow,
                     modifier = Modifier.padding(top = 32.dp, start = 22.dp, end = 22.dp, bottom = 12.dp)
                 )
                 HourlyStepsChartCard(viewModel = viewModel)
@@ -129,7 +129,7 @@ fun MovementScreen(
                 Text(
                     text = "Your Last Seven Days",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = androidx.compose.ui.graphics.Color(0xFF111111),
+                    color = ZivaaTheme.colors.eyebrow,
                     modifier = Modifier.padding(top = 32.dp, start = 22.dp, end = 22.dp, bottom = 12.dp)
                 )
                 WeeklyStepsChartCard(viewModel = viewModel)
@@ -190,7 +190,7 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                     Text(
                         text = if (viewModel.isGoalMet) "Past Your Goal" else "Making Progress",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = androidx.compose.ui.graphics.Color(0xFF111111)
+                        color = ZivaaTheme.colors.sageInk
                     )
                 }
             }
@@ -228,7 +228,7 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                     Text(
                         text = "Steps · Goal ${java.text.NumberFormat.getNumberInstance().format(viewModel.goalSteps)}",
                         style = ZivaaTheme.typography.eyebrow,
-                        color = androidx.compose.ui.graphics.Color(0xFF111111),
+                        color = ZivaaTheme.colors.sageInk,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 } else {
@@ -244,7 +244,7 @@ fun MovementHeroCard(viewModel: MovementViewModel, onAddGoalClick: () -> Unit) {
                         Text(
                             text = "+ Add Step Goal",
                             style = ZivaaTheme.typography.eyebrow,
-                            color = androidx.compose.ui.graphics.Color(0xFF111111),
+                            color = ZivaaTheme.colors.sageInk,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -569,8 +569,8 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
                             Text(
                                 text = "Goal",
                                 style = ZivaaTheme.typography.eyebrow,
-                                color = androidx.compose.ui.graphics.Color(0xFF111111),
-                                fontSize = 8.sp
+                                color = ZivaaTheme.colors.eyebrow,
+                                fontSize = 10.sp
                             )
                             Text(
                                 text = java.text.NumberFormat.getNumberInstance().format(currentGoal),
@@ -590,8 +590,8 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
                         Text(
                             text = "Avg",
                             style = ZivaaTheme.typography.eyebrow,
-                            color = androidx.compose.ui.graphics.Color(0xFF111111),
-                            fontSize = 8.sp
+                            color = ZivaaTheme.colors.eyebrow,
+                            fontSize = 10.sp
                         )
                         Text(
                             text = java.text.NumberFormat.getNumberInstance().format(viewModel.averageSteps),

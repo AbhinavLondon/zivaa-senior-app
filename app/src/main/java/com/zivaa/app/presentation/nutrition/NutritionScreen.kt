@@ -216,7 +216,7 @@ fun NutritionScreen(
                     Text(
                         text = "Food · What You Ate",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111)
+                        color = colors.eyebrow
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
@@ -258,12 +258,12 @@ fun NutritionScreen(
                         Text(
                             text = "Meals Today",
                             style = typography.eyebrow,
-                            color = Color(0xFF111111)
+                            color = colors.eyebrow
                         )
                         Text(
                             text = "$loggedMealsCount Of 4 Logged",
                             style = typography.eyebrow,
-                            color = Color(0xFF111111)
+                            color = colors.eyebrow
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))

@@ -28,7 +28,6 @@ fun MoodCheckInCard(
         Text(
             text = "From This Morning's Check-In",
             style = SahayakTheme.typography.eyebrow,
-            color = Color(0xFF111111),
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 0.dp).padding(top = 24.dp, bottom = 10.dp)
         )
 
@@ -54,8 +53,7 @@ fun MoodCheckInCard(
                     ) {
                         Text(
                             text = "Feeling",
-                            style = SahayakTheme.typography.meta.copy(fontSize = 10.sp, letterSpacing = 0.07.em),
-                            color = Color(0xFF111111),
+                            style = SahayakTheme.typography.meta.copy(fontSize = 12.sp, letterSpacing = 0.07.em),
                             modifier = Modifier.width(64.dp).padding(top = 6.dp)
                         )
                         FlowRow(
@@ -93,8 +91,7 @@ fun MoodCheckInCard(
                     ) {
                         Text(
                             text = "Behind It",
-                            style = SahayakTheme.typography.meta.copy(fontSize = 10.sp, letterSpacing = 0.07.em),
-                            color = Color(0xFF111111),
+                            style = SahayakTheme.typography.meta.copy(fontSize = 12.sp, letterSpacing = 0.07.em),
                             modifier = Modifier.width(64.dp).padding(top = 6.dp)
                         )
                         FlowRow(

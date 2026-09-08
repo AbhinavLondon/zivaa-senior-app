@@ -46,9 +46,9 @@ class LongevityViewModel(
                 // Fetch Plan
                 val planRes = ZivaaBackendClient.apiService.getLongevityPlan(patientId)
                 if (planRes.isSuccessful && planRes.body() != null) {
-                    val plan = planRes.body()!!
-                    activeSymptoms = plan.symptoms.filter { it.status == "Active" || it.status == "Resolving" || it.status == "Worse" || it.status == "Chronic" }
-                    resolvedSymptoms = plan.symptoms.filter { it.status == "Resolved" }
+                    val symptoms = planRes.body()?.symptoms ?: emptyList()
+                    activeSymptoms = symptoms.filter { it.status == "Active" || it.status == "Resolving" || it.status == "Worse" || it.status == "Chronic" }
+                    resolvedSymptoms = symptoms.filter { it.status == "Resolved" }
                 }
 
                 // Fetch Daily Checklist
@@ -59,7 +59,7 @@ class LongevityViewModel(
                 )
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val rawProtocols = response.body()!!.protocols
+                    val rawProtocols = response.body()?.protocols ?: emptyList()
                     protocols = rawProtocols
                     recalculateDerivedState()
                 } else {
@@ -77,7 +77,7 @@ class LongevityViewModel(
     private fun recalculateDerivedState() {
         totalTasks = protocols.size
         completedTasks = protocols.count { it.isCompleted }
-        groupedProtocols = protocols.groupBy { it.category } // or category
+        groupedProtocols = protocols.groupBy { it.displayCategory }
     }
 
     fun toggleProtocolCompletion(patientId: String, protocolId: String, currentStatus: Boolean) {
@@ -85,16 +85,20 @@ class LongevityViewModel(
             try {
                 // Optimistic UI update
                 protocols = protocols.map { 
-                    if (it.id == protocolId) it.copy(isCompleted = !currentStatus) else it 
+                    if (it.safeId == protocolId) it.copy(isCompleted = !currentStatus) else it 
                 }
                 recalculateDerivedState()
                 
-                
+                // Sync with backend
+                ZivaaBackendClient.apiService.completeLongevityProtocol(
+                    patientId = patientId,
+                    protocolId = protocolId
+                )
             } catch (e: Exception) {
                 Log.e("LongevityVM", "Error toggling protocol", e)
                 // Revert on error
                 protocols = protocols.map { 
-                    if (it.id == protocolId) it.copy(isCompleted = currentStatus) else it 
+                    if (it.safeId == protocolId) it.copy(isCompleted = currentStatus) else it 
                 }
                 recalculateDerivedState()
             }

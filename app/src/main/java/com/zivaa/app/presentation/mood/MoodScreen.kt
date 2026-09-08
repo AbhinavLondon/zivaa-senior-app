@@ -82,8 +82,7 @@ fun MoodScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Mood · ${dateDisplay.toEyebrowTitleCase()}",
-                    style = SahayakTheme.typography.eyebrow,
-                    color = Color(0xFF111111)
+                    style = SahayakTheme.typography.eyebrow
                 )
             }
 

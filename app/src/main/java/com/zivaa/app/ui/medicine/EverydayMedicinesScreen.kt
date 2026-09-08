@@ -182,7 +182,7 @@ fun EverydayMedicinesScreen(
                         Text(
                             text = category.title.toEyebrowTitleCase(),
                             style = typography.eyebrow,
-                            color = Color(0xFF111111),
+                            color = colors.eyebrow,
                             modifier = Modifier.padding(end = 40.dp)
                         )
                         Spacer(modifier = Modifier.width(38.dp))

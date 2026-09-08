@@ -33,7 +33,6 @@ fun MoodWeeklyHistory(
         Text(
             text = "Your Last Seven Days",
             style = SahayakTheme.typography.eyebrow,
-            color = Color(0xFF111111),
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 0.dp).padding(top = 24.dp, bottom = 10.dp)
         )
 

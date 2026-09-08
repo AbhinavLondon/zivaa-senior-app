@@ -76,9 +76,9 @@ fun SelectionCard(
                     Text(
                         text = eyebrow.toEyebrowTitleCase(),
                         fontFamily = Manrope,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         letterSpacing = 0.2.sp,
-                        color = Color(0xFF111111),
+                        color = PlanSetupTheme.Eyebrow,
                         fontWeight = FontWeight.SemiBold
                     )
                     

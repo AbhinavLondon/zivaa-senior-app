@@ -6,6 +6,8 @@ data class SupabaseFhirDiagnosticReport(
     val id: String,
     @SerializedName("patient_id") val patientId: String?,
     @SerializedName("summary_explanation") val summaryExplanation: String?,
+    val performer: String? = null,
+    @SerializedName("effective_datetime") val effectiveDatetime: String? = null,
     val resource: FhirResource?
 )
 

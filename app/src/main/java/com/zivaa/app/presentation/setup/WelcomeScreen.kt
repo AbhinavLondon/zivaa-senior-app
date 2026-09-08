@@ -70,7 +70,7 @@ fun WelcomeScreen(
         Text(
             text = "Let's Set Things Up Together",
             style = ZivaaTheme.typography.eyebrow,
-            color = androidx.compose.ui.graphics.Color(0xFF111111)
+            color = ZivaaTheme.colors.eyebrow
         )
         
         Spacer(modifier = Modifier.height(14.dp))
@@ -107,7 +107,7 @@ fun WelcomeScreen(
         Text(
             text = "Takes About 3 Minutes · 5 Steps",
             style = ZivaaTheme.typography.eyebrow,
-            color = androidx.compose.ui.graphics.Color(0xFF111111)
+            color = ZivaaTheme.colors.eyebrow
         )
         
         Spacer(modifier = Modifier.height(30.dp))

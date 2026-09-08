@@ -1,5 +1,6 @@
 package com.zivaa.app.presentation.dashboard
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -90,10 +91,13 @@ fun DashboardScreen(
     onNavigateToCare: () -> Unit = {},
     onNavigateToHealthAssistant: () -> Unit = {},
     onNavigateToWellness: () -> Unit = {},
-    onNavigateToLongevity: () -> Unit = {}
+    onNavigateToLongevity: () -> Unit = {},
+    onNavigateToMindfulness: () -> Unit = {},
+    onNavigateToCoachChat: () -> Unit = {},
+    onNavigateToNutrition: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-
+    val isDarkTheme = isSystemInDarkTheme()
     val showLongevityPlan by viewModel.showLongevityPlanEnabled.collectAsState(initial = true)
     val context = LocalContext.current
     var cityName by remember { mutableStateOf("") }
@@ -216,7 +220,7 @@ fun DashboardScreen(
                     Text(
                         text = currentDate,
                         style = ZivaaTheme.typography.eyebrow,
-                        color = Color(0xFF111111),
+                        color = ZivaaTheme.colors.eyebrow,
                     )
 
 
@@ -264,7 +268,8 @@ fun DashboardScreen(
                     HeroCard(
                         viewModel = viewModel,
                         activePeriod = viewModel.activeHeroPeriod,
-                        onPeriodChange = { viewModel.activeHeroPeriod = it }
+                        onPeriodChange = { viewModel.activeHeroPeriod = it },
+                        onNavigateToMindfulness = onNavigateToMindfulness
                     )
                 }
 
@@ -322,14 +327,20 @@ fun DashboardScreen(
 
                 // Goals Checklist Panel
                 Box(modifier = Modifier.padding(top = 18.dp, start = 22.dp, end = 22.dp)) {
-                    GoalsCard(viewModel, onNavigateToPlan)
+                    GoalsCard(
+                        viewModel = viewModel,
+                        onNavigateToPlan = onNavigateToPlan,
+                        onNavigateToCoachChat = onNavigateToCoachChat,
+                        onNavigateToNutrition = onNavigateToNutrition,
+                        onNavigateToHealthConnect = onNavigateToHealthConnect
+                    )
                 }
 
                 // Section Header: How your day went
                 Text(
                     text = "How Your Day Went",
                     style = ZivaaTheme.typography.eyebrow,
-                    color = Color(0xFF111111),
+                    color = ZivaaTheme.colors.eyebrow,
                     modifier = Modifier.padding(top = 24.dp, start = 22.dp, end = 22.dp, bottom = 10.dp)
                 )
 
@@ -354,19 +365,6 @@ fun DashboardScreen(
                         onNavigateToCheckIn = onNavigateToCheckIn,
                         onNavigateToHeartRate = onNavigateToHeartRate
                     )
-                }
-
-                // Section Header: Just in for you
-                Text(
-                    text = "Just In For You",
-                    style = ZivaaTheme.typography.eyebrow,
-                    color = Color(0xFF111111),
-                    modifier = Modifier.padding(top = 24.dp, start = 22.dp, end = 22.dp, bottom = 10.dp)
-                )
-
-                // Progress Tracking Lab Card
-                Box(modifier = Modifier.padding(horizontal = 22.dp)) {
-                    LabInProgressBar()
                 }
 
                 // Closing line text
@@ -475,10 +473,16 @@ fun DashboardScreen(
 fun HeroCard(
     viewModel: DashboardViewModel,
     activePeriod: String = "morning",
-    onPeriodChange: (String) -> Unit = {}
+    onPeriodChange: (String) -> Unit = {},
+    onNavigateToMindfulness: () -> Unit = {}
 ) {
+    val isLateNight = java.time.LocalTime.now().hour in 0..4
     val availablePeriods = buildList {
-        add("morning")
+        if (isLateNight) {
+            add("latenight")
+        } else {
+            add("morning")
+        }
         if (viewModel.middaySummaryText != null) add("afternoon")
         if (viewModel.eveningSummaryText != null) add("evening")
     }
@@ -515,12 +519,14 @@ fun HeroCard(
     val sageColor = ZivaaTheme.colors.sage
 
     fun colorForPage(p: Int) = when (availablePeriods.getOrNull(p)) {
+        "latenight" -> Color(0xFF1A237E) // Twilight deep blue
         "afternoon" -> Color(0xFFA16B40) // Afternoon warm clay
         "evening" -> Color(0xFF2C3E50) // Evening dark blue/grey
         else -> surfaceHeroColor // Morning sage
     }
 
     fun shadowColorForPage(p: Int) = when (availablePeriods.getOrNull(p)) {
+        "latenight" -> Color(0xFF1A237E).copy(alpha = 0.16f)
         "afternoon" -> Color(0xFFA16B40).copy(alpha = 0.16f)
         "evening" -> Color(0xFF2C3E50).copy(alpha = 0.16f)
         else -> sageColor.copy(alpha = 0.16f)
@@ -576,7 +582,8 @@ fun HeroCard(
                 val period = availablePeriods.getOrElse(pageIndex) { "morning" }
                 HeroCardContent(
                     viewModel = viewModel,
-                    period = period
+                    period = period,
+                    onNavigateToMindfulness = onNavigateToMindfulness
                 )
             }
             
@@ -625,7 +632,8 @@ fun HeroCard(
 @Composable
 fun HeroCardContent(
     viewModel: DashboardViewModel,
-    period: String
+    period: String,
+    onNavigateToMindfulness: () -> Unit = {}
 ) {
     val colors = ZivaaTheme.colors
     
@@ -646,25 +654,27 @@ fun HeroCardContent(
     val morningHeadline = if (cleanMorningHeadline.isNotEmpty()) cleanMorningHeadline else "Good morning"
     
     val headlineText = when (period) {
+        "latenight" -> "It's late, $patientName"
         "afternoon" -> "Good afternoon"
         "evening" -> "Good evening"
         else -> morningHeadline
     }
 
     val bodyText = when (period) {
+        "latenight" -> viewModel.lateNightInsightText ?: "Loading your late night summary..."
         "afternoon" -> viewModel.middaySummaryText ?: "Loading your afternoon check-in..."
         "evening" -> viewModel.eveningSummaryText ?: "Loading your evening wind down..."
         else -> if (viewModel.morningBriefingText.isNotEmpty()) viewModel.morningBriefingText else "Loading your morning briefing..."
     }
     
-    val contentColor = if (period == "evening") Color.White else ZivaaTheme.colors.sageInk
+    val contentColor = if (period == "evening" || period == "latenight") Color.White else ZivaaTheme.colors.sageInk
 
     Box(modifier = Modifier.fillMaxWidth()) {
         if (period == "morning") {
             MorningSunAnimation()
         } else if (period == "afternoon") {
             SunCloudAnimation()
-        } else if (period == "evening") {
+        } else if (period == "evening" || period == "latenight") {
             MoonStarAnimation()
         }
         
@@ -713,6 +723,27 @@ fun HeroCardContent(
                 ),
                 color = contentColor
             )
+            
+            if (period == "latenight") {
+                Spacer(modifier = Modifier.height(24.dp))
+                androidx.compose.material3.Button(
+                    onClick = onNavigateToMindfulness,
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.15f),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(999.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.SelfImprovement,
+                        contentDescription = "Meditation",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Wind-down Meditation", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     }
 }
@@ -966,29 +997,51 @@ fun MorningSunAnimation() {
 }
 
 @Composable
-fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
+fun GoalsCard(
+    viewModel: DashboardViewModel,
+    onNavigateToPlan: () -> Unit,
+    onNavigateToCoachChat: () -> Unit = {},
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToHealthConnect: () -> Unit = {}
+) {
     val colors = ZivaaTheme.colors
     val allGoals = remember(
+        viewModel.morningTasks,
+        viewModel.afternoonTasks,
+        viewModel.eveningTasks,
+        viewModel.nightTasks,
         viewModel.allWeeklyPlans
     ) {
         val list = mutableListOf<Triple<String, Int, DailyPlanTask>>()
         val todayStr = java.time.LocalDate.now().toString()
-        val todayPlan = viewModel.allWeeklyPlans.find { it.date == todayStr } ?: viewModel.allWeeklyPlans.find { it.created_at?.startsWith(todayStr) == true }
-        val schedule = todayPlan?.schedule
-        schedule?.morning?.forEachIndexed { idx, task -> list.add(Triple("morning", idx, task)) }
-        schedule?.afternoon?.forEachIndexed { idx, task -> list.add(Triple("afternoon", idx, task)) }
-        schedule?.evening?.forEachIndexed { idx, task -> list.add(Triple("evening", idx, task)) }
-        schedule?.night?.forEachIndexed { idx, task -> list.add(Triple("night", idx, task)) }
+        val isTodaySelected = viewModel.selectedDate.isEmpty() || viewModel.selectedDate == todayStr
+        if (isTodaySelected && (viewModel.morningTasks.isNotEmpty() || viewModel.afternoonTasks.isNotEmpty() || viewModel.eveningTasks.isNotEmpty() || viewModel.nightTasks.isNotEmpty())) {
+            viewModel.morningTasks.forEachIndexed { idx, task -> list.add(Triple("morning", idx, task)) }
+            viewModel.afternoonTasks.forEachIndexed { idx, task -> list.add(Triple("afternoon", idx, task)) }
+            viewModel.eveningTasks.forEachIndexed { idx, task -> list.add(Triple("evening", idx, task)) }
+            viewModel.nightTasks.forEachIndexed { idx, task -> list.add(Triple("night", idx, task)) }
+        } else {
+            val todayPlan = viewModel.allWeeklyPlans.find { it.date == todayStr } ?: viewModel.allWeeklyPlans.find { it.created_at?.startsWith(todayStr) == true }
+            val schedule = todayPlan?.schedule
+            schedule?.morning?.forEachIndexed { idx, task -> list.add(Triple("morning", idx, task)) }
+            schedule?.afternoon?.forEachIndexed { idx, task -> list.add(Triple("afternoon", idx, task)) }
+            schedule?.evening?.forEachIndexed { idx, task -> list.add(Triple("evening", idx, task)) }
+            schedule?.night?.forEachIndexed { idx, task -> list.add(Triple("night", idx, task)) }
+        }
         list
     }
 
     val totalGoals = allGoals.size
     val completedGoals = allGoals.count { it.third.completed }
     val progress = if (totalGoals > 0) completedGoals.toFloat() / totalGoals else 0f
+    val displayName = viewModel.patientFirstName.ifEmpty { "there" }
+
     val progressCaption = when {
-        totalGoals == 0 -> "A fresh set of five, just for today. Tap each one as you go."
-        completedGoals == totalGoals -> "Every single one — look at that."
-        else -> "$completedGoals done already, ${totalGoals - completedGoals} to go."
+        totalGoals == 0 -> "Setting up your personalized routine..."
+        completedGoals == totalGoals -> "All $totalGoals completed today. Wonderful work, $displayName!"
+        completedGoals == 0 && viewModel.isNewUser -> "A few gentle steps to get familiar with Zivaa today."
+        completedGoals == 0 -> "$totalGoals goals tailored for you today. Tap each one as you go."
+        else -> "$completedGoals of $totalGoals done, ${totalGoals - completedGoals} to go."
     }
 
     Box(
@@ -1020,7 +1073,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
         )
         
         Column(modifier = Modifier.padding(20.dp)) {
-            // Eyebrow and Streak
+            // Eyebrow and Streak / Welcome Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1037,38 +1090,64 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Your Plan",
+                        text = if (viewModel.isNewUser) "Starter Plan" else "Your Plan",
                         style = ZivaaTheme.typography.meta,
-                        color = Color(0xFF111111)
+                        color = ZivaaTheme.colors.eyebrow
                     )
                 }
                 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(colors.amber.copy(alpha = 0.15f)) // Amber 15% mix with bg
-                        .padding(horizontal = 11.dp, vertical = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                if (viewModel.isNewUser || viewModel.currentStreak <= 1) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(colors.sage.copy(alpha = 0.15f))
+                            .padding(horizontal = 11.dp, vertical = 4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Whatshot,
-                            contentDescription = "Streak",
-                            tint = ZivaaTheme.colors.amber,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "DAY 9 STREAK",
-                            style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.04.em),
-                            color = ZivaaTheme.colors.amber
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Starter",
+                                tint = ZivaaTheme.colors.sage,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = if (viewModel.isNewUser) "DAY 1 · WELCOME" else "TODAY'S FOCUS",
+                                style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.04.em),
+                                color = ZivaaTheme.colors.sage
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(colors.amber.copy(alpha = 0.15f))
+                            .padding(horizontal = 11.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Whatshot,
+                                contentDescription = "Streak",
+                                tint = ZivaaTheme.colors.amber,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "DAY ${viewModel.currentStreak} STREAK",
+                                style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.04.em),
+                                color = ZivaaTheme.colors.amber
+                            )
+                        }
                     }
                 }
             }
             
-            // Progress Ring and Caption
+            // Progress Ring and Dynamic Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -1082,19 +1161,53 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                     totalCount = totalGoals
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = buildAnnotatedString {
-                            append("Your goals for today are ")
-                            withStyle(
-                                style = SpanStyle(
-                                    fontStyle = FontStyle.Italic,
-                                    color = ZivaaTheme.colors.sage
-                                )
-                            ) {
-                                append("ready")
+                    val titleText = remember(viewModel.isNewUser, completedGoals, totalGoals, displayName) {
+                        buildAnnotatedString {
+                            if (viewModel.isNewUser) {
+                                append("Welcome, $displayName — your ")
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontStyle = FontStyle.Italic,
+                                        color = colors.sage
+                                    )
+                                ) {
+                                    append("starter focus")
+                                }
+                                append(".")
+                            } else if (completedGoals == totalGoals && totalGoals > 0) {
+                                append("All done for today, ")
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontStyle = FontStyle.Italic,
+                                        color = colors.sage
+                                    )
+                                ) {
+                                    append(displayName)
+                                }
+                                append("!")
+                            } else {
+                                val hour = java.time.LocalTime.now().hour
+                                val periodWord = when {
+                                    hour < 12 -> "morning focus"
+                                    hour < 17 -> "afternoon focus"
+                                    else -> "evening focus"
+                                }
+                                append("Your ")
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontStyle = FontStyle.Italic,
+                                        color = colors.sage
+                                    )
+                                ) {
+                                    append(periodWord)
+                                }
+                                append(" is set.")
                             }
-                            append(".")
-                        },
+                        }
+                    }
+
+                    Text(
+                        text = titleText,
                         style = ZivaaTheme.typography.cardTitle.copy(fontStyle = FontStyle.Normal, fontSize = 23.sp, lineHeight = (23 * 1.14).sp, letterSpacing = (-0.01).em),
                         color = ZivaaTheme.colors.ink
                     )
@@ -1107,47 +1220,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                 }
             }
 
-            if (!viewModel.hasPlanForToday) {
-                Spacer(modifier = Modifier.height(16.dp))
-                if (viewModel.isGeneratingPlan) {
-                    AnimatedGeneratingPlanCard()
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(ZivaaTheme.colors.surface)
-                            .border(0.5.dp, ZivaaTheme.colors.line, RoundedCornerShape(14.dp))
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "No personalized schedule found for today.",
-                                style = ZivaaTheme.typography.bodyLarge,
-                                color = ZivaaTheme.colors.inkSoft,
-                                textAlign = TextAlign.Center
-                            )
-                            androidx.compose.material3.Button(
-                                onClick = { viewModel.generatePlanManually() },
-                                enabled = true,
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                    containerColor = ZivaaTheme.colors.sage,
-                                    contentColor = ZivaaTheme.colors.surface
-                                )
-                            ) {
-                                Text(
-                                    text = "Create my Plan",
-                                    style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                                )
-                            }
-                        }
-                    }
-                }
-            } else if (totalGoals == 0) {
+            if (totalGoals == 0) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
@@ -1165,7 +1238,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                         PlanGenerationAnimation()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "We are looking at your data and preparing your plan. Check tomorrow morning.",
+                            text = "Personalizing your routine for today...",
                             style = ZivaaTheme.typography.bodyLarge,
                             color = ZivaaTheme.colors.inkSoft,
                             textAlign = TextAlign.Center
@@ -1177,19 +1250,40 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                 HorizontalDivider(color = ZivaaTheme.colors.line, thickness = 0.5.dp)
                 
                 allGoals.forEach { (period, originalIndex, task) ->
-                    val titleText = task.task
+                    val goalTaskText = task.task
                     val metaText = task.time ?: period.replaceFirstChar { it.uppercase() }
                     
-                    val (iconVector, bgTone, textTone) = getGoalIconAndColors(titleText)
+                    val (iconVector, bgTone, textTone) = getGoalIconAndColors(goalTaskText)
+
+                    val isCoachTask = task.category.equals("coach", ignoreCase = true) || goalTaskText.contains("Zivaa", ignoreCase = true) || goalTaskText.contains("coach", ignoreCase = true)
+                    val isNutritionTask = task.category.equals("nutrition", ignoreCase = true) || goalTaskText.contains("meal", ignoreCase = true) || goalTaskText.contains("lunch", ignoreCase = true) || goalTaskText.contains("food", ignoreCase = true) || goalTaskText.contains("breakfast", ignoreCase = true)
+                    val isVitalsTask = task.category.equals("vitals", ignoreCase = true) || goalTaskText.contains("vitals", ignoreCase = true) || goalTaskText.contains("blood pressure", ignoreCase = true)
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                when (period) {
-                                    "morning" -> viewModel.toggleMorningTask(originalIndex)
-                                    "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
-                                    "evening" -> viewModel.toggleEveningTask(originalIndex)
-                                    "night" -> viewModel.toggleNightTask(originalIndex)
+                                if (!task.completed) {
+                                    when {
+                                        isCoachTask -> onNavigateToCoachChat()
+                                        isNutritionTask -> onNavigateToNutrition()
+                                        isVitalsTask -> onNavigateToHealthConnect()
+                                        else -> {
+                                            when (period) {
+                                                "morning" -> viewModel.toggleMorningTask(originalIndex)
+                                                "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
+                                                "evening" -> viewModel.toggleEveningTask(originalIndex)
+                                                "night" -> viewModel.toggleNightTask(originalIndex)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    when (period) {
+                                        "morning" -> viewModel.toggleMorningTask(originalIndex)
+                                        "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
+                                        "evening" -> viewModel.toggleEveningTask(originalIndex)
+                                        "night" -> viewModel.toggleNightTask(originalIndex)
+                                    }
                                 }
                             }
                             .padding(vertical = 11.dp),
@@ -1198,7 +1292,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                         // Bubble Container
                         ZivaaIconBubble(
                             icon = iconVector,
-                            contentDescription = titleText,
+                            contentDescription = goalTaskText,
                             size = 38.dp,
                             iconSize = 20.dp,
                             backgroundColor = bgTone,
@@ -1213,7 +1307,7 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                                 .padding(horizontal = 12.dp)
                         ) {
                             Text(
-                                text = titleText,
+                                text = goalTaskText,
                                 style = ZivaaTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
@@ -1224,8 +1318,8 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = metaText.toEyebrowTitleCase(),
-                                style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, letterSpacing = 0.05.em),
-                                color = Color(0xFF111111)
+                                style = ZivaaTheme.typography.meta.copy(fontSize = 12.sp, letterSpacing = 0.05.em),
+                                color = ZivaaTheme.colors.eyebrow
                             )
                         }
                         
@@ -1263,9 +1357,9 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                             tint = colors.leaf.copy(alpha = 0.5f),
                             modifier = Modifier.size(22.dp)
                         )
-                        val displayName = viewModel.patientFirstName.ifEmpty { "User" }
+                        val namePart = if (viewModel.patientFirstName.isNotBlank()) ", ${viewModel.patientFirstName}" else ""
                         Text(
-                            text = if (totalGoals == 5) "All five, done. A wonderful day, $displayName." else "All $totalGoals, done. A wonderful day, $displayName.",
+                            text = if (totalGoals == 5) "All five, done. A wonderful day$namePart." else "All $totalGoals, done. A wonderful day$namePart.",
                             style = ZivaaTheme.typography.bodyLarge.copy(fontFamily = com.zivaa.app.ui.theme.InstrumentSerif),
                             color = ZivaaTheme.colors.sageInk
                         )
@@ -1298,8 +1392,6 @@ fun GoalsCard(viewModel: DashboardViewModel, onNavigateToPlan: () -> Unit) {
                             )
                         }
                     }
-
-
                 }
             }
         }
@@ -1735,6 +1827,12 @@ fun getGoalIconAndColors(taskText: String): Triple<ImageVector, Color, Color> {
     val lower = taskText.lowercase()
     val colors = ZivaaTheme.colors
     return when {
+        lower.contains("zivaa") || lower.contains("coach") || lower.contains("hello") -> {
+            Triple(Icons.Default.ChatBubbleOutline, colors.sage, colors.sageInk)
+        }
+        lower.contains("vitals") || lower.contains("blood pressure") || lower.contains("pulse") -> {
+            Triple(Icons.Default.FavoriteBorder, colors.clay, colors.bg)
+        }
         lower.contains("yoga") || lower.contains("exercise") -> {
             Triple(Icons.Default.SelfImprovement, colors.leaf, colors.bg)
         }
@@ -1744,13 +1842,13 @@ fun getGoalIconAndColors(taskText: String): Triple<ImageVector, Color, Color> {
         lower.contains("water") || lower.contains("drink") || lower.contains("hydration") -> {
             Triple(Icons.Default.WaterDrop, colors.sage, colors.sageInk)
         }
-        lower.contains("breakfast") || lower.contains("lunch") || lower.contains("dinner") || lower.contains("eat") || lower.contains("enjoy") || lower.contains("meal") -> {
+        lower.contains("breakfast") || lower.contains("lunch") || lower.contains("dinner") || lower.contains("eat") || lower.contains("enjoy") || lower.contains("meal") || lower.contains("food") -> {
             Triple(Icons.Default.Restaurant, colors.amber, colors.bg)
         }
         lower.contains("medication") || lower.contains("metformin") || lower.contains("pill") || lower.contains("medicine") || lower.contains("take") || lower.contains("insulin") -> {
             Triple(Icons.Default.Medication, colors.clay, colors.bg)
         }
-        lower.contains("walk") || lower.contains("steps") || lower.contains("activity") || lower.contains("movement") -> {
+        lower.contains("walk") || lower.contains("steps") || lower.contains("activity") || lower.contains("movement") || lower.contains("stroll") -> {
             Triple(Icons.Default.DirectionsWalk, colors.sage, colors.sageInk)
         }
         lower.contains("read") || lower.contains("book") || lower.contains("puzzle") || lower.contains("brain") || lower.contains("journal") -> {

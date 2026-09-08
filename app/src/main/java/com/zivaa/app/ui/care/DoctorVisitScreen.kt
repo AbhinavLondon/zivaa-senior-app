@@ -125,7 +125,7 @@ fun DoctorVisitScreen(
                     Text(
                         text = "Talk To A Doctor",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111)
+                        color = colors.eyebrow
                     )
                 }
             }
@@ -248,7 +248,7 @@ fun DoctorVisitScreen(
                 Text(
                     text = "Or Choose Someone Yourself",
                     style = typography.eyebrow,
-                    color = Color(0xFF111111),
+                    color = colors.eyebrow,
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
                 )
             }
@@ -356,7 +356,7 @@ fun DoctorVisitScreen(
                     Text(
                         text = "Need A Specialist?",
                         style = typography.eyebrow,
-                        color = Color(0xFF111111)
+                        color = colors.eyebrow
                     )
                     Text(
                         text = "All Verified",
