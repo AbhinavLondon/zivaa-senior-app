@@ -55,8 +55,6 @@ fun WellbeingScreen(
             ) {
                 item {
                     HeaderSection()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    StreakStatus()
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
@@ -118,19 +116,13 @@ fun WellbeingScreen(
 fun HeaderSection() {
     Column {
         Text(
-            text = "YOUR WELLBEING · DUE 21 JUL",
+            text = "YOUR WELLBEING",
             style = WellnessLabel,
             color = WellnessTheme.colors.onBackground.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = buildAnnotatedString {
-                append("Three little gardens,\n")
-                withStyle(style = SpanStyle(fontStyle = FontStyle.Italic)) {
-                    append("Ranjit")
-                }
-                append(". Tend one.")
-            },
+            text = "Wellbeing",
             style = WellnessHeadline,
             color = WellnessTheme.colors.onBackground
         )
@@ -139,41 +131,6 @@ fun HeaderSection() {
             text = "Body, mind, and the kitchen. A few minutes in any of them makes the whole day stand taller.",
             style = WellnessBody,
             color = WellnessTheme.colors.onBackground.copy(alpha = 0.8f)
-        )
-    }
-}
-
-@Composable
-fun StreakStatus() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(WellnessTheme.colors.surface, RoundedCornerShape(24.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .background(WellnessTheme.colors.statusDot, CircleShape)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = buildAnnotatedString {
-                append("You've tended ")
-                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                    append("something")
-                }
-                append(" 6 days in a row.")
-            },
-            style = WellnessBody.copy(fontSize = 14.sp),
-            color = WellnessTheme.colors.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "6 DAYS",
-            style = WellnessLabel,
-            color = WellnessTheme.colors.onSurface.copy(alpha = 0.6f)
         )
     }
 }

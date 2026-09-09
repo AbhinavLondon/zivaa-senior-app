@@ -110,6 +110,7 @@ interface SupabaseApiService {
     @retrofit2.http.GET("rest/v1/patient_plan_setup")
     suspend fun getPlanSetup(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("steps_goal") stepsGoalQuery: String? = null,
         @retrofit2.http.Query("order") order: String = "created_at.desc",
         @retrofit2.http.Query("limit") limit: Int = 1
     ): Response<List<SupabasePatientPlanSetup>>
@@ -197,6 +198,14 @@ interface SupabaseApiService {
         @retrofit2.http.Query("order") order: String = "created_at.desc",
         @retrofit2.http.Query("limit") limit: Int = 1
     ): Response<List<SupabaseUserInsight>>
+
+    @retrofit2.http.DELETE("rest/v1/user_insights")
+    suspend fun deleteUserInsights(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("insight_type") insightTypeQuery: String? = null,
+        @retrofit2.http.Query("insight_date") insightDateQuery: String? = null
+    ): Response<Void>
+
     @retrofit2.http.GET("rest/v1/daily_plans")
     suspend fun getDailyPlans(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,

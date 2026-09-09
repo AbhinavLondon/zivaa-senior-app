@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 import com.zivaa.app.ui.labs.summary.BiomarkerUiModel
+import com.zivaa.app.ui.labs.ObservationCategoryHelper
 
 data class CategoryGroup(
     val title: String,
@@ -195,8 +196,7 @@ class LabReportViewModel(
                     )
 
                     // Group by consumer category
-                    val consumerCoding = resource.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
-                    val categoryDisplay = consumerCoding?.display ?: "Other"
+                    val categoryDisplay = ObservationCategoryHelper.extractCategory(resource)
                     if (!categoryMap.containsKey(categoryDisplay)) {
                         categoryMap[categoryDisplay] = mutableListOf()
                     }

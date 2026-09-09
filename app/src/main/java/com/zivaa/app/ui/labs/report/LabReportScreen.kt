@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -621,7 +622,9 @@ fun BottomActionsSection(state: LabReportState) {
                 border = androidx.compose.foundation.BorderStroke(1.dp, ZivaaTheme.colors.borderStrong),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = ZivaaTheme.colors.textStrong)
             ) {
-                Text("Share with Meera", style = MaterialTheme.typography.bodyLarge)
+                Icon(Icons.Outlined.IosShare, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
             }
         }
         Spacer(modifier = Modifier.height(16.dp))

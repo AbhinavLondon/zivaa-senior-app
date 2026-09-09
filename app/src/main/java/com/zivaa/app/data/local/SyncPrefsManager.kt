@@ -106,6 +106,15 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putString(KEY_LAST_FALLBACK_ATTEMPT, dateStr).apply()
     }
 
+    fun getStepsGoal(): Int? {
+        val goal = prefs.getInt(KEY_STEPS_GOAL, -1)
+        return if (goal > 0) goal else null
+    }
+
+    fun saveStepsGoal(goal: Int) {
+        prefs.edit().putInt(KEY_STEPS_GOAL, goal).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "health_sync_prefs"
         private const val KEY_CHANGES_TOKEN = "changes_token"
@@ -121,5 +130,6 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_LAST_SLEEP_SYNC = "last_sleep_sync"
         private const val KEY_LAST_HR_SYNC = "last_hr_sync"
         private const val KEY_LAST_FALLBACK_ATTEMPT = "last_fallback_attempt"
+        private const val KEY_STEPS_GOAL = "steps_goal"
     }
 }

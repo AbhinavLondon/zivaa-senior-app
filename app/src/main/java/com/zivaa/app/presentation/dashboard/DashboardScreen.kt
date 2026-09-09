@@ -353,6 +353,7 @@ fun DashboardScreen(
 
                     StatsStrip(
                         steps = viewModel.steps,
+                        stepsGoal = viewModel.stepsGoal,
                         mood = viewModel.mood,
                         sleepHours = viewModel.sleepHours,
                         avgHeartRate = viewModel.heartRate,
@@ -1401,6 +1402,7 @@ fun GoalsCard(
 @Composable
 fun StatsStrip(
     steps: String,
+    stepsGoal: Int? = 10000,
     mood: String,
     sleepHours: String,
     avgHeartRate: String = "0",
@@ -1415,6 +1417,53 @@ fun StatsStrip(
     onNavigateToHeartRate: () -> Unit = {}
 ) {
     val colors = ZivaaTheme.colors
+    val currentSteps = steps.replace(",", "").toIntOrNull() ?: 0
+    val targetGoal = stepsGoal ?: 10000
+    val progressRatio = if (targetGoal > 0) (currentSteps.toFloat() / targetGoal.toFloat()) else 0f
+    val safeProgress = progressRatio.coerceIn(0f, 1f)
+    val isGoalMet = currentSteps >= targetGoal && currentSteps > 0
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = safeProgress,
+        animationSpec = tween(
+            durationMillis = 1200,
+            easing = FastOutSlowInEasing
+        ),
+        label = "movementProgressBar"
+    )
+
+    val celebrationTransition = rememberInfiniteTransition(label = "celebrationShimmer")
+    val shimmerOffset by celebrationTransition.animateFloat(
+        initialValue = -300f,
+        targetValue = 900f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "celebrationShimmerOffset"
+    )
+
+    val progressBarBrush = if (isGoalMet) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFFFFD54F),
+                Color(0xFFFFF9C4),
+                Color.White,
+                Color(0xFFA5D6A7),
+                Color(0xFFFFD54F)
+            ),
+            start = Offset(shimmerOffset, 0f),
+            end = Offset(shimmerOffset + 350f, 0f)
+        )
+    } else {
+        Brush.horizontalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.85f),
+                Color.White
+            )
+        )
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
         // Top Full-Width: Movement
         Box(
@@ -1432,36 +1481,159 @@ fun StatsStrip(
                 .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth()
             ) {
+                // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "MOVEMENT",
-                        style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp, letterSpacing = 0.08.em),
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.DirectionsWalk,
-                        contentDescription = "Movement",
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsWalk,
+                            contentDescription = "Movement",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "MOVEMENT",
+                            style = ZivaaTheme.typography.meta.copy(fontSize = 10.5.sp, letterSpacing = 0.08.em),
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    if (isGoalMet) {
+                        // Congratulatory Badge Pill
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color.White.copy(alpha = 0.22f))
+                                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Celebration,
+                                    contentDescription = "Goal Met",
+                                    tint = Color(0xFFFFF59D),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Goal Met! 🎉",
+                                    style = ZivaaTheme.typography.eyebrow.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.02.em
+                                    ),
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "Goal ${java.text.NumberFormat.getNumberInstance().format(targetGoal)}",
+                                style = ZivaaTheme.typography.eyebrow.copy(fontSize = 11.sp),
+                                color = Color.White.copy(alpha = 0.75f)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "View Movement",
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Column {
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Steps Count & Percentage
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     Text(
                         text = steps,
-                        style = ZivaaTheme.typography.cardTitle.copy(fontStyle = FontStyle.Normal, fontSize = 24.sp, lineHeight = 24.sp, letterSpacing = (-0.02).em),
+                        style = ZivaaTheme.typography.cardTitle.copy(
+                            fontStyle = FontStyle.Normal,
+                            fontSize = 28.sp,
+                            lineHeight = 28.sp,
+                            letterSpacing = (-0.02).em
+                        ),
                         color = Color.White
                     )
-                    if (steps != "0") {
+                    Text(
+                        text = if (targetGoal > 0) "${(progressRatio * 100).toInt()}%" else "--",
+                        style = ZivaaTheme.typography.bodyMedium.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = if (isGoalMet) Color(0xFFFFF9C4) else Color.White.copy(alpha = 0.85f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Progression Bar Track
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.15f))
+                ) {
+                    if (animatedProgress > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(animatedProgress)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(progressBarBrush)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Congratulatory Microcopy or Steps Remaining Footnote
+                if (isGoalMet) {
+                    val extraSteps = currentSteps - targetGoal
+                    val extraText = if (extraSteps > 0) " (+${java.text.NumberFormat.getNumberInstance().format(extraSteps)} extra)" else ""
+                    Text(
+                        text = "🎉 Fantastic effort! You've crushed your ${java.text.NumberFormat.getNumberInstance().format(targetGoal)} step goal today$extraText.",
+                        style = ZivaaTheme.typography.bodyMedium.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color.White
+                    )
+                } else {
+                    val remaining = (targetGoal - currentSteps).coerceAtLeast(0)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Steps · Active",
+                            text = "${steps} / ${java.text.NumberFormat.getNumberInstance().format(targetGoal)} steps",
+                            style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = if (remaining > 0) "${java.text.NumberFormat.getNumberInstance().format(remaining)} steps left" else "Almost there!",
                             style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 12.sp),
                             color = Color.White.copy(alpha = 0.8f)
                         )

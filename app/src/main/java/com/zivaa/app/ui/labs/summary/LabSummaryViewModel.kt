@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.zivaa.app.data.remote.SupabaseApiService
 import com.zivaa.app.data.remote.ZivaaApiService
 import com.zivaa.app.data.remote.SupabaseFhirObservation
+import com.zivaa.app.ui.labs.ObservationCategoryHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -104,8 +105,7 @@ class LabSummaryViewModel(
                     allObservations
                 } else {
                     allObservations.filter { obs ->
-                        val consumerCoding = obs.resource?.category?.firstOrNull()?.coding?.find { it.system == "https://zivaa.com/consumer-category" }
-                        val catDisplay = consumerCoding?.display ?: "Other"
+                        val catDisplay = ObservationCategoryHelper.extractCategory(obs.resource)
                         catDisplay.equals(categoryName, ignoreCase = true)
                     }
                 }

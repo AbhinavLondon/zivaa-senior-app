@@ -18,5 +18,7 @@ app/build/
 ffmpeg.zip
 ffmpeg/
 logcat*.txt
-log.txt
 *.apk
+log.txt
+query_syncs.py
+*.py

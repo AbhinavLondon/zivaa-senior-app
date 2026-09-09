@@ -154,9 +154,14 @@ fun PlanSetupScreen(
                 )
             }
             
-            // Questions
+            // --- PART 1: DAILY RHYTHM ---
             item {
-                Spacer(modifier = Modifier.height(12.dp))
+                PlanSetupSectionHeader(
+                    sectionNumber = 1,
+                    title = "Daily Rhythm",
+                    subtitle = "Your morning start time and movement baseline.",
+                    modifier = Modifier.padding(top = 18.dp, bottom = 6.dp)
+                )
             }
             
             item {
@@ -169,7 +174,9 @@ fun PlanSetupScreen(
                     hint = "The plan starts where you do \u2014 no 6 am yoga for an 8 am riser.",
                     options = listOf("Before 6", "6 - 7", "7 - 8", "After 8"),
                     selectedOptions = uiState.wakeTime?.let { setOf(it) } ?: emptySet(),
-                    onOptionToggled = { viewModel.updateWakeTime(if (uiState.wakeTime == it) null else it) }
+                    onOptionToggled = { viewModel.updateWakeTime(if (uiState.wakeTime == it) null else it) },
+                    stepNumber = 1,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -184,6 +191,8 @@ fun PlanSetupScreen(
                     options = listOf("Gentle", "Steady", "Active"),
                     selectedOptions = uiState.movementLevel?.let { setOf(it) } ?: emptySet(),
                     onOptionToggled = { viewModel.updateMovementLevel(if (uiState.movementLevel == it) null else it) },
+                    stepNumber = 2,
+                    totalSteps = totalQuestions,
                     bottomContent = {
                         if (uiState.movementLevel != null) {
                             StepsGoalSection(
@@ -192,6 +201,16 @@ fun PlanSetupScreen(
                             )
                         }
                     }
+                )
+            }
+            
+            // --- PART 2: BODY & NUTRITION ---
+            item {
+                PlanSetupSectionHeader(
+                    sectionNumber = 2,
+                    title = "Body & Nutrition",
+                    subtitle = "Dietary preferences, physical profile, and daily calorie targets.",
+                    modifier = Modifier.padding(top = 22.dp, bottom = 6.dp)
                 )
             }
             
@@ -205,7 +224,9 @@ fun PlanSetupScreen(
                     hint = "Meals are suggested to fit the kitchen you already run.",
                     options = listOf("No specific diet", "Vegetarian", "Non-Vegetarian", "Vegan", "Pescatarian", "Low Carb", "Dairy-Free"),
                     selectedOptions = uiState.dietType?.let { setOf(it) } ?: emptySet(),
-                    onOptionToggled = { viewModel.updateDietType(if (uiState.dietType == it) null else it) }
+                    onOptionToggled = { viewModel.updateDietType(if (uiState.dietType == it) null else it) },
+                    stepNumber = 3,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -216,7 +237,9 @@ fun PlanSetupScreen(
                     icon = Icons.Default.Accessibility,
                     eyebrow = "About you",
                     heightInches = uiState.heightInches,
-                    onHeightChanged = { viewModel.updateHeight(it) }
+                    onHeightChanged = { viewModel.updateHeight(it) },
+                    stepNumber = 4,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -229,7 +252,9 @@ fun PlanSetupScreen(
                     weightKg = uiState.weightKg,
                     onWeightChanged = { viewModel.updateWeight(it) },
                     goalWeightKg = uiState.goalWeightKg,
-                    onGoalWeightChanged = { viewModel.updateGoalWeight(it) }
+                    onGoalWeightChanged = { viewModel.updateGoalWeight(it) },
+                    stepNumber = 5,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -256,7 +281,18 @@ fun PlanSetupScreen(
                     onFatChanged = { newPct ->
                         val diff = newPct - uiState.fatPct
                         viewModel.setMacroSplit(uiState.proteinPct - diff, uiState.carbsPct, newPct)
-                    }
+                    },
+                    badgeLabel = "CUSTOM TARGETS · OPTIONAL"
+                )
+            }
+            
+            // --- PART 3: HEALTH & ROUTINES ---
+            item {
+                PlanSetupSectionHeader(
+                    sectionNumber = 3,
+                    title = "Health & Routines",
+                    subtitle = "Health conditions to plan around, evening wind-down, and reminders.",
+                    modifier = Modifier.padding(top = 22.dp, bottom = 6.dp)
                 )
             }
             
@@ -268,11 +304,27 @@ fun PlanSetupScreen(
                     eyebrow = "Health \u00b7 pick all that apply",
                     question = "Anything to plan around?",
                     hint = "Timings, meals and movement adjust quietly around these.",
-                    options = listOf("Diabetes", "Blood pressure", "Knee or joint pain", "Light sleep", "Low appetite"),
+                    options = listOf(
+                        "Diabetes",
+                        "Blood pressure",
+                        "Heart condition",
+                        "High cholesterol",
+                        "Knee or joint pain",
+                        "Back pain",
+                        "Thyroid",
+                        "Acid reflux / GERD",
+                        "Asthma / Breathing",
+                        "Light sleep",
+                        "Low appetite",
+                        "Fatigue",
+                        "None"
+                    ),
                     selectedOptions = uiState.conditions,
                     onOptionToggled = { opt ->
                         viewModel.toggleCondition(opt)
-                    }
+                    },
+                    stepNumber = 6,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -288,7 +340,9 @@ fun PlanSetupScreen(
                     selectedOptions = uiState.evening,
                     onOptionToggled = { opt ->
                         viewModel.toggleEvening(opt)
-                    }
+                    },
+                    stepNumber = 7,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -302,7 +356,9 @@ fun PlanSetupScreen(
                     hint = "You can always change your mind later.",
                     options = listOf("Soft nudges", "Clear reminders"),
                     selectedOptions = uiState.reminders?.let { setOf(it) } ?: emptySet(),
-                    onOptionToggled = { viewModel.updateReminders(if (uiState.reminders == it) null else it) }
+                    onOptionToggled = { viewModel.updateReminders(if (uiState.reminders == it) null else it) },
+                    stepNumber = 8,
+                    totalSteps = totalQuestions
                 )
             }
             
@@ -492,6 +548,68 @@ fun PlanSetupScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PlanSetupSectionHeader(
+    sectionNumber: Int,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(PlanSetupTheme.Sage.copy(alpha = 0.22f))
+                    .border(0.5.dp, PlanSetupTheme.Sage.copy(alpha = 0.45f), CircleShape)
+                    .padding(horizontal = 10.dp, vertical = 3.5.dp)
+            ) {
+                Text(
+                    text = "PART $sectionNumber",
+                    fontFamily = Manrope,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp,
+                    color = PlanSetupTheme.SageInk
+                )
+            }
+            Text(
+                text = title.uppercase(),
+                fontFamily = Manrope,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                color = PlanSetupTheme.Ink
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(0.5.dp)
+                    .background(PlanSetupTheme.LineStrong)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(5.dp))
+        
+        Text(
+            text = subtitle,
+            fontFamily = Manrope,
+            fontSize = 12.5.sp,
+            lineHeight = 17.sp,
+            color = PlanSetupTheme.InkMute,
+            fontWeight = FontWeight.Normal
+        )
     }
 }
 

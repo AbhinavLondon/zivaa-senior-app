@@ -37,15 +37,100 @@ fun SelectionCard(
     options: List<String>,
     selectedOptions: Set<String>,
     onOptionToggled: (String) -> Unit,
+    stepNumber: Int? = null,
+    totalSteps: Int? = null,
     bottomContent: (@Composable () -> Unit)? = null
 ) {
     val isAnswered = selectedOptions.isNotEmpty()
+    val borderColor = if (isAnswered) tone.bg.copy(alpha = 0.35f) else PlanSetupTheme.Line
+    val borderWidth = if (isAnswered) 1.dp else 0.5.dp
+    
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = Color(0x0A000000),
+                spotColor = Color(0x10000000)
+            )
+            .clip(RoundedCornerShape(22.dp))
+            .background(PlanSetupTheme.BgElev)
+            .border(borderWidth, borderColor, RoundedCornerShape(22.dp))
+            .padding(20.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            if (stepNumber != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isAnswered) tone.bg.copy(alpha = 0.15f) else PlanSetupTheme.LineStrong.copy(alpha = 0.35f))
+                                .border(
+                                    0.5.dp,
+                                    if (isAnswered) tone.bg.copy(alpha = 0.45f) else PlanSetupTheme.Line,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                        ) {
+                            Text(
+                                text = "STEP $stepNumber" + (totalSteps?.let { " OF $it" } ?: ""),
+                                fontFamily = Manrope,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.8.sp,
+                                color = if (isAnswered) tone.bg else PlanSetupTheme.InkMute,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        
+                        Text(
+                            text = eyebrow.toEyebrowTitleCase(),
+                            fontFamily = Manrope,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.2.sp,
+                            color = PlanSetupTheme.Eyebrow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    
+                    if (isAnswered) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(PlanSetupTheme.Leaf.copy(alpha = 0.12f))
+                                .border(0.5.dp, PlanSetupTheme.Leaf.copy(alpha = 0.35f), CircleShape)
+                                .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = PlanSetupTheme.Leaf,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = "Answered",
+                                fontFamily = Manrope,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PlanSetupTheme.Leaf
+                            )
+                        }
+                    }
+                }
+            }
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -73,16 +158,17 @@ fun SelectionCard(
                         .weight(1f)
                         .padding(top = 1.dp)
                 ) {
-                    Text(
-                        text = eyebrow.toEyebrowTitleCase(),
-                        fontFamily = Manrope,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.2.sp,
-                        color = PlanSetupTheme.Eyebrow,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(3.dp))
+                    if (stepNumber == null) {
+                        Text(
+                            text = eyebrow.toEyebrowTitleCase(),
+                            fontFamily = Manrope,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.2.sp,
+                            color = PlanSetupTheme.Eyebrow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                    }
                     
                     Text(
                         text = question,
@@ -106,8 +192,8 @@ fun SelectionCard(
                     )
                 }
                 
-                // Checkmark if answered
-                if (isAnswered) {
+                // Checkmark if answered and stepNumber is null
+                if (isAnswered && stepNumber == null) {
                     Box(
                         modifier = Modifier
                             .padding(top = 2.dp)

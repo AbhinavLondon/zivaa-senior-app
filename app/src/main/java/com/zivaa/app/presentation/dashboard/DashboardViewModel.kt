@@ -43,6 +43,7 @@ class DashboardViewModel(
     var heartRate by mutableStateOf("--")
     var bloodPressure by mutableStateOf("--")
     var steps by mutableStateOf("--")
+    var stepsGoal by mutableStateOf<Int?>(prefsManager.getStepsGoal() ?: 10000)
     var sleepHours by mutableStateOf("--")
     var mood by mutableStateOf("--")
     var oxygenLevel by mutableStateOf("--")
@@ -562,6 +563,22 @@ class DashboardViewModel(
                             }
                         }
                     }
+
+                    try {
+                        val planSetupResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getPlanSetup(
+                            patientIdQuery = "eq.$userId",
+                            stepsGoalQuery = "not.is.null"
+                        )
+                        if (planSetupResponse.isSuccessful && !planSetupResponse.body().isNullOrEmpty()) {
+                            val fetchedGoal = planSetupResponse.body()!!.first().stepsGoal
+                            if (fetchedGoal != null && fetchedGoal > 0) {
+                                stepsGoal = fetchedGoal
+                                prefsManager.saveStepsGoal(fetchedGoal)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardVM", "Error fetching steps goal: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -656,6 +673,22 @@ class DashboardViewModel(
                                 patientFirstName = fullName.split(" ").firstOrNull() ?: fullName
                                 patientProfilePicUrl = pRecords[0].profilePicUrl
                             }
+                        }
+
+                        try {
+                            val planSetupResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getPlanSetup(
+                                patientIdQuery = "eq.$userId",
+                                stepsGoalQuery = "not.is.null"
+                            )
+                            if (planSetupResponse.isSuccessful && !planSetupResponse.body().isNullOrEmpty()) {
+                                val fetchedGoal = planSetupResponse.body()!!.first().stepsGoal
+                                if (fetchedGoal != null && fetchedGoal > 0) {
+                                    stepsGoal = fetchedGoal
+                                    prefsManager.saveStepsGoal(fetchedGoal)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("DashboardVM", "Error fetching steps goal: ${e.message}")
                         }
                         
                         val insightResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getUserInsights(

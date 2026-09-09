@@ -106,10 +106,20 @@ class PlanSetupViewModel : ViewModel() {
 
     fun toggleCondition(condition: String) {
         val current = _state.value.conditions.toMutableSet()
-        if (current.contains(condition)) {
-            current.remove(condition)
+        if (condition == "None") {
+            if (current.contains("None")) {
+                current.remove("None")
+            } else {
+                current.clear()
+                current.add("None")
+            }
         } else {
-            current.add(condition)
+            current.remove("None")
+            if (current.contains(condition)) {
+                current.remove(condition)
+            } else {
+                current.add(condition)
+            }
         }
         _state.value = _state.value.copy(conditions = current, isSaved = false)
     }
@@ -171,6 +181,16 @@ class PlanSetupViewModel : ViewModel() {
                 
                 val insertResponse = RetrofitClient.apiService.insertPlanSetup(payload)
                 if (insertResponse.isSuccessful) {
+                    try {
+                        val todayStr = java.time.LocalDate.now().toString()
+                        RetrofitClient.apiService.deleteUserInsights(
+                            patientIdQuery = "eq.$patientId",
+                            insightTypeQuery = "eq.hero",
+                            insightDateQuery = "eq.$todayStr"
+                        )
+                    } catch (e: Exception) {
+                        // ignore error
+                    }
                     _state.value = _state.value.copy(isSaving = false, isSaved = true)
                 } else {
                     _state.value = _state.value.copy(

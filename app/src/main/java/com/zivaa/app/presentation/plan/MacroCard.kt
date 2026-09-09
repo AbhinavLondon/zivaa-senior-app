@@ -50,9 +50,10 @@ fun MacroCard(
     onProteinChanged: (Float) -> Unit,
     onCarbsChanged: (Float) -> Unit,
     onFatChanged: (Float) -> Unit,
+    badgeLabel: String? = "CUSTOM TARGETS · OPTIONAL"
 ) {
     val isAnswered = targetCalories != null
-    val borderColor = if (isAnswered) PlanSetupTones.Amber.bg else PlanSetupTheme.Line
+    val borderColor = if (isAnswered) PlanSetupTones.Amber.bg.copy(alpha = 0.35f) else PlanSetupTheme.Line
     val borderWidth = if (isAnswered) 1.dp else 0.5.dp
     
     val safeCalories = targetCalories ?: 1800
@@ -61,15 +62,87 @@ fun MacroCard(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(24.dp)
+                elevation = 3.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = Color(0x0A000000),
+                spotColor = Color(0x10000000)
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(PlanSetupTheme.BgElev)
-            .border(borderWidth, borderColor, RoundedCornerShape(24.dp))
-            .padding(18.dp)
+            .border(borderWidth, borderColor, RoundedCornerShape(22.dp))
+            .padding(20.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            if (badgeLabel != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isAnswered) PlanSetupTones.Amber.bg.copy(alpha = 0.15f) else PlanSetupTheme.LineStrong.copy(alpha = 0.35f))
+                                .border(
+                                    0.5.dp,
+                                    if (isAnswered) PlanSetupTones.Amber.bg.copy(alpha = 0.45f) else PlanSetupTheme.Line,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                        ) {
+                            Text(
+                                text = badgeLabel,
+                                fontFamily = Manrope,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.8.sp,
+                                color = if (isAnswered) PlanSetupTones.Amber.bg else PlanSetupTheme.InkMute,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        
+                        Text(
+                            text = "Nutrition",
+                            fontFamily = Manrope,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.2.sp,
+                            color = PlanSetupTheme.Eyebrow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    
+                    if (isAnswered) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(PlanSetupTheme.Leaf.copy(alpha = 0.12f))
+                                .border(0.5.dp, PlanSetupTheme.Leaf.copy(alpha = 0.35f), CircleShape)
+                                .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = PlanSetupTheme.Leaf,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = "Configured",
+                                fontFamily = Manrope,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PlanSetupTheme.Leaf
+                            )
+                        }
+                    }
+                }
+            }
             
             // --- TOP SECTION ---
             Row(
@@ -99,16 +172,17 @@ fun MacroCard(
                         .weight(1f)
                         .padding(top = 1.dp)
                 ) {
-                    Text(
-                        text = "NUTRITION",
-                        fontFamily = Manrope,
-                        fontSize = 10.sp,
-                        letterSpacing = 0.7.sp,
-                        color = PlanSetupTheme.InkMute,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(3.dp))
+                    if (badgeLabel == null) {
+                        Text(
+                            text = "NUTRITION",
+                            fontFamily = Manrope,
+                            fontSize = 10.sp,
+                            letterSpacing = 0.7.sp,
+                            color = PlanSetupTheme.InkMute,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                    }
                     
                     Text(
                         text = "How much fuel for the day?",
@@ -132,7 +206,7 @@ fun MacroCard(
                 }
                 
                 // Checkmark
-                if (isAnswered) {
+                if (isAnswered && badgeLabel == null) {
                     Box(
                         modifier = Modifier
                             .size(24.dp)

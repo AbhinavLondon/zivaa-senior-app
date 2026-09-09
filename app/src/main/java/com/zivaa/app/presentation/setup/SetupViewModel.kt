@@ -164,10 +164,20 @@ class SetupViewModel : ViewModel() {
 
     fun toggleCondition(condition: String) {
         val current = _state.value.selectedConditions.toMutableSet()
-        if (current.contains(condition)) {
-            current.remove(condition)
+        if (condition == "None") {
+            if (current.contains("None")) {
+                current.remove("None")
+            } else {
+                current.clear()
+                current.add("None")
+            }
         } else {
-            current.add(condition)
+            current.remove("None")
+            if (current.contains(condition)) {
+                current.remove(condition)
+            } else {
+                current.add(condition)
+            }
         }
         _state.value = _state.value.copy(selectedConditions = current)
     }

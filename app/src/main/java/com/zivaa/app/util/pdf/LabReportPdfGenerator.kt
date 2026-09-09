@@ -90,7 +90,7 @@ object LabReportPdfGenerator {
                     patientName = cleanMarkdownForPdf(state.patientName).ifBlank { "Patient" },
                     performer = cleanMarkdownForPdf(state.performer).ifBlank { "Diagnostic Laboratory" },
                     date = if (state.formattedDate.isNotBlank()) state.formattedDate else SimpleDateFormat("d MMM yyyy", Locale.US).format(Date()),
-                    reportId = state.reportId.take(8).uppercase()
+                    reportId = state.reportId.take(8).uppercase(Locale.US)
                 )
 
                 val filteredBiomarkers = when (selectedFilter) {
@@ -105,7 +105,13 @@ object LabReportPdfGenerator {
                 writer.startNewPage()
                 writer.drawHeader()
 
-                // Plain English category summary (if available)
+                // Stat highlights row on Page 1
+                writer.drawStatBoxes(
+                    goodCount = state.goodCount,
+                    outCount = state.notSoGoodCount + state.badCount
+                )
+
+                // Plain English category summary (if available, flows if long)
                 val summary = cleanMarkdownForPdf(state.categorySummary)
                 if (summary.isNotBlank()) {
                     writer.drawSummaryCallout(
@@ -114,18 +120,16 @@ object LabReportPdfGenerator {
                     )
                 }
 
-                // Statistics row
-                writer.drawStatBoxes(
-                    goodCount = state.goodCount,
-                    outCount = state.notSoGoodCount + state.badCount
-                )
-
                 // Section Title
                 writer.drawSectionTitle("Biomarker Details (${filteredBiomarkers.size} analyzed)")
 
-                // Render each biomarker card
-                for (biomarker in filteredBiomarkers) {
-                    writer.drawBiomarkerCard(biomarker)
+                // Render each biomarker card or graceful empty state
+                if (filteredBiomarkers.isEmpty()) {
+                    writer.drawEmptyNotice("No biomarkers match the selected criteria for this report.")
+                } else {
+                    for (biomarker in filteredBiomarkers) {
+                        writer.drawBiomarkerCard(biomarker)
+                    }
                 }
 
                 writer.finish()
@@ -167,7 +171,7 @@ object LabReportPdfGenerator {
                     patientName = cleanMarkdownForPdf(state.patientName).ifBlank { "Patient" },
                     performer = cleanMarkdownForPdf(state.performer).ifBlank { "Diagnostic Laboratory" },
                     date = if (state.formattedDate.isNotBlank()) state.formattedDate else SimpleDateFormat("d MMM yyyy", Locale.US).format(Date()),
-                    reportId = state.reportId.take(8).uppercase()
+                    reportId = state.reportId.take(8).uppercase(Locale.US)
                 )
 
                 val pdfDocument = PdfDocument()
@@ -176,7 +180,13 @@ object LabReportPdfGenerator {
                 writer.startNewPage()
                 writer.drawHeader()
 
-                // Executive Full Report Summary
+                // Stat highlights placed directly under header on Page 1
+                writer.drawStatBoxes(
+                    goodCount = state.inRangeCount,
+                    outCount = state.outOfRangeCount
+                )
+
+                // Executive Full Report Summary (flows cleanly across pages if long)
                 val hero = cleanMarkdownForPdf(state.heroText)
                 if (hero.isNotBlank()) {
                     writer.drawSummaryCallout(
@@ -185,24 +195,23 @@ object LabReportPdfGenerator {
                     )
                 }
 
-                // Stat boxes
-                writer.drawStatBoxes(
-                    goodCount = state.inRangeCount,
-                    outCount = state.outOfRangeCount
-                )
+                val totalBiomarkers = categorizedBiomarkers.values.sumOf { it.size }
+                if (totalBiomarkers == 0) {
+                    writer.drawEmptyNotice("No specific biomarker observations were found in this diagnostic report.")
+                } else {
+                    // Organize and draw all categories
+                    for ((categoryName, biomarkers) in categorizedBiomarkers) {
+                        if (biomarkers.isEmpty()) continue
 
-                // Organize and draw all categories
-                for ((categoryName, biomarkers) in categorizedBiomarkers) {
-                    if (biomarkers.isEmpty()) continue
+                        val outCount = biomarkers.count { it.badgeTone != "good" }
+                        val inCount = biomarkers.size - outCount
+                        val categorySub = if (outCount > 0) "$outCount OUT OF RANGE • $inCount IN RANGE" else "ALL $inCount IN RANGE"
 
-                    val outCount = biomarkers.count { it.badgeTone != "good" }
-                    val inCount = biomarkers.size - outCount
-                    val categorySub = if (outCount > 0) "$outCount OUT OF RANGE • $inCount IN RANGE" else "ALL $inCount IN RANGE"
+                        writer.drawCategorySectionHeader(categoryName, categorySub)
 
-                    writer.drawCategorySectionHeader(categoryName, categorySub)
-
-                    for (biomarker in biomarkers) {
-                        writer.drawBiomarkerCard(biomarker)
+                        for (biomarker in biomarkers) {
+                            writer.drawBiomarkerCard(biomarker)
+                        }
                     }
                 }
 
@@ -272,7 +281,7 @@ object LabReportPdfGenerator {
         }
 
         fun drawHeader() {
-            val bannerHeight = 105f
+            val bannerHeight = 98f
 
             // Top Header Banner
             val bannerRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + bannerHeight)
@@ -286,7 +295,7 @@ object LabReportPdfGenerator {
                 typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
                 letterSpacing = 0.08f
             }
-            activeCanvas.drawText("ZIVAA HEALTH · CLINICAL REPORT OVERVIEW", MARGIN_LEFT + 18f, currentY + 26f, brandPaint)
+            activeCanvas.drawText("ZIVAA HEALTH · CLINICAL REPORT OVERVIEW", MARGIN_LEFT + 18f, currentY + 25f, brandPaint)
 
             // Title (+30%: 15f -> 19.5f)
             val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -294,8 +303,8 @@ object LabReportPdfGenerator {
                 textSize = 19.5f
                 typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             }
-            val titleText = if (headerInfo.documentTitle.length > 36) headerInfo.documentTitle.take(34) + "…" else headerInfo.documentTitle
-            activeCanvas.drawText(titleText, MARGIN_LEFT + 18f, currentY + 54f, titlePaint)
+            val titleText = if (headerInfo.documentTitle.length > 38) headerInfo.documentTitle.take(36) + "…" else headerInfo.documentTitle
+            activeCanvas.drawText(titleText, MARGIN_LEFT + 18f, currentY + 52f, titlePaint)
 
             // Subtitle metadata line (+30%: 9.5f -> 12.5f)
             val metaPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -304,13 +313,12 @@ object LabReportPdfGenerator {
                 typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             }
             val metaText = "Patient: ${headerInfo.patientName}   •   Lab: ${headerInfo.performer}   •   Date: ${headerInfo.date}"
-            activeCanvas.drawText(metaText, MARGIN_LEFT + 18f, currentY + 82f, metaPaint)
+            activeCanvas.drawText(metaText, MARGIN_LEFT + 18f, currentY + 78f, metaPaint)
 
-            currentY += bannerHeight + 16f
+            currentY += bannerHeight + 14f
         }
 
         private fun drawRunningHeader() {
-            // Running header (+30%: 8.5f -> 11f)
             val runningPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_META
                 textSize = 11f
@@ -326,11 +334,15 @@ object LabReportPdfGenerator {
             currentY += 34f
         }
 
-        fun drawSummaryCallout(title: String, content: String) {
+        /**
+         * Draws a clinical summary callout. If the summary is very long, it calculates
+         * available space on the current page, draws as much text as cleanly fits,
+         * and continues the remainder onto the next page with a "(CONTINUED)" heading.
+         */
+        fun drawSummaryCallout(title: String, content: String, isContinuation: Boolean = false) {
             val cleanContent = cleanMarkdownForPdf(content)
             if (cleanContent.isBlank()) return
 
-            // Callout body text (+30%: 9.5f -> 12.5f)
             val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_INK
                 textSize = 12.5f
@@ -338,40 +350,107 @@ object LabReportPdfGenerator {
             }
 
             val contentWidth = (USABLE_WIDTH - 32f).toInt()
-            val staticLayout = StaticLayout.Builder.obtain(cleanContent, 0, cleanContent.length, textPaint, contentWidth)
+            val fullLayout = StaticLayout.Builder.obtain(cleanContent, 0, cleanContent.length, textPaint, contentWidth)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setLineSpacing(3f, 1.15f)
                 .build()
 
-            val boxHeight = 36f + staticLayout.height + 16f
-            ensureSpace(boxHeight + 12f)
+            val topChrome = 34f // header tag + top padding
+            val bottomChrome = 14f // bottom padding inside callout box
+            val minContentHeightNeeded = topChrome + 24f + bottomChrome // header + at least 1 line + bottom padding
 
-            val bgRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + boxHeight)
-            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COLOR_SOFT_SAGE }
-            val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = COLOR_SAGE_BORDER
-                style = Paint.Style.STROKE
-                strokeWidth = 1f
+            // If remaining space on current page cannot even fit the header and 1 line, start a new page first
+            if ((currentY + minContentHeightNeeded) > CONTENT_BOTTOM) {
+                startNewPage()
             }
-            activeCanvas.drawRoundRect(bgRect, 10f, 10f, bgPaint)
-            activeCanvas.drawRoundRect(bgRect, 10f, 10f, borderPaint)
 
-            // Header tag (+30%: 8.5f -> 11f)
-            val tagPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = COLOR_BRAND_SAGE
-                textSize = 11f
-                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-                letterSpacing = 0.05f
+            val availableHeight = CONTENT_BOTTOM - currentY
+            val availableTextHeight = availableHeight - (topChrome + bottomChrome)
+
+            if (fullLayout.height <= availableTextHeight) {
+                // Entire text fits on current page
+                val boxHeight = topChrome + fullLayout.height + bottomChrome
+                val bgRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + boxHeight)
+                val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COLOR_SOFT_SAGE }
+                val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = COLOR_SAGE_BORDER
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1f
+                }
+                activeCanvas.drawRoundRect(bgRect, 10f, 10f, bgPaint)
+                activeCanvas.drawRoundRect(bgRect, 10f, 10f, borderPaint)
+
+                val tagPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = COLOR_BRAND_SAGE
+                    textSize = 11f
+                    typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                    letterSpacing = 0.05f
+                }
+                val displayTitle = if (isContinuation) "$title (CONTINUED)" else title
+                activeCanvas.drawText(displayTitle, MARGIN_LEFT + 16f, currentY + 22f, tagPaint)
+
+                activeCanvas.save()
+                activeCanvas.translate(MARGIN_LEFT + 16f, currentY + 32f)
+                fullLayout.draw(activeCanvas)
+                activeCanvas.restore()
+
+                currentY += boxHeight + 14f
+            } else {
+                // Find split line that fits within availableTextHeight
+                var splitLine = 0
+                for (line in 0 until fullLayout.lineCount) {
+                    if (fullLayout.getLineBottom(line) <= availableTextHeight) {
+                        splitLine = line + 1
+                    } else {
+                        break
+                    }
+                }
+                // Ensure at least 1 line is included
+                if (splitLine < 1) {
+                    splitLine = 1
+                }
+
+                val splitCharIndex = fullLayout.getLineStart(splitLine)
+                val thisPageText = cleanContent.substring(0, splitCharIndex).trimEnd()
+                val remainingText = cleanContent.substring(splitCharIndex).trimStart()
+
+                val thisPageLayout = StaticLayout.Builder.obtain(thisPageText, 0, thisPageText.length, textPaint, contentWidth)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(3f, 1.15f)
+                    .build()
+
+                val boxHeight = topChrome + thisPageLayout.height + bottomChrome
+                val bgRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + boxHeight)
+                val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = COLOR_SOFT_SAGE }
+                val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = COLOR_SAGE_BORDER
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1f
+                }
+                activeCanvas.drawRoundRect(bgRect, 10f, 10f, bgPaint)
+                activeCanvas.drawRoundRect(bgRect, 10f, 10f, borderPaint)
+
+                val tagPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = COLOR_BRAND_SAGE
+                    textSize = 11f
+                    typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                    letterSpacing = 0.05f
+                }
+                val displayTitle = if (isContinuation) "$title (CONTINUED)" else title
+                activeCanvas.drawText(displayTitle, MARGIN_LEFT + 16f, currentY + 22f, tagPaint)
+
+                activeCanvas.save()
+                activeCanvas.translate(MARGIN_LEFT + 16f, currentY + 32f)
+                thisPageLayout.draw(activeCanvas)
+                activeCanvas.restore()
+
+                currentY += boxHeight + 14f
+
+                if (remainingText.isNotBlank()) {
+                    startNewPage()
+                    drawSummaryCallout(title, remainingText, isContinuation = true)
+                }
             }
-            activeCanvas.drawText(title, MARGIN_LEFT + 16f, currentY + 22f, tagPaint)
-
-            // Content text
-            activeCanvas.save()
-            activeCanvas.translate(MARGIN_LEFT + 16f, currentY + 34f)
-            staticLayout.draw(activeCanvas)
-            activeCanvas.restore()
-
-            currentY += boxHeight + 14f
         }
 
         fun drawStatBoxes(goodCount: Int, outCount: Int) {
@@ -442,12 +521,11 @@ object LabReportPdfGenerator {
             activeCanvas.drawText("$outCount", rightLeft + 28f, currentY + 29f, rightNumPaint)
             activeCanvas.drawText("OUT OF RANGE (ATTENTION)", rightLeft + 52f, currentY + 29f, rightLabelPaint)
 
-            currentY += height + 16f
+            currentY += height + 14f
         }
 
         fun drawSectionTitle(title: String) {
             ensureSpace(28f)
-            // Section title (+30%: 11.5f -> 15f)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_INK
                 textSize = 15f
@@ -458,7 +536,8 @@ object LabReportPdfGenerator {
         }
 
         fun drawCategorySectionHeader(categoryName: String, statusText: String) {
-            ensureSpace(38f)
+            // Check for at least 80f so that category header is never orphaned at the bottom of a page
+            ensureSpace(80f)
 
             // Clean Category Banner
             val bannerRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + 30f)
@@ -472,7 +551,7 @@ object LabReportPdfGenerator {
                 typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
                 letterSpacing = 0.04f
             }
-            activeCanvas.drawText(categoryName.uppercase(), MARGIN_LEFT + 14f, currentY + 20f, catTitlePaint)
+            activeCanvas.drawText(categoryName.uppercase(Locale.US), MARGIN_LEFT + 14f, currentY + 20f, catTitlePaint)
 
             // Category status (+30%: 8.5f -> 11f)
             val statusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -506,7 +585,9 @@ object LabReportPdfGenerator {
             }
 
             val hasBar = biomarker.hasReferenceRange && biomarker.progress != null
-            val cardHeight = 50f + (if (hasBar) 28f else 0f) + (if (insightLayout != null) insightBoxHeight + 10f else 0f)
+            val barHeight = if (hasBar) 28f else 0f
+            val insightHeight = if (insightLayout != null) (insightBoxHeight + 8f) else 0f
+            val cardHeight = 44f + barHeight + insightHeight
 
             ensureSpace(cardHeight + 10f)
 
@@ -522,26 +603,12 @@ object LabReportPdfGenerator {
             activeCanvas.drawRoundRect(cardRect, 8f, 8f, borderPaint)
 
             val contentX = MARGIN_LEFT + 14f
-            var localY = currentY + 20f
 
-            // Biomarker Name (+30%: 10.5f -> 14f)
-            val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = COLOR_INK
-                textSize = 14f
-                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            }
-            val headline = biomarker.headline.ifBlank { "Biomarker" }
-            val truncatedHeadline = if (headline.length > 36) headline.take(34) + "…" else headline
-            activeCanvas.drawText(truncatedHeadline, contentX, localY, namePaint)
-
-            // Right side: Value & Unit
-            val valueText = biomarker.value.ifBlank { "--" }
-            val unitText = biomarker.unit
+            // Tag geometry
             val isGood = biomarker.badgeTone == "good"
             val toneColor = if (isGood) COLOR_IN_RANGE else COLOR_OUT_RANGE
             val toneBgColor = if (isGood) COLOR_IN_RANGE_BG else COLOR_OUT_RANGE_BG
 
-            // Status Badge Pill (+30%: 7.5f -> 10f)
             val tagText = if (isGood) "WITHIN RANGE" else "OUT OF RANGE"
             val tagTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = toneColor
@@ -553,7 +620,11 @@ object LabReportPdfGenerator {
             val tagHeight = 20f
             val tagRight = MARGIN_RIGHT - 14f
             val tagLeft = tagRight - tagWidth
-            val tagRect = RectF(tagLeft, currentY + 11f, tagRight, currentY + 11f + tagHeight)
+            val tagTop = currentY + 11f
+            val tagBottom = tagTop + tagHeight
+            val tagCenterY = (tagTop + tagBottom) / 2f
+
+            val tagRect = RectF(tagLeft, tagTop, tagRight, tagBottom)
             val tagBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = toneBgColor }
             val tagBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = toneColor.let { Color.argb(60, Color.red(it), Color.green(it), Color.blue(it)) }
@@ -563,12 +634,27 @@ object LabReportPdfGenerator {
             activeCanvas.drawRoundRect(tagRect, 5f, 5f, tagBgPaint)
             activeCanvas.drawRoundRect(tagRect, 5f, 5f, tagBorderPaint)
 
-            // Dot inside tag
+            // Dot and text inside tag
             val tagDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = toneColor }
-            activeCanvas.drawCircle(tagLeft + 8f, currentY + 21f, 3f, tagDotPaint)
-            activeCanvas.drawText(tagText, tagLeft + 15f, currentY + 25f, tagTextPaint)
+            activeCanvas.drawCircle(tagLeft + 8f, tagCenterY, 3f, tagDotPaint)
+            activeCanvas.drawText(tagText, tagLeft + 15f, tagCenterY + 3.5f, tagTextPaint)
 
-            // Value & Unit placed to the left of the tag (+30%: value 11.5f -> 15f, unit 8.5f -> 11f)
+            // Common text baseline for top row aligned with tag center
+            val textBaselineY = tagCenterY + 4.5f
+
+            // Biomarker Name (+30%: 10.5f -> 14f)
+            val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = COLOR_INK
+                textSize = 14f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            }
+            val headline = biomarker.headline.ifBlank { "Biomarker" }
+            val truncatedHeadline = if (headline.length > 36) headline.take(34) + "…" else headline
+            activeCanvas.drawText(truncatedHeadline, contentX, textBaselineY, namePaint)
+
+            // Value & Unit placed to the left of the tag
+            val valueText = biomarker.value.ifBlank { "--" }
+            val unitText = biomarker.unit
             val valPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_INK
                 textSize = 15f
@@ -585,12 +671,14 @@ object LabReportPdfGenerator {
             val valRight = tagLeft - 14f
             val valStartX = valRight - (valWidth + unitWidth)
 
-            activeCanvas.drawText(valStr, valStartX, localY, valPaint)
-            activeCanvas.drawText(unitText, valStartX + valWidth, localY, unitPaint)
+            activeCanvas.drawText(valStr, valStartX, textBaselineY, valPaint)
+            activeCanvas.drawText(unitText, valStartX + valWidth, textBaselineY, unitPaint)
+
+            var localY = tagBottom + 6f
 
             // Graphical Progress Bar (if reference range exists)
             if (hasBar) {
-                localY += 18f
+                localY += 12f
 
                 // Reference Range text on left (+30%: 7.5f -> 10f)
                 val rangeLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -638,7 +726,7 @@ object LabReportPdfGenerator {
 
             // Clinical Insight Box
             if (insightLayout != null) {
-                localY += 12f
+                localY += 10f
                 val insightRect = RectF(contentX, localY, MARGIN_RIGHT - 14f, localY + insightBoxHeight)
                 val insightBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F4F6F4") }
                 activeCanvas.drawRoundRect(insightRect, 6f, 6f, insightBgPaint)
@@ -650,6 +738,27 @@ object LabReportPdfGenerator {
             }
 
             currentY += cardHeight + 10f
+        }
+
+        fun drawEmptyNotice(message: String) {
+            ensureSpace(56f)
+            val boxRect = RectF(MARGIN_LEFT, currentY, MARGIN_RIGHT, currentY + 46f)
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+            val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = COLOR_BORDER
+                style = Paint.Style.STROKE
+                strokeWidth = 0.85f
+            }
+            activeCanvas.drawRoundRect(boxRect, 8f, 8f, bgPaint)
+            activeCanvas.drawRoundRect(boxRect, 8f, 8f, borderPaint)
+
+            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = COLOR_META
+                textSize = 12f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            }
+            activeCanvas.drawText(message, MARGIN_LEFT + 16f, currentY + 28f, textPaint)
+            currentY += 56f
         }
 
         private fun drawFooter(c: Canvas, pageNum: Int) {

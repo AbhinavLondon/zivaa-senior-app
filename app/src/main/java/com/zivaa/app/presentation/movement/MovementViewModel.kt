@@ -67,7 +67,10 @@ class MovementViewModel : ViewModel() {
                             
                             // Fetch steps goal
                             try {
-                                val planSetupResponse = RetrofitClient.apiService.getPlanSetup(patientIdQuery = "eq.$userId")
+                                val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
+                                    patientIdQuery = "eq.$userId",
+                                    stepsGoalQuery = "not.is.null"
+                                )
                                 if (planSetupResponse.isSuccessful && planSetupResponse.body()?.isNotEmpty() == true) {
                                     goalSteps = planSetupResponse.body()!!.first().stepsGoal
                                 }
@@ -150,10 +153,20 @@ class MovementViewModel : ViewModel() {
                                 hourlySteps = hours.map { it to 0 }
                             }
                             
+                            val currentStepsInt = totalStepsToday.replace(",", "").toIntOrNull() ?: 0
+                            val targetGoalInt = goalSteps ?: 10000
+
                             // Fetch dynamic insight (Daily)
                             isInsightLoading = true
                             try {
-                                val insightResponse = RetrofitClient.apiService.generateInsight(com.zivaa.app.data.remote.InsightRequest(patient_id = userId, timezone = localZone.id))
+                                val dailyContext = "Today's Steps: $currentStepsInt, Daily Goal: $targetGoalInt, 7-Day Average: $averageSteps"
+                                val insightResponse = RetrofitClient.apiService.generateInsight(
+                                    com.zivaa.app.data.remote.InsightRequest(
+                                        patient_id = userId,
+                                        timezone = localZone.id,
+                                        context = dailyContext
+                                    )
+                                )
                                 if (insightResponse.isSuccessful && insightResponse.body() != null) {
                                     insightText = insightResponse.body()?.insight ?: ""
                                 } else {
@@ -185,7 +198,15 @@ class MovementViewModel : ViewModel() {
                             // Fetch dynamic insight (Hero)
                             isHeroInsightLoading = true
                             try {
-                                val heroInsightResponse = RetrofitClient.apiService.generateInsight(com.zivaa.app.data.remote.InsightRequest(patient_id = userId, type = "hero", timezone = localZone.id))
+                                val heroContext = "Today's Steps: $currentStepsInt, Daily Goal: $targetGoalInt"
+                                val heroInsightResponse = RetrofitClient.apiService.generateInsight(
+                                    com.zivaa.app.data.remote.InsightRequest(
+                                        patient_id = userId,
+                                        type = "hero",
+                                        timezone = localZone.id,
+                                        context = heroContext
+                                    )
+                                )
                                 if (heroInsightResponse.isSuccessful && heroInsightResponse.body() != null) {
                                     heroInsightText = heroInsightResponse.body()?.insight ?: "Keep moving, you're doing great!"
                                 } else {
@@ -264,6 +285,31 @@ class MovementViewModel : ViewModel() {
                     } else {
                         isGoalMet = false
                         overGoalText = "Set a goal to start tracking your daily progress, Ranjit."
+                    }
+
+                    // Invalidate cached hero insight so fresh AI message is generated immediately
+                    try {
+                        val todayStr = java.time.LocalDate.now().toString()
+                        RetrofitClient.apiService.deleteUserInsights(
+                            patientIdQuery = "eq.$userId",
+                            insightTypeQuery = "eq.hero",
+                            insightDateQuery = "eq.$todayStr"
+                        )
+                        val targetGoalInt = newGoal ?: 10000
+                        val heroContext = "Today's Steps: $steps, Daily Goal: $targetGoalInt"
+                        val heroResp = RetrofitClient.apiService.generateInsight(
+                            com.zivaa.app.data.remote.InsightRequest(
+                                patient_id = userId,
+                                type = "hero",
+                                timezone = java.time.ZoneId.systemDefault().id,
+                                context = heroContext
+                            )
+                        )
+                        if (heroResp.isSuccessful && !heroResp.body()?.insight.isNullOrBlank()) {
+                            heroInsightText = heroResp.body()!!.insight
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MovementVM", "Failed to refresh insight after goal change", e)
                     }
                 }
             } catch (e: Exception) {

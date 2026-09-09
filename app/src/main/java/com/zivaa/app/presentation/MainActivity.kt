@@ -847,8 +847,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             "mindfulness_landing" -> {
+                                val patientName = viewModel.patientFirstName.ifEmpty {
+                                    val cached = authManager.getPatientProfile()
+                                    cached["full_name"]?.split(" ")?.firstOrNull() ?: ""
+                                }
                                 com.zivaa.app.presentation.mindfulness.theme.MindfulnessTheme {
                                     com.zivaa.app.presentation.mindfulness.MindfulnessLandingScreen(
+                                        userName = patientName,
                                         onNavigateToBreathing = { currentScreen = "mindfulness_breathing_selection" },
                                         onNavigateToMeditation = { currentScreen = "mindfulness_meditation_selection" }
                                     )

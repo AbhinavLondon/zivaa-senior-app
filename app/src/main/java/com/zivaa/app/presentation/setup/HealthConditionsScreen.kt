@@ -35,7 +35,21 @@ fun HealthConditionsScreen(
                 eyebrow = "Health · pick all that apply",
                 question = "Anything to plan around?",
                 hint = "Timings, meals and movement adjust quietly around these.",
-                options = listOf("Diabetes", "Blood pressure", "Knee or joint pain", "Light sleep", "Low appetite"),
+                options = listOf(
+                    "Diabetes",
+                    "Blood pressure",
+                    "Heart condition",
+                    "High cholesterol",
+                    "Knee or joint pain",
+                    "Back pain",
+                    "Thyroid",
+                    "Acid reflux / GERD",
+                    "Asthma / Breathing",
+                    "Light sleep",
+                    "Low appetite",
+                    "Fatigue",
+                    "None"
+                ),
                 selectedOptions = state.selectedConditions,
                 onOptionToggled = { viewModel.toggleCondition(it) }
             )
