@@ -210,10 +210,7 @@ class MainActivity : ComponentActivity() {
             workRequest
         )
         
-        // Trigger an immediate one-time sync so user doesn't wait an hour
-        val oneTimeWork = androidx.work.OneTimeWorkRequestBuilder<HealthDataSyncWorker>().build()
-        WorkManager.getInstance(applicationContext).enqueue(oneTimeWork)
-
+        // (Immediate foreground sync is handled once permissions are checked in UI LaunchedEffect)
         val prefsManager = com.zivaa.app.data.local.SyncPrefsManager(applicationContext)
         val appSettingsManager = com.zivaa.app.data.local.AppSettingsManager(applicationContext)
         authManager = com.zivaa.app.data.remote.AuthManager(applicationContext)
@@ -305,20 +302,20 @@ class MainActivity : ComponentActivity() {
 
                         androidx.compose.runtime.LaunchedEffect(forceDashboardRefresh) {
                             if (forceDashboardRefresh) {
-                                viewModel.fetchVitalsAndSync(force = true)
+                                viewModel.fetchVitalsAndSync(force = false)
                                 forceDashboardRefresh = false
                             }
                         }
 
-                        if (healthConnectManager.isSdkAvailable()) {
-                            val client = androidx.health.connect.client.HealthConnectClient.getOrCreate(applicationContext)
-                            lifecycleScope.launch {
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            if (healthConnectManager.isSdkAvailable()) {
+                                val client = androidx.health.connect.client.HealthConnectClient.getOrCreate(applicationContext)
                                 try {
                                     val grantedPermissions = client.permissionController.getGrantedPermissions()
                                     if (!grantedPermissions.containsAll(permissions)) {
                                         requestPermissions.launch(permissions)
                                     } else {
-                                        viewModel.fetchVitalsAndSync(force = true)
+                                        viewModel.fetchVitalsAndSync(force = false)
                                     }
                                 } catch (e: Exception) {
                                     e.printStackTrace()
@@ -483,7 +480,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             "movement" -> {
-                                val movementViewModel: com.zivaa.app.presentation.movement.MovementViewModel = viewModel()
+                                val movementViewModel: com.zivaa.app.presentation.movement.MovementViewModel = viewModel(
+                                    factory = com.zivaa.app.presentation.movement.MovementViewModelFactory(healthConnectManager)
+                                )
                                 com.zivaa.app.presentation.movement.MovementScreen(
                                     viewModel = movementViewModel,
                                     onNavigateBack = { currentScreen = "dashboard" }
