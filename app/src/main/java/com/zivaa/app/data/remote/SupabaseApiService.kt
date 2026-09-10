@@ -251,6 +251,9 @@ interface SupabaseApiService {
         @retrofit2.http.Query("body_part") bodyPartQuery: String = "eq.*",
         @retrofit2.http.Query("order") order: String = "exercise_name.asc"
     ): Response<List<SupabaseExerciseRecord>>
+
+    @retrofit2.http.GET("rest/v1/metric_source_priority")
+    suspend fun getSourcePriorities(): Response<List<MetricSourcePriorityRecord>>
 }
 
 data class InsightRequest(
@@ -317,4 +320,10 @@ data class SupabaseCoachChatLog(
     val message: String,
     val created_at: String,
     val metadata: Map<String, @JvmSuppressWildcards Any>? = null
+)
+
+data class MetricSourcePriorityRecord(
+    val metric_type: String,
+    val source: String,
+    val priority_rank: Int
 )

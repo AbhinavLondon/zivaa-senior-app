@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "1.0.30"
+        versionCode = 32
+        versionName = "1.0.31"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.30 - Incremental Health Connect sync, local-first Movement Screen graphs with personalized insights, and optimized background telemetry"
+                releaseNotes = "Zivaa v1.0.31 - Multi-source priority ranking for vitals (watch > phone), hourly vital rollups, and refined movement metrics"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

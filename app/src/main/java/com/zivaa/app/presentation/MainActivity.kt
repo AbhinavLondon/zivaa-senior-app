@@ -481,7 +481,7 @@ class MainActivity : ComponentActivity() {
                             }
                             "movement" -> {
                                 val movementViewModel: com.zivaa.app.presentation.movement.MovementViewModel = viewModel(
-                                    factory = com.zivaa.app.presentation.movement.MovementViewModelFactory(healthConnectManager)
+                                    factory = com.zivaa.app.presentation.movement.MovementViewModelFactory(healthConnectManager, prefsManager)
                                 )
                                 com.zivaa.app.presentation.movement.MovementScreen(
                                     viewModel = movementViewModel,

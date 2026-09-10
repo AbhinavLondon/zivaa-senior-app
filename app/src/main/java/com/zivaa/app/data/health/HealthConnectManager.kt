@@ -229,6 +229,33 @@ class HealthConnectManager(private val context: Context) {
         return records
     }
 
+    suspend fun fetchTodayStepsRecords(): List<StepsRecord> {
+        val client = healthConnectClient ?: return emptyList()
+        val zone = ZoneId.systemDefault()
+        val todayStart = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val todayEnd = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
+        val timeFilter = TimeRangeFilter.between(todayStart, todayEnd)
+
+        val records = mutableListOf<StepsRecord>()
+        try {
+            var pageToken: String? = null
+            do {
+                val request = ReadRecordsRequest(
+                    recordType = StepsRecord::class,
+                    timeRangeFilter = timeFilter,
+                    pageToken = pageToken,
+                    ascendingOrder = false
+                )
+                val result = client.readRecords(request)
+                records.addAll(result.records)
+                pageToken = result.pageToken
+            } while (pageToken != null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return records
+    }
+
     suspend fun getChangesToken(): String? {
         val client = healthConnectClient ?: return null
         
@@ -298,6 +325,9 @@ class HealthConnectManager(private val context: Context) {
             is androidx.health.connect.client.records.StepsRecord -> {
                 recordedAt = record.endTime.toString()
                 values["count"] = record.count
+                values["start_time"] = record.startTime.toString()
+                values["end_time"] = record.endTime.toString()
+                values["duration_seconds"] = java.time.Duration.between(record.startTime, record.endTime).seconds
             }
             is androidx.health.connect.client.records.DistanceRecord -> {
                 recordedAt = record.endTime.toString()

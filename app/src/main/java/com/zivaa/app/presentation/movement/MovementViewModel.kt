@@ -16,7 +16,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class MovementViewModel(
-    private val healthConnectManager: HealthConnectManager? = null
+    private val healthConnectManager: HealthConnectManager? = null,
+    private val prefsManager: com.zivaa.app.data.local.SyncPrefsManager? = null
 ) : ViewModel() {
     var totalStepsToday by mutableStateOf("0")
     var goalSteps by mutableStateOf<Int?>(null)
@@ -46,6 +47,28 @@ class MovementViewModel(
 
     // Hourly distribution (Hour string to Steps)
     var hourlySteps by mutableStateOf<List<Pair<String, Int>>>(emptyList())
+    var hourlyStepsSource by mutableStateOf<String?>(null)
+
+    private val hours24Labels = listOf(
+        "12A", "", "", "3A", "", "",
+        "6A", "", "", "9A", "", "",
+        "12P", "", "", "3P", "", "",
+        "6P", "", "", "9P", "", ""
+    )
+
+    private fun formatSourceLabel(rawSource: String?): String {
+        if (rawSource.isNullOrBlank()) return "Phone Pedometer"
+        return when {
+            rawSource.contains("shealth", ignoreCase = true) -> "Samsung Health"
+            rawSource.contains("fitbit", ignoreCase = true) -> "Fitbit"
+            rawSource.contains("garmin", ignoreCase = true) -> "Garmin"
+            rawSource.contains("withings", ignoreCase = true) -> "Withings"
+            rawSource.contains("fitness", ignoreCase = true) -> "Google Fit"
+            rawSource.contains("watch", ignoreCase = true) -> "Smartwatch"
+            rawSource.contains("phone", ignoreCase = true) -> "Phone Pedometer"
+            else -> rawSource.substringAfterLast(".").replaceFirstChar { it.uppercase() }
+        }
+    }
 
     // Loading and error states
     var isLoading by mutableStateOf(true)
@@ -72,8 +95,18 @@ class MovementViewModel(
 
             if (healthConnectManager != null) {
                 try {
-                    // 1. Total Steps Today from on-device Health Connect
-                    val stepsToday = healthConnectManager.aggregateSteps(todayStart, now).toInt()
+                    // 1. Total Steps Today from on-device Health Connect with source priority
+                    val todayStepsRecords = healthConnectManager.fetchTodayStepsRecords()
+                    val stepsToday = if (todayStepsRecords.isNotEmpty()) {
+                        val priorities = prefsManager?.getSourcePriorities() ?: emptyList()
+                        com.zivaa.app.data.health.SourcePriorityManager.resolveSteps(todayStepsRecords, priorities).toInt()
+                    } else {
+                        healthConnectManager.aggregateSteps(todayStart, now).toInt()
+                    }
+                    android.util.Log.d("MovementDiag", "--- TOTAL RECORDS: ${todayStepsRecords.size} ---")
+                    todayStepsRecords.forEach { rec ->
+                        android.util.Log.d("MovementDiag", "Record: pkg=${rec.metadata.dataOrigin.packageName}, dev=${rec.metadata.device?.type}, start=${rec.startTime}, end=${rec.endTime}, count=${rec.count}")
+                    }
                     totalStepsToday = java.text.NumberFormat.getNumberInstance().format(stepsToday)
 
                     // 2. Weekly Steps (Past 7 Days)
@@ -91,29 +124,85 @@ class MovementViewModel(
                     weeklySteps = weekList
                     averageSteps = totalWeekSteps / 7
 
-                    // 3. Hourly Steps Today (6 AM to 9 PM)
-                    val hours = listOf("6A", "", "", "9A", "", "", "12P", "", "", "3P", "", "", "6P", "", "", "9P")
-                    val startOfDay = today.atStartOfDay(zone)
-                    val distribution = mutableListOf<Pair<String, Int>>()
-                    hours.forEachIndexed { index, label ->
-                        val hour = index + 6 // 6 AM is 6:00
-                        val hourStart = startOfDay.plusHours(hour.toLong()).toInstant()
-                        val hourEnd = startOfDay.plusHours((hour + 1).toLong()).toInstant()
-                        val stepsForHour = if (hourStart.isBefore(now)) {
-                            val queryEnd = if (hourEnd.isAfter(now)) now else hourEnd
-                            healthConnectManager.aggregateSteps(hourStart, queryEnd).toInt()
-                        } else {
-                            0
+                    // 3. Hourly Steps Today (24 Hours: Midnight to Midnight)
+                    val userId = RetrofitClient.authManager?.getUserId()
+                    var loadedFromSupabase = false
+                    if (userId != null) {
+                        try {
+                            val hourlyResponse = RetrofitClient.apiService.getHourlyVitals("eq.$userId", limit = 48)
+                            if (hourlyResponse.isSuccessful && !hourlyResponse.body().isNullOrEmpty()) {
+                                val allRecords = hourlyResponse.body()!!
+                                data class LocalizedHourlyRecord(val localHour: Int, val steps: Int, val source: String?)
+                                val localizedRecords = allRecords.mapNotNull { record ->
+                                    try {
+                                        val cleanedTs = record.hourStart.replace(" ", "T").replace("+00", "+00:00")
+                                        val utcTime = OffsetDateTime.parse(cleanedTs)
+                                        val localTime = utcTime.atZoneSameInstant(zone)
+                                        if (localTime.toLocalDate() == today) {
+                                            LocalizedHourlyRecord(localTime.hour, record.totalSteps ?: 0, record.source)
+                                        } else null
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
+
+                                if (localizedRecords.isNotEmpty()) {
+                                    val distribution = mutableListOf<Pair<String, Int>>()
+                                    hours24Labels.forEachIndexed { hour, label ->
+                                        val stepsForHour = localizedRecords.filter { it.localHour == hour }.sumOf { it.steps }
+                                        distribution.add(label to stepsForHour)
+                                    }
+                                    hourlySteps = distribution
+                                    val winningSource = localizedRecords
+                                        .filter { it.steps > 0 && !it.source.isNullOrBlank() }
+                                        .groupBy { it.source }
+                                        .maxByOrNull { entry -> entry.value.sumOf { it.steps } }
+                                        ?.key
+                                    hourlyStepsSource = formatSourceLabel(winningSource)
+                                    loadedFromSupabase = true
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MovementVM", "Error loading hourly from Supabase: ${e.message}")
                         }
-                        distribution.add(label to stepsForHour)
                     }
-                    hourlySteps = distribution
+
+                    if (!loadedFromSupabase) {
+                        // Local Fallback: Exclude multi-hour/daily summary records (e.g. 24h summary) to avoid 321 flat line
+                        val startOfDay = today.atStartOfDay(zone)
+                        val granularRecords = todayStepsRecords.filter { rec ->
+                            java.time.Duration.between(rec.startTime, rec.endTime).seconds <= 3600
+                        }
+
+                        val distribution = mutableListOf<Pair<String, Int>>()
+                        if (granularRecords.isNotEmpty()) {
+                            val sourcePkg = granularRecords.firstOrNull()?.metadata?.dataOrigin?.packageName
+                            val deviceType = granularRecords.firstOrNull()?.metadata?.device?.type
+                            val sourceTag = if (deviceType == 1) "${sourcePkg}_watch" else "${sourcePkg}_phone"
+                            hourlyStepsSource = formatSourceLabel(sourceTag)
+
+                            for (hour in 0..23) {
+                                val hourStart = startOfDay.plusHours(hour.toLong()).toInstant()
+                                val hourEnd = startOfDay.plusHours((hour + 1).toLong()).toInstant()
+                                val stepsInHour = granularRecords.filter { rec ->
+                                    rec.startTime.isBefore(hourEnd) && rec.endTime.isAfter(hourStart)
+                                }.sumOf { it.count.toInt() }
+
+                                distribution.add(hours24Labels[hour] to stepsInHour)
+                            }
+                        } else {
+                            for (hour in 0..23) {
+                                distribution.add(hours24Labels[hour] to 0)
+                            }
+                            hourlyStepsSource = null
+                        }
+                        hourlySteps = distribution
+                    }
 
                     // Instantly stop loading spinner so graphs appear immediately
                     isLoading = false
 
                     // Fetch goal steps from Supabase in background
-                    val userId = RetrofitClient.authManager?.getUserId()
                     if (userId != null) {
                         try {
                             val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
@@ -205,52 +294,54 @@ class MovementViewModel(
                             weeklySteps = weekList
                             averageSteps = totalWeekSteps / 7
 
-                            val hourlyResponse = RetrofitClient.apiService.getHourlyVitals("eq.$userId")
-                            val hours = listOf("6A", "", "", "9A", "", "", "12P", "", "", "3P", "", "", "6P", "", "", "9P")
+                            val hourlyResponse = RetrofitClient.apiService.getHourlyVitals("eq.$userId", limit = 48)
                             if (hourlyResponse.isSuccessful) {
                                 val allRecords = hourlyResponse.body() ?: emptyList()
-                                data class LocalizedRecord(val localHour: Int, val steps: Int)
+                                data class LocalizedRecord(val localHour: Int, val steps: Int, val source: String?)
                                 val localizedRecords = allRecords.mapNotNull { record ->
                                     try {
                                         val cleanedTs = record.hourStart.replace(" ", "T").replace("+00", "+00:00")
                                         val utcTime = OffsetDateTime.parse(cleanedTs)
                                         val localTime = utcTime.atZoneSameInstant(zone)
                                         if (localTime.toLocalDate() == today) {
-                                            LocalizedRecord(localTime.hour, record.totalSteps ?: 0)
+                                            LocalizedRecord(localTime.hour, record.totalSteps ?: 0, record.source)
                                         } else null
                                     } catch (e: Exception) {
                                         null
                                     }
                                 }
                                 val distribution = mutableListOf<Pair<String, Int>>()
-                                hours.forEachIndexed { index, label ->
-                                    val hour = index + 6
+                                hours24Labels.forEachIndexed { hour, label ->
                                     val stepsForHour = localizedRecords.filter { it.localHour == hour }.sumOf { it.steps }
                                     distribution.add(label to stepsForHour)
                                 }
                                 hourlySteps = distribution
+                                val winningSource = localizedRecords
+                                    .filter { it.steps > 0 && !it.source.isNullOrBlank() }
+                                    .groupBy { it.source }
+                                    .maxByOrNull { entry -> entry.value.sumOf { it.steps } }
+                                    ?.key
+                                hourlyStepsSource = formatSourceLabel(winningSource)
                             } else {
-                                hourlySteps = hours.map { it to 0 }
+                                hourlySteps = hours24Labels.map { it to 0 }
                             }
                             launchInsights(userId, steps, goalSteps ?: 10000, averageSteps, zone.id, firstName)
                         } else {
                             totalStepsToday = "0"
                             isGoalMet = false
                             weeklySteps = List(7) { "-" to 0 }
-                            val hours = listOf("6A", "", "", "9A", "", "", "12P", "", "", "3P", "", "", "6P", "", "", "9P")
-                            hourlySteps = hours.map { it to 0 }
+                            hourlySteps = hours24Labels.map { it to 0 }
                         }
                     } else {
                         weeklySteps = List(7) { "-" to 0 }
-                        val hours = listOf("6A", "", "", "9A", "", "", "12P", "", "", "3P", "", "", "6P", "", "", "9P")
-                        hourlySteps = hours.map { it to 0 }
+                        hourlySteps = hours24Labels.map { it to 0 }
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 totalStepsToday = "0"
                 weeklySteps = List(7) { "-" to 0 }
-                hourlySteps = listOf("6A" to 0, "9A" to 0, "12P" to 0, "3P" to 0, "6P" to 0, "9P" to 0)
+                hourlySteps = hours24Labels.map { it to 0 }
             } finally {
                 isLoading = false
             }
@@ -406,12 +497,13 @@ class MovementViewModel(
 }
 
 class MovementViewModelFactory(
-    private val healthConnectManager: HealthConnectManager
+    private val healthConnectManager: HealthConnectManager,
+    private val prefsManager: com.zivaa.app.data.local.SyncPrefsManager? = null
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MovementViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MovementViewModel(healthConnectManager) as T
+            return MovementViewModel(healthConnectManager, prefsManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

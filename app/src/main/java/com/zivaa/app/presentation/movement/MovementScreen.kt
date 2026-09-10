@@ -336,11 +336,37 @@ fun HourlyStepsChartCard(viewModel: MovementViewModel) {
             .padding(24.dp)
     ) {
         Column {
+            val default24Hours = listOf(
+                "12A", "", "", "3A", "", "",
+                "6A", "", "", "9A", "", "",
+                "12P", "", "", "3P", "", "",
+                "6P", "", "", "9P", "", ""
+            )
             val hourlyData = if (viewModel.hourlySteps.isEmpty()) {
-                val hours = listOf("6A", "", "", "9A", "", "", "12P", "", "", "3P", "", "", "6P", "", "", "9P")
-                hours.map { it to 0 }
+                default24Hours.map { it to 0 }
             } else {
                 viewModel.hourlySteps
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "24-Hour Timeline",
+                    style = ZivaaTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = ZivaaTheme.colors.inkMute
+                )
+                viewModel.hourlyStepsSource?.let { src ->
+                    Text(
+                        text = "Source: $src",
+                        style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                        color = ZivaaTheme.colors.sage
+                    )
+                }
             }
             
             val maxSteps = hourlyData.maxOfOrNull { it.second } ?: 0
@@ -354,7 +380,7 @@ fun HourlyStepsChartCard(viewModel: MovementViewModel) {
             }
 
             val columns = List(hourlyData.size) { 
-                lineComponent(color = ZivaaTheme.colors.sage, thickness = 12.dp, shape = Shapes.pillShape)
+                lineComponent(color = ZivaaTheme.colors.sage, thickness = 7.dp, shape = Shapes.pillShape)
             }
             
             val labelFormatter = object : com.patrykandpatrick.vico.core.formatter.ValueFormatter {
@@ -377,7 +403,7 @@ fun HourlyStepsChartCard(viewModel: MovementViewModel) {
                 chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
                 chart = columnChart(
                     columns = columns,
-                    spacing = 8.dp,
+                    spacing = 4.dp,
                     mergeMode = MergeMode.Stack,
                     dataLabel = textComponent(
                         color = ZivaaTheme.colors.sage,

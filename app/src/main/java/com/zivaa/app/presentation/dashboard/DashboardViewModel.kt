@@ -101,6 +101,13 @@ class DashboardViewModel(
             eveningSummaryText = prefsManager.getEveningSummaryText()
         }
 
+        // Hydrate clinical vitals from SharedPreferences cache if for today
+        if (prefsManager.getCachedVitalsDate() == todayStr) {
+            prefsManager.getCachedSleepHours()?.let { sleepHours = it }
+            prefsManager.getCachedHeartRate()?.let { heartRate = it }
+            prefsManager.getCachedOxygenLevel()?.let { oxygenLevel = it }
+        }
+
         val viewedEvening = prefsManager.getListViewedEveningDate() == todayStr
         val viewedAfternoon = prefsManager.getListViewedAfternoonDate() == todayStr
         
@@ -533,12 +540,7 @@ class DashboardViewModel(
                             val latest = records[0]
                             val todayStr = java.time.LocalDate.now().toString()
                             if (latest.date.startsWith(todayStr)) {
-                                if (latest.totalSteps != null && latest.totalSteps > 0) {
-                                    steps = java.text.NumberFormat.getNumberInstance().format(latest.totalSteps)
-                                } else if (steps == "4,120") {
-                                    steps = "0"
-                                }
-                                
+                                // Steps are handled live with source priority via Health Connect, not overwritten by DB
                                 if (latest.sleepHours != null && latest.sleepHours > 0) {
                                     val hours = latest.sleepHours.toInt()
                                     val minutes = ((latest.sleepHours - hours) * 60).toInt()
@@ -560,6 +562,13 @@ class DashboardViewModel(
                                 } else if (oxygenLevel == "--") {
                                     oxygenLevel = "--"
                                 }
+
+                                prefsManager.saveCachedVitals(
+                                    dateStr = todayStr,
+                                    sleepHours = sleepHours,
+                                    heartRate = heartRate,
+                                    oxygenLevel = oxygenLevel
+                                )
                             }
                         }
                     }
@@ -617,18 +626,29 @@ class DashboardViewModel(
                     }
                 }
 
-                // Calculate display metrics from raw records
-                val todayStart = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
-                val stepsCount = try {
-                    healthConnectManager.aggregateSteps(todayStart, java.time.Instant.now()).toDouble()
+                // 1. Live steps resolution using Health Connect + Source Priority
+                val todayStepsRecords = try {
+                    healthConnectManager.fetchTodayStepsRecords()
                 } catch (e: Exception) {
-                    0.0
+                    android.util.Log.e("DashboardVM", "Failed to fetch today steps records", e)
+                    emptyList()
                 }
+                val resolvedStepsCount = if (todayStepsRecords.isNotEmpty()) {
+                    val priorities = prefsManager.getSourcePriorities()
+                    com.zivaa.app.data.health.SourcePriorityManager.resolveSteps(todayStepsRecords, priorities)
+                } else {
+                    val todayStart = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+                    try {
+                        healthConnectManager.aggregateSteps(todayStart, java.time.Instant.now()).toLong()
+                    } catch (e: Exception) {
+                        0L
+                    }
+                }
+                // Immediately update steps state for the UI
+                steps = java.text.NumberFormat.getNumberInstance().format(resolvedStepsCount)
                 val hrValues = apiRecords.filter { it.type == "heart_rate" }
                     .mapNotNull { it.values["bpm"] }
                 val hrAvg = hrValues.average()
-                val hrMin = hrValues.minOrNull()
-                val hrMax = hrValues.maxOrNull()
                 val bpSys = apiRecords.filter { it.type == "blood_pressure" }
                     .mapNotNull { it.values["systolic"] }
                     .average()
@@ -640,8 +660,6 @@ class DashboardViewModel(
                 val bgAvg = apiRecords.filter { it.type == "blood_glucose" }
                     .mapNotNull { it.values["glucose_mg_dl"] }
                     .average()
-                val o2Values = apiRecords.filter { it.type == "oxygen_sat" }
-                    .mapNotNull { it.values["percentage"] }
 
                 // Fetch morning briefing
                 val todayStr = java.time.LocalDate.now().toString()
@@ -760,23 +778,7 @@ class DashboardViewModel(
                     e.printStackTrace()
                 }
 
-                if (stepsCount > 0) {
-                    steps = java.text.NumberFormat.getNumberInstance().format(stepsCount)
-                }
-                if (sleepDuration > 0) {
-                    val hours = sleepDuration.toInt()
-                    val minutes = ((sleepDuration - hours) * 60).toInt()
-                    sleepHours = "${hours}h ${minutes}m"
-                }
-                if (hrMin != null && hrMax != null && hrMin > 0) {
-                    heartRate = "${hrMin.toInt()}-${hrMax.toInt()}"
-                } else if (!hrAvg.isNaN()) {
-                    heartRate = hrAvg.toInt().toString()
-                }
-                if (o2Values.isNotEmpty()) {
-                    oxygenLevel = "${o2Values.average().toInt()}%"
-                }
-
+                // Mood and blood pressure derived from available records
                 if (!hrAvg.isNaN()) {
                     mood = if (hrAvg > 80.0) "Elevated" else "Bright"
                 }
@@ -789,8 +791,22 @@ class DashboardViewModel(
                 vitalsMap["avg_heart_rate"] = if (hrAvg.isNaN()) 72.0 else hrAvg
                 vitalsMap["bp_systolic"] = if (bpSys.isNaN()) 120.0 else bpSys
                 vitalsMap["bp_diastolic"] = if (bpDia.isNaN()) 80.0 else bpDia
-                vitalsMap["sleep_hours"] = sleepDuration
-                vitalsMap["total_steps"] = stepsCount
+                
+                // Parse sleep_hours from clinical state if available, otherwise fallback to sleepDuration
+                val parsedSleepHours = try {
+                    if (sleepHours.contains("h")) {
+                        val parts = sleepHours.split("h")
+                        val h = parts[0].trim().toDoubleOrNull() ?: 0.0
+                        val m = parts.getOrNull(1)?.replace("m", "")?.trim()?.toDoubleOrNull() ?: 0.0
+                        h + (m / 60.0)
+                    } else {
+                        sleepDuration
+                    }
+                } catch (e: Exception) {
+                    sleepDuration
+                }
+                vitalsMap["sleep_hours"] = parsedSleepHours
+                vitalsMap["total_steps"] = resolvedStepsCount.toDouble()
                 if (!bgAvg.isNaN()) {
                     vitalsMap["glucose_mg_dl"] = bgAvg
                 }

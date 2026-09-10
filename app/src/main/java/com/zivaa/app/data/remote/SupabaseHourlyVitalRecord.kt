@@ -12,5 +12,8 @@ data class SupabaseHourlyVitalRecord(
     val hourStart: String,
     
     @SerializedName("total_steps")
-    val totalSteps: Int?
+    val totalSteps: Int?,
+    
+    @SerializedName("source")
+    val source: String? = null
 )

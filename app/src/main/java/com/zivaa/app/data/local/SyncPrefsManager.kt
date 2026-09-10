@@ -115,6 +115,53 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putInt(KEY_STEPS_GOAL, goal).apply()
     }
 
+    fun saveSourcePriorities(priorities: List<com.zivaa.app.data.remote.MetricSourcePriorityRecord>) {
+        val array = org.json.JSONArray()
+        for (p in priorities) {
+            val obj = org.json.JSONObject()
+            obj.put("metric_type", p.metric_type)
+            obj.put("source", p.source)
+            obj.put("priority_rank", p.priority_rank)
+            array.put(obj)
+        }
+        prefs.edit().putString(KEY_METRIC_PRIORITIES, array.toString()).apply()
+    }
+
+    fun getSourcePriorities(): List<com.zivaa.app.data.remote.MetricSourcePriorityRecord> {
+        val str = prefs.getString(KEY_METRIC_PRIORITIES, null) ?: return emptyList()
+        val list = mutableListOf<com.zivaa.app.data.remote.MetricSourcePriorityRecord>()
+        try {
+            val array = org.json.JSONArray(str)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    com.zivaa.app.data.remote.MetricSourcePriorityRecord(
+                        metric_type = obj.getString("metric_type"),
+                        source = obj.getString("source"),
+                        priority_rank = obj.getInt("priority_rank")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
+    }
+
+    fun saveCachedVitals(dateStr: String, sleepHours: String, heartRate: String, oxygenLevel: String) {
+        prefs.edit()
+            .putString(KEY_CACHED_VITALS_DATE, dateStr)
+            .putString(KEY_CACHED_SLEEP_HOURS, sleepHours)
+            .putString(KEY_CACHED_HEART_RATE, heartRate)
+            .putString(KEY_CACHED_OXYGEN_LEVEL, oxygenLevel)
+            .apply()
+    }
+
+    fun getCachedVitalsDate(): String? = prefs.getString(KEY_CACHED_VITALS_DATE, null)
+    fun getCachedSleepHours(): String? = prefs.getString(KEY_CACHED_SLEEP_HOURS, null)
+    fun getCachedHeartRate(): String? = prefs.getString(KEY_CACHED_HEART_RATE, null)
+    fun getCachedOxygenLevel(): String? = prefs.getString(KEY_CACHED_OXYGEN_LEVEL, null)
+
     companion object {
         private const val PREFS_NAME = "health_sync_prefs"
         private const val KEY_CHANGES_TOKEN = "changes_token"
@@ -131,5 +178,10 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_LAST_HR_SYNC = "last_hr_sync"
         private const val KEY_LAST_FALLBACK_ATTEMPT = "last_fallback_attempt"
         private const val KEY_STEPS_GOAL = "steps_goal"
+        private const val KEY_METRIC_PRIORITIES = "metric_priorities"
+        private const val KEY_CACHED_VITALS_DATE = "cached_vitals_date"
+        private const val KEY_CACHED_SLEEP_HOURS = "cached_sleep_hours"
+        private const val KEY_CACHED_HEART_RATE = "cached_heart_rate"
+        private const val KEY_CACHED_OXYGEN_LEVEL = "cached_oxygen_level"
     }
 }

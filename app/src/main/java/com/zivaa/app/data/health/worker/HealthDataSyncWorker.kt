@@ -52,6 +52,15 @@ class HealthDataSyncWorker(
                 syncPrefsManager.setLastSyncedPatientId(patientId)
             }
 
+            try {
+                val prioritiesRes = com.zivaa.app.data.remote.RetrofitClient.apiService.getSourcePriorities()
+                if (prioritiesRes.isSuccessful && !prioritiesRes.body().isNullOrEmpty()) {
+                    syncPrefsManager.saveSourcePriorities(prioritiesRes.body()!!)
+                }
+            } catch (e: Exception) {
+                // Non-blocking
+            }
+
             val currentToken = if (forceBackfill) null else syncPrefsManager.getChangesToken(patientId)
             val payload = mutableListOf<com.zivaa.app.data.remote.SupabaseVitalRecord>()
             var nextToken: String? = null

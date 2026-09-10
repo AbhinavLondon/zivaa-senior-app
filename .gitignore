@@ -22,3 +22,4 @@ logcat*.txt
 log.txt
 query_syncs.py
 *.py
+window_dump.xml
