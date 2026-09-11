@@ -83,7 +83,8 @@ class MainActivity : ComponentActivity() {
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(BasalMetabolicRateRecord::class),
         HealthPermission.getReadPermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(FloorsClimbedRecord::class)
+        HealthPermission.getReadPermission(FloorsClimbedRecord::class),
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
     )
 
     private var currentScreen by mutableStateOf("dashboard")

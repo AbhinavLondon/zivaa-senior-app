@@ -81,7 +81,8 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(SkinTemperatureRecord::class),
         HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(Vo2MaxRecord::class)
+        HealthPermission.getReadPermission(Vo2MaxRecord::class),
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
     )
 
     suspend fun hasAllPermissions(): Boolean {
