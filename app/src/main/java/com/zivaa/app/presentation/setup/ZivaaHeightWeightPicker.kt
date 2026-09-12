@@ -30,7 +30,7 @@ fun UnitTogglePill(
         border = BorderStroke(1.dp, ZivaaTheme.colors.lineStrong)
     ) {
         Row(
-            modifier = modifier.padding(3.dp),
+            modifier = modifier.padding(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             options.forEach { option ->
@@ -42,11 +42,12 @@ fun UnitTogglePill(
                 ) {
                     Text(
                         text = option,
-                        style = ZivaaTheme.typography.bodySmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        style = ZivaaTheme.typography.bodyMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp
                         ),
                         color = if (isSelected) Color.White else ZivaaTheme.colors.inkMute,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -99,8 +100,12 @@ fun SeniorHeightBottomSheet(
             ) {
                 Text(
                     text = "How tall are you?",
-                    style = ZivaaTheme.typography.titleLarge,
-                    color = ZivaaTheme.colors.ink
+                    style = ZivaaTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                    color = ZivaaTheme.colors.ink,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp),
+                    maxLines = 2
                 )
                 UnitTogglePill(
                     options = listOf("ft/in", "cm"),
@@ -234,8 +239,12 @@ fun SeniorWeightBottomSheet(
             ) {
                 Text(
                     text = title,
-                    style = ZivaaTheme.typography.titleLarge,
-                    color = ZivaaTheme.colors.ink
+                    style = ZivaaTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                    color = ZivaaTheme.colors.ink,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp),
+                    maxLines = 2
                 )
                 UnitTogglePill(
                     options = listOf("kg", "lbs"),
