@@ -4,19 +4,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,12 +24,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.LocalZivaaColors
@@ -55,7 +54,6 @@ fun PrimaryFocusContent(
     footer: @Composable () -> Unit = {}
 ) {
     val colors = LocalZivaaColors.current
-    val typography = LocalZivaaTypography.current
 
     val focusOptions = remember {
         listOf(
@@ -77,7 +75,7 @@ fun PrimaryFocusContent(
                 title = "Improve Energy & Vitality",
                 tag = "FUEL FOR THE DAY",
                 lead = "Got it.",
-                body = "We’ll tune your daily nutrition, movement and hydration to smooth out the afternoon slump and naturally lift your everyday stamina."
+                body = "We'll tune your daily nutrition, movement and hydration to smooth out the afternoon slump and naturally lift your everyday stamina."
             ),
             FocusOption(
                 id = "longevity",
@@ -97,7 +95,7 @@ fun PrimaryFocusContent(
                 title = "Enhance Sleep & Mental Clarity",
                 tag = "REST & SHARPNESS",
                 lead = "Perfect.",
-                body = "We’ll design a calming evening wind-down and gentle morning habits — fall asleep easier, stay asleep longer, wake up feeling sharp."
+                body = "We'll design a calming evening wind-down and gentle morning habits — fall asleep easier, stay asleep longer, wake up feeling sharp."
             ),
             FocusOption(
                 id = "condition",
@@ -105,7 +103,7 @@ fun PrimaryFocusContent(
                 toneBg = { colors.clay },
                 toneOnBg = { Color.White },
                 title = "Manage a Chronic Condition",
-                tag = "WITH YOUR DOCTOR’S ADVICE",
+                tag = "WITH YOUR DOCTOR'S ADVICE",
                 lead = "A very smart focus.",
                 body = "Your daily checklist will lean on low-impact movement and supportive meals — keeping joints safe, bones dense and your body feeling strong."
             ),
@@ -116,51 +114,45 @@ fun PrimaryFocusContent(
                 toneOnBg = { Color.White },
                 title = "Recover from Injury or Surgery",
                 tag = "DAY BY DAY",
-                lead = "We’re with you.",
+                lead = "We're with you.",
                 body = "Safe, gradual rehabilitation habits that respect your recovery timeline — rebuilding your baseline strength, day by day."
             )
         )
     }
-    
+
     val selectedOption = focusOptions.find { it.id == selectedId }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 22.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+        item {
             header()
         }
 
-        items(focusOptions) { option ->
+        items(focusOptions, key = { it.id }) { option ->
             FocusCard(
                 option = option,
                 isSelected = selectedId == option.id,
-                isAnythingSelected = selectedId != null,
-                onClick = {
-                    onOptionSelected(if (selectedId == option.id) "" else option.id)
-                }
+                onClick = { onOptionSelected(option.id) }
             )
         }
 
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .defaultMinSize(minHeight = 118.dp),
-                contentAlignment = Alignment.TopStart
+        item {
+            AnimatedVisibility(
+                visible = selectedOption != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
                 if (selectedOption != null) {
                     ValidationBlock(selectedOption = selectedOption)
-                } else {
-                    footer()
                 }
+            }
+            if (selectedOption == null) {
+                footer()
             }
         }
     }
@@ -170,116 +162,101 @@ fun PrimaryFocusContent(
 fun FocusCard(
     option: FocusOption,
     isSelected: Boolean,
-    isAnythingSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = LocalZivaaColors.current
     val typography = LocalZivaaTypography.current
-    
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else if (isSelected) 1.02f else 1f,
+        targetValue = if (isPressed) 0.985f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "scale"
     )
 
-    val opacity by animateFloatAsState(
-        targetValue = if (isAnythingSelected && !isSelected) 0.55f else 1f,
-        label = "opacity"
-    )
-
-    Card(
-        modifier = Modifier
+    Surface(
+        onClick = onClick,
+        modifier = modifier
             .fillMaxWidth()
-            .height(160.dp)
-            .scale(scale)
-            .alpha(opacity)
-            .clip(RoundedCornerShape(22.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = colors.bgElev
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 12.dp else 4.dp
-        ),
+            .scale(scale),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isSelected) option.toneBg().copy(alpha = 0.08f) else colors.bgElev,
         border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 0.5.dp,
-            color = if (isSelected) option.toneBg() else colors.line
-        )
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) option.toneBg() else colors.lineStrong
+        ),
+        shadowElevation = if (isSelected) 3.dp else 1.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 16.dp, start = 15.dp, end = 15.dp, bottom = 14.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.Start
+            // Icon Bubble (Exact icon intact)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(option.toneBg()),
+                contentAlignment = Alignment.Center
             ) {
-                // Icon Bubble
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(option.toneBg()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = option.icon,
-                        contentDescription = null,
-                        tint = option.toneOnBg(),
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(10.dp))
-                
-                Text(
-                    text = option.title,
-                    fontFamily = typography.displayLarge.fontFamily,
-                    fontSize = 19.sp,
-                    lineHeight = (19 * 1.14).sp,
-                    color = colors.ink,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = option.tag,
-                    style = typography.meta,
-                    color = colors.inkMute,
-                    modifier = Modifier.fillMaxWidth()
+                Icon(
+                    imageVector = option.icon,
+                    contentDescription = null,
+                    tint = option.toneOnBg(),
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            
-            // Checkmark
-            androidx.compose.animation.AnimatedVisibility(
-                visible = isSelected,
-                enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-                modifier = Modifier.align(Alignment.TopEnd)
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Title & Subtitle Tag
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .offset(x = 3.dp, y = (-4).dp)
-                        .clip(CircleShape)
-                        .background(option.toneBg()),
-                    contentAlignment = Alignment.Center
-                ) {
+                Text(
+                    text = option.title,
+                    style = typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    ),
+                    color = colors.ink
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = option.tag,
+                    style = typography.eyebrow.copy(
+                        fontSize = 11.sp,
+                        letterSpacing = 0.6.sp
+                    ),
+                    color = if (isSelected) option.toneBg() else colors.inkMute
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Sleek Circular Selection Checkmark
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) option.toneBg() else Color.Transparent)
+                    .border(
+                        width = if (isSelected) 0.dp else 1.5.dp,
+                        color = if (isSelected) Color.Transparent else colors.lineStrong,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
                         tint = option.toneOnBg(),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
@@ -289,58 +266,63 @@ fun FocusCard(
 
 @Composable
 fun ValidationBlock(
-    selectedOption: FocusOption
+    selectedOption: FocusOption,
+    modifier: Modifier = Modifier
 ) {
     val colors = LocalZivaaColors.current
     val typography = LocalZivaaTypography.current
 
-    Card(
-        modifier = Modifier
+    Surface(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.bgElev),
-        border = BorderStroke(1.dp, selectedOption.toneBg()),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .padding(top = 6.dp, bottom = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = selectedOption.toneBg().copy(alpha = 0.07f),
+        border = BorderStroke(1.dp, selectedOption.toneBg().copy(alpha = 0.35f))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(selectedOption.toneBg())
-                    .padding(top = 2.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = selectedOption.toneOnBg(),
-                    modifier = Modifier.size(15.dp)
-                )
-            }
-            
-            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(selectedOption.toneBg()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = selectedOption.toneOnBg(),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
                 Text(
                     text = selectedOption.lead,
                     fontFamily = typography.displayLarge.fontFamily,
                     fontStyle = FontStyle.Italic,
-                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp,
                     color = colors.ink
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = selectedOption.body,
-                    style = typography.bodySmall,
-                    color = colors.inkSoft
-                )
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = selectedOption.body,
+                style = typography.bodyMedium.copy(
+                    lineHeight = 22.sp,
+                    fontSize = 14.5.sp
+                ),
+                color = colors.inkSoft
+            )
         }
     }
 }
