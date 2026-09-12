@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 class AuthManager(context: Context) {
+    private val appContext = context.applicationContext
 
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -117,7 +118,11 @@ class AuthManager(context: Context) {
     }
 
     fun clearSession() {
+        val lastUserId = getUserId()
         sharedPreferences.edit().clear().apply()
+        try {
+            com.zivaa.app.data.local.SyncPrefsManager(appContext).clearUserData(lastUserId)
+        } catch (ignored: Exception) {}
         _authEvents.tryEmit(false)
     }
 

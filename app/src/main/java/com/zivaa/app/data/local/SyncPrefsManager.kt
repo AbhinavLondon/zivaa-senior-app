@@ -6,29 +6,38 @@ import android.content.SharedPreferences
 class SyncPrefsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private fun getScopedKey(baseKey: String, patientId: String? = null): String {
+        val pid = if (!patientId.isNullOrBlank()) {
+            patientId
+        } else {
+            try {
+                com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+            } catch (e: Exception) {
+                null
+            }
+        }
+        return if (!pid.isNullOrBlank()) "${baseKey}_$pid" else baseKey
+    }
+
     fun saveChangesToken(token: String, patientId: String? = null) {
-        val key = if (!patientId.isNullOrBlank()) "${KEY_CHANGES_TOKEN}_$patientId" else KEY_CHANGES_TOKEN
+        val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
         prefs.edit().putString(key, token).apply()
     }
 
     fun getChangesToken(patientId: String? = null): String? {
-        val key = if (!patientId.isNullOrBlank()) "${KEY_CHANGES_TOKEN}_$patientId" else KEY_CHANGES_TOKEN
+        val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
         return prefs.getString(key, null)
     }
 
     fun clearChangesToken(patientId: String? = null) {
-        val editor = prefs.edit().remove(KEY_CHANGES_TOKEN)
-        if (!patientId.isNullOrBlank()) {
-            editor.remove("${KEY_CHANGES_TOKEN}_$patientId")
-        }
-        editor.apply()
+        val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
+        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).apply()
     }
 
     fun getLastSyncedPatientId(): String? = prefs.getString("last_synced_patient_id", null)
     fun setLastSyncedPatientId(patientId: String) {
         prefs.edit().putString("last_synced_patient_id", patientId).apply()
     }
-
 
     fun isPhoneSensorEnabled(): Boolean {
         return prefs.getBoolean(KEY_PHONE_SENSOR_ENABLED, true)
@@ -38,56 +47,66 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putBoolean(KEY_PHONE_SENSOR_ENABLED, enabled).apply()
     }
 
-    fun isSetupComplete(): Boolean {
-        return prefs.getBoolean(KEY_SETUP_COMPLETE, false)
+    fun isSetupComplete(patientId: String? = null): Boolean {
+        val scopedKey = getScopedKey(KEY_SETUP_COMPLETE, patientId)
+        return prefs.getBoolean(scopedKey, prefs.getBoolean(KEY_SETUP_COMPLETE, false))
     }
 
-    fun setSetupComplete(complete: Boolean) {
-        prefs.edit().putBoolean(KEY_SETUP_COMPLETE, complete).apply()
+    fun setSetupComplete(complete: Boolean, patientId: String? = null) {
+        val scopedKey = getScopedKey(KEY_SETUP_COMPLETE, patientId)
+        prefs.edit().putBoolean(scopedKey, complete).putBoolean(KEY_SETUP_COMPLETE, complete).apply()
     }
 
-    fun getListViewedAfternoonDate(): String? {
-        return prefs.getString(KEY_VIEWED_AFTERNOON, null)
+    fun getListViewedAfternoonDate(patientId: String? = null): String? {
+        return prefs.getString(getScopedKey(KEY_VIEWED_AFTERNOON, patientId), null)
     }
 
-    fun setViewedAfternoonDate(dateStr: String) {
-        prefs.edit().putString(KEY_VIEWED_AFTERNOON, dateStr).apply()
+    fun setViewedAfternoonDate(dateStr: String, patientId: String? = null) {
+        prefs.edit().putString(getScopedKey(KEY_VIEWED_AFTERNOON, patientId), dateStr).apply()
     }
 
-    fun getListViewedEveningDate(): String? {
-        return prefs.getString(KEY_VIEWED_EVENING, null)
+    fun getListViewedEveningDate(patientId: String? = null): String? {
+        return prefs.getString(getScopedKey(KEY_VIEWED_EVENING, patientId), null)
     }
 
-    fun setViewedEveningDate(dateStr: String) {
-        prefs.edit().putString(KEY_VIEWED_EVENING, dateStr).apply()
+    fun setViewedEveningDate(dateStr: String, patientId: String? = null) {
+        prefs.edit().putString(getScopedKey(KEY_VIEWED_EVENING, patientId), dateStr).apply()
     }
 
-    fun getCachedBriefingDate(): String? = prefs.getString(KEY_CACHED_BRIEFING_DATE, null)
+    fun getCachedBriefingDate(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_BRIEFING_DATE, patientId), null)
 
-    fun getMorningBriefingText(): String? = prefs.getString(KEY_MORNING_BRIEFING, null)
-    fun getMorningBriefingHeadline(): String? = prefs.getString(KEY_MORNING_HEADLINE, null)
-    fun getMiddaySummaryText(): String? = prefs.getString(KEY_MIDDAY_SUMMARY, null)
-    fun getEveningSummaryText(): String? = prefs.getString(KEY_EVENING_SUMMARY, null)
+    fun getMorningBriefingText(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_MORNING_BRIEFING, patientId), null)
 
-    fun saveMorningBriefing(dateStr: String, text: String, headline: String) {
+    fun getMorningBriefingHeadline(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_MORNING_HEADLINE, patientId), null)
+
+    fun getMiddaySummaryText(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_MIDDAY_SUMMARY, patientId), null)
+
+    fun getEveningSummaryText(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_EVENING_SUMMARY, patientId), null)
+
+    fun saveMorningBriefing(dateStr: String, text: String, headline: String, patientId: String? = null) {
         prefs.edit()
-            .putString(KEY_CACHED_BRIEFING_DATE, dateStr)
-            .putString(KEY_MORNING_BRIEFING, text)
-            .putString(KEY_MORNING_HEADLINE, headline)
+            .putString(getScopedKey(KEY_CACHED_BRIEFING_DATE, patientId), dateStr)
+            .putString(getScopedKey(KEY_MORNING_BRIEFING, patientId), text)
+            .putString(getScopedKey(KEY_MORNING_HEADLINE, patientId), headline)
             .apply()
     }
 
-    fun saveMiddaySummary(dateStr: String, text: String) {
+    fun saveMiddaySummary(dateStr: String, text: String, patientId: String? = null) {
         prefs.edit()
-            .putString(KEY_CACHED_BRIEFING_DATE, dateStr)
-            .putString(KEY_MIDDAY_SUMMARY, text)
+            .putString(getScopedKey(KEY_CACHED_BRIEFING_DATE, patientId), dateStr)
+            .putString(getScopedKey(KEY_MIDDAY_SUMMARY, patientId), text)
             .apply()
     }
 
-    fun saveEveningSummary(dateStr: String, text: String) {
+    fun saveEveningSummary(dateStr: String, text: String, patientId: String? = null) {
         prefs.edit()
-            .putString(KEY_CACHED_BRIEFING_DATE, dateStr)
-            .putString(KEY_EVENING_SUMMARY, text)
+            .putString(getScopedKey(KEY_CACHED_BRIEFING_DATE, patientId), dateStr)
+            .putString(getScopedKey(KEY_EVENING_SUMMARY, patientId), text)
             .apply()
     }
 
@@ -106,13 +125,13 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putString(KEY_LAST_FALLBACK_ATTEMPT, dateStr).apply()
     }
 
-    fun getStepsGoal(): Int? {
-        val goal = prefs.getInt(KEY_STEPS_GOAL, -1)
+    fun getStepsGoal(patientId: String? = null): Int? {
+        val goal = prefs.getInt(getScopedKey(KEY_STEPS_GOAL, patientId), -1)
         return if (goal > 0) goal else null
     }
 
-    fun saveStepsGoal(goal: Int) {
-        prefs.edit().putInt(KEY_STEPS_GOAL, goal).apply()
+    fun saveStepsGoal(goal: Int, patientId: String? = null) {
+        prefs.edit().putInt(getScopedKey(KEY_STEPS_GOAL, patientId), goal).apply()
     }
 
     fun saveSourcePriorities(priorities: List<com.zivaa.app.data.remote.MetricSourcePriorityRecord>) {
@@ -148,19 +167,63 @@ class SyncPrefsManager(context: Context) {
         return list
     }
 
-    fun saveCachedVitals(dateStr: String, sleepHours: String, heartRate: String, oxygenLevel: String) {
+    fun saveCachedVitals(dateStr: String, sleepHours: String, heartRate: String, oxygenLevel: String, patientId: String? = null) {
         prefs.edit()
-            .putString(KEY_CACHED_VITALS_DATE, dateStr)
-            .putString(KEY_CACHED_SLEEP_HOURS, sleepHours)
-            .putString(KEY_CACHED_HEART_RATE, heartRate)
-            .putString(KEY_CACHED_OXYGEN_LEVEL, oxygenLevel)
+            .putString(getScopedKey(KEY_CACHED_VITALS_DATE, patientId), dateStr)
+            .putString(getScopedKey(KEY_CACHED_SLEEP_HOURS, patientId), sleepHours)
+            .putString(getScopedKey(KEY_CACHED_HEART_RATE, patientId), heartRate)
+            .putString(getScopedKey(KEY_CACHED_OXYGEN_LEVEL, patientId), oxygenLevel)
             .apply()
     }
 
-    fun getCachedVitalsDate(): String? = prefs.getString(KEY_CACHED_VITALS_DATE, null)
-    fun getCachedSleepHours(): String? = prefs.getString(KEY_CACHED_SLEEP_HOURS, null)
-    fun getCachedHeartRate(): String? = prefs.getString(KEY_CACHED_HEART_RATE, null)
-    fun getCachedOxygenLevel(): String? = prefs.getString(KEY_CACHED_OXYGEN_LEVEL, null)
+    fun getCachedVitalsDate(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_VITALS_DATE, patientId), null)
+
+    fun getCachedSleepHours(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_SLEEP_HOURS, patientId), null)
+
+    fun getCachedHeartRate(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_HEART_RATE, patientId), null)
+
+    fun getCachedOxygenLevel(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_OXYGEN_LEVEL, patientId), null)
+
+    fun clearUserData(patientId: String? = null) {
+        val pid = if (!patientId.isNullOrBlank()) {
+            patientId
+        } else {
+            try {
+                com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+            } catch (e: Exception) {
+                null
+            }
+        }
+        val editor = prefs.edit()
+        if (!pid.isNullOrBlank()) {
+            for (key in prefs.all.keys) {
+                if (key.endsWith("_$pid")) {
+                    editor.remove(key)
+                }
+            }
+        }
+        // Always purge any legacy un-scoped cache entries
+        editor.remove(KEY_CACHED_BRIEFING_DATE)
+        editor.remove(KEY_MORNING_BRIEFING)
+        editor.remove(KEY_MORNING_HEADLINE)
+        editor.remove(KEY_MIDDAY_SUMMARY)
+        editor.remove(KEY_EVENING_SUMMARY)
+        editor.remove(KEY_CACHED_VITALS_DATE)
+        editor.remove(KEY_CACHED_SLEEP_HOURS)
+        editor.remove(KEY_CACHED_HEART_RATE)
+        editor.remove(KEY_CACHED_OXYGEN_LEVEL)
+        editor.remove(KEY_VIEWED_AFTERNOON)
+        editor.remove(KEY_VIEWED_EVENING)
+        editor.apply()
+    }
+
+    fun clearAll() {
+        prefs.edit().clear().apply()
+    }
 
     companion object {
         private const val PREFS_NAME = "health_sync_prefs"

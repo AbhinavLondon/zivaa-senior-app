@@ -93,23 +93,29 @@ class DashboardViewModel(
     init {
         // Mock data initialization removed to prevent flashing hardcoded plans
 
+        val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
         val todayStr = java.time.LocalDate.now().toString()
-        if (prefsManager.getCachedBriefingDate() == todayStr) {
-            morningBriefingText = prefsManager.getMorningBriefingText() ?: ""
-            morningBriefingHeadline = prefsManager.getMorningBriefingHeadline() ?: ""
-            middaySummaryText = prefsManager.getMiddaySummaryText()
-            eveningSummaryText = prefsManager.getEveningSummaryText()
+        if (prefsManager.getCachedBriefingDate(userId) == todayStr) {
+            val cachedText = prefsManager.getMorningBriefingText(userId)
+            val cachedHeadline = prefsManager.getMorningBriefingHeadline(userId)
+            morningBriefingText = if (!cachedText.isNullOrBlank()) cachedText else "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
+            morningBriefingHeadline = if (!cachedHeadline.isNullOrBlank()) cachedHeadline else "Your Daily Briefing"
+            middaySummaryText = prefsManager.getMiddaySummaryText(userId)
+            eveningSummaryText = prefsManager.getEveningSummaryText(userId)
+        } else {
+            morningBriefingHeadline = "Your Daily Briefing"
+            morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
         }
 
         // Hydrate clinical vitals from SharedPreferences cache if for today
-        if (prefsManager.getCachedVitalsDate() == todayStr) {
-            prefsManager.getCachedSleepHours()?.let { sleepHours = it }
-            prefsManager.getCachedHeartRate()?.let { heartRate = it }
-            prefsManager.getCachedOxygenLevel()?.let { oxygenLevel = it }
+        if (prefsManager.getCachedVitalsDate(userId) == todayStr) {
+            prefsManager.getCachedSleepHours(userId)?.let { sleepHours = it }
+            prefsManager.getCachedHeartRate(userId)?.let { heartRate = it }
+            prefsManager.getCachedOxygenLevel(userId)?.let { oxygenLevel = it }
         }
 
-        val viewedEvening = prefsManager.getListViewedEveningDate() == todayStr
-        val viewedAfternoon = prefsManager.getListViewedAfternoonDate() == todayStr
+        val viewedEvening = prefsManager.getListViewedEveningDate(userId) == todayStr
+        val viewedAfternoon = prefsManager.getListViewedAfternoonDate(userId) == todayStr
         
         hasViewedEveningSummary = viewedEvening
         hasViewedAfternoonSummary = viewedAfternoon
@@ -567,7 +573,8 @@ class DashboardViewModel(
                                     dateStr = todayStr,
                                     sleepHours = sleepHours,
                                     heartRate = heartRate,
-                                    oxygenLevel = oxygenLevel
+                                    oxygenLevel = oxygenLevel,
+                                    patientId = userId
                                 )
                             }
                         }
@@ -582,7 +589,7 @@ class DashboardViewModel(
                             val fetchedGoal = planSetupResponse.body()!!.first().stepsGoal
                             if (fetchedGoal != null && fetchedGoal > 0) {
                                 stepsGoal = fetchedGoal
-                                prefsManager.saveStepsGoal(fetchedGoal)
+                                prefsManager.saveStepsGoal(fetchedGoal, userId)
                             }
                         }
                     } catch (e: Exception) {
@@ -674,13 +681,22 @@ class DashboardViewModel(
                                 val records = briefingResponse.body()
                                 if (!records.isNullOrEmpty()) {
                                     morningBriefingText = records[0].summary
-                                    morningBriefingHeadline = records[0].headline ?: ""
-                                    prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline)
+                                    morningBriefingHeadline = records[0].headline ?: "Your Daily Briefing"
+                                    prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline, userId)
+                                } else {
+                                    morningBriefingHeadline = "Your Daily Briefing"
+                                    morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
+                                    prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline, userId)
+                                }
+                            } else {
+                                if (morningBriefingText.isEmpty()) {
+                                    morningBriefingHeadline = "Your Daily Briefing"
+                                    morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
                                 }
                             }
                         } else {
-                            morningBriefingText = ""
-                            morningBriefingHeadline = ""
+                            morningBriefingHeadline = "Restful Night"
+                            morningBriefingText = "It's late. Sleep well and recharge for tomorrow."
                         }
                         
                         val patientResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getPatient("eq.$userId")
@@ -702,7 +718,7 @@ class DashboardViewModel(
                                 val fetchedGoal = planSetupResponse.body()!!.first().stepsGoal
                                 if (fetchedGoal != null && fetchedGoal > 0) {
                                     stepsGoal = fetchedGoal
-                                    prefsManager.saveStepsGoal(fetchedGoal)
+                                    prefsManager.saveStepsGoal(fetchedGoal, userId)
                                 }
                             }
                         } catch (e: Exception) {
@@ -744,7 +760,7 @@ class DashboardViewModel(
                         )
                         if (middayResponse.isSuccessful && !middayResponse.body().isNullOrEmpty()) {
                             middaySummaryText = middayResponse.body()!![0].insight_text
-                            prefsManager.saveMiddaySummary(todayStr, middaySummaryText!!)
+                            prefsManager.saveMiddaySummary(todayStr, middaySummaryText!!, userId)
                         } else {
                             middaySummaryText = null
                         }
@@ -757,7 +773,7 @@ class DashboardViewModel(
                         )
                         if (eveningResponse.isSuccessful && !eveningResponse.body().isNullOrEmpty()) {
                             eveningSummaryText = eveningResponse.body()!![0].insight_text
-                            prefsManager.saveEveningSummary(todayStr, eveningSummaryText!!)
+                            prefsManager.saveEveningSummary(todayStr, eveningSummaryText!!, userId)
                         } else {
                             eveningSummaryText = null
                         }

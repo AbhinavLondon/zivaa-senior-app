@@ -665,7 +665,7 @@ fun HeroCardContent(
         "latenight" -> viewModel.lateNightInsightText ?: "Loading your late night summary..."
         "afternoon" -> viewModel.middaySummaryText ?: "Loading your afternoon check-in..."
         "evening" -> viewModel.eveningSummaryText ?: "Loading your evening wind down..."
-        else -> if (viewModel.morningBriefingText.isNotEmpty()) viewModel.morningBriefingText else "Loading your morning briefing..."
+        else -> if (viewModel.morningBriefingText.isNotEmpty()) viewModel.morningBriefingText else "We are preparing your briefing for today..."
     }
     
     val contentColor = if (period == "evening" || period == "latenight") Color.White else ZivaaTheme.colors.sageInk

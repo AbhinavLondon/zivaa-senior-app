@@ -383,8 +383,8 @@ class ProfileViewModel(
 
     fun signOut() {
         _state.value = ProfileState()
+        syncPrefsManager.clearAll()
         authManager.clearSession()
-        syncPrefsManager.setSetupComplete(false)
     }
 
     fun updateNudgePreference(pref: String) {

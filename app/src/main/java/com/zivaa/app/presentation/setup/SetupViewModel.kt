@@ -60,6 +60,7 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startFreshEnrollment() {
         RetrofitClient.authManager?.clearSession()
+        com.zivaa.app.data.local.SyncPrefsManager(getApplication()).clearAll()
         _state.value = SetupState()
     }
 
