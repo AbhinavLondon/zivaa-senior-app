@@ -34,10 +34,10 @@ fun FamilySharingScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            ZivaaTopBar(stepNo = 10, totalSteps = 10, onBack = onBack)
+            ZivaaTopBar(stepNo = 5, totalSteps = 5, onBack = onBack)
 
             ZivaaHeader(
-                label = "STEP 10 · YOUR FAMILY",
+                label = "STEP 5 OF 5 · CARE CIRCLE",
                 title = buildAnnotatedString {
                     append("Keep your family ")
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
@@ -158,5 +158,19 @@ fun FamilySharingScreen(
                 }
             }
         )
+
+        if (!state.isAddingFamilyMember) {
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "I'll set this up later",
+                    color = ZivaaTheme.colors.inkMute,
+                    style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                )
+            }
+        }
     }
 }

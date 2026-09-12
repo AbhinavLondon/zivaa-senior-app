@@ -1,16 +1,21 @@
 package com.zivaa.app.presentation.setup
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -18,15 +23,14 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.theme.InstrumentSerif
 
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.LaunchedEffect
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WelcomeScreen(
     state: SetupState,
     onNext: () -> Unit,
     onSignIn: () -> Unit,
-    onBypassSetup: () -> Unit
+    onBypassSetup: () -> Unit,
+    onLanguageSelected: (String) -> Unit = {}
 ) {
     LaunchedEffect(state.isSetupComplete) {
         if (state.isSetupComplete) {
@@ -34,7 +38,123 @@ fun WelcomeScreen(
         }
     }
 
+    var showLanguageSheet by remember { mutableStateOf(false) }
+
+    val languages = remember {
+        listOf(
+            "English" to "English (Default)",
+            "Hindi" to "हिंदी (Hindi)",
+            "Bengali" to "বাংলা (Bengali)",
+            "Marathi" to "मराठी (Marathi)",
+            "Telugu" to "తెలుగు (Telugu)",
+            "Tamil" to "தமிழ் (Tamil)",
+            "Gujarati" to "ગુજરાતી (Gujarati)",
+            "Kannada" to "ಕನ್ನಡ (Kannada)",
+            "Malayalam" to "മലയാളം (Malayalam)",
+            "Punjabi" to "ਪੰਜਾਬੀ (Punjabi)",
+            "Odia" to "ଓଡ଼ିଆ (Odia)"
+        )
+    }
+
+    if (showLanguageSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showLanguageSheet = false },
+            containerColor = ZivaaTheme.colors.bgElev,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Choose Preferred Language",
+                    style = ZivaaTheme.typography.titleLarge,
+                    color = ZivaaTheme.colors.ink,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "Zivaa's AI coach and daily plan will adapt to your language.",
+                    style = ZivaaTheme.typography.bodyMedium,
+                    color = ZivaaTheme.colors.inkSoft,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(languages) { (langCode, displayLabel) ->
+                        val isSelected = state.preferredLanguage.equals(langCode, ignoreCase = true)
+                        Surface(
+                            onClick = {
+                                onLanguageSelected(langCode)
+                                showLanguageSheet = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) ZivaaTheme.colors.sage.copy(alpha = 0.12f) else ZivaaTheme.colors.bgElev,
+                            border = if (isSelected) BorderStroke(1.dp, ZivaaTheme.colors.sage) else null
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = displayLabel,
+                                        style = ZivaaTheme.typography.bodyLarge.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        ),
+                                        color = if (isSelected) ZivaaTheme.colors.sageInk else ZivaaTheme.colors.ink
+                                    )
+                                }
+                                if (isSelected) {
+                                    Text("✓", color = ZivaaTheme.colors.sage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     ZivaaSetupBackground {
+        // Top row with Language selector
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Surface(
+                onClick = { showLanguageSheet = true },
+                shape = RoundedCornerShape(20.dp),
+                color = ZivaaTheme.colors.bgElev,
+                border = BorderStroke(1.dp, ZivaaTheme.colors.line)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🌐", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = state.preferredLanguage,
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = ZivaaTheme.colors.ink
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("▾", fontSize = 12.sp, color = ZivaaTheme.colors.inkMute)
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
         
         // Logo Z
@@ -42,7 +162,7 @@ fun WelcomeScreen(
             modifier = Modifier.size(76.dp),
             shape = CircleShape,
             color = ZivaaTheme.colors.sage,
-            border = BorderStroke(7.dp, ZivaaTheme.colors.sage.copy(alpha = 0.16f)) // Mocking the outer circles with a thick faint border
+            border = BorderStroke(7.dp, ZivaaTheme.colors.sage.copy(alpha = 0.16f))
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
@@ -65,26 +185,21 @@ fun WelcomeScreen(
             fontSize = 24.sp
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
         
         Text(
-            text = "Let's Set Things Up Together",
+            text = "Welcome to your longevity companion",
             style = ZivaaTheme.typography.eyebrow,
             color = ZivaaTheme.colors.eyebrow
         )
         
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
         Text(
             text = buildAnnotatedString {
-                append("A few small ")
+                append("Care tailored around ")
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    append("questions")
-                }
-                if (state.name.isNotBlank()) {
-                    append(",\n${state.name}.")
-                } else {
-                    append(".")
+                    append("your life.")
                 }
             },
             style = ZivaaTheme.typography.displayLarge,
@@ -92,35 +207,47 @@ fun WelcomeScreen(
             textAlign = TextAlign.Center
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         
         Text(
-            text = "One at a time, no rush. We'll get to know you a little, so each morning feels made just for you.",
+            text = "A few small questions to tailor your daily health, joint comfort, and peace of mind.",
             style = ZivaaTheme.typography.bodyMedium,
             color = ZivaaTheme.colors.inkSoft,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = 290.dp)
+            modifier = Modifier.widthIn(max = 300.dp)
         )
         
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(modifier = Modifier.height(18.dp))
         
         Text(
-            text = "Takes About 3 Minutes · 5 Steps",
+            text = "Takes About 2 Minutes · 5 Gentle Steps",
             style = ZivaaTheme.typography.eyebrow,
             color = ZivaaTheme.colors.eyebrow
         )
         
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(28.dp))
         
-        ZivaaButton(text = "Let's begin", onClick = onNext)
+        // Primary CTA: Get Started
+        ZivaaButton(text = "Get Started", onClick = onNext)
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
-        TextButton(onClick = onSignIn) {
+        // Secondary CTA: I already have an account (Outlined for prominence)
+        OutlinedButton(
+            onClick = onSignIn,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(ZivaaTheme.spacing.radiusPill),
+            border = BorderStroke(1.dp, ZivaaTheme.colors.lineStrong),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = ZivaaTheme.colors.ink
+            )
+        ) {
             Text(
-                text = "Already have an account? Sign in",
-                style = ZivaaTheme.typography.bodyMedium,
-                color = ZivaaTheme.colors.accent
+                text = "I already have an account · Sign in",
+                style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = ZivaaTheme.colors.ink
             )
         }
         

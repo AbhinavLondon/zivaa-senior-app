@@ -1,10 +1,12 @@
 package com.zivaa.app.presentation.setup
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zivaa.app.presentation.plan.PrimaryFocusContent
+
 @Composable
 fun SetupFocusScreen(
     state: SetupState,
@@ -17,7 +19,7 @@ fun SetupFocusScreen(
             .fillMaxSize()
             .background(com.zivaa.app.ui.theme.LocalZivaaColors.current.bg)
     ) {
-        ZivaaTopBar(stepNo = 1, totalSteps = 10, onBack = onBack)
+        ZivaaTopBar(stepNo = 2, totalSteps = 5, onBack = onBack)
         // The content takes the rest of the space
         Box(modifier = Modifier.weight(1f)) {
             PrimaryFocusContent(
@@ -26,9 +28,9 @@ fun SetupFocusScreen(
                 header = {
                     Column {
                         ZivaaHeader(
-                            label = "Step 1 · Focus",
+                            label = "Step 2 of 5 · Focus",
                             title = "What's your primary focus?",
-                            subtitle = "One answer shapes the whole plan. You can change it any time."
+                            subtitle = "One answer shapes your whole plan. You can change it any time."
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }

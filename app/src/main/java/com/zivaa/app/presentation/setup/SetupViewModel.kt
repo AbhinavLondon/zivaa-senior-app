@@ -1,7 +1,9 @@
 package com.zivaa.app.presentation.setup
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.zivaa.app.data.local.AppSettingsManager
 import com.zivaa.app.data.remote.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,10 +22,13 @@ data class SetupState(
     val dob: String = "",
     val gender: String = "Male",
     val email: String = "",
+    val preferredLanguage: String = "English",
+    val smokingStatus: String = "Non-smoker",
+    val alcoholStatus: String = "Never / Teetotaler",
     val isOtpSent: Boolean = false,
     val isEmailVerified: Boolean = false,
     val selectedConditions: Set<String> = emptySet(),
-    val selectedWearable: String = "Google Fit", // Default or None
+    val selectedWearable: String = "Google Health Connect", // Default or None
     val familyMembers: List<FamilyMember> = emptyList(),
     val isAddingFamilyMember: Boolean = false,
     
@@ -44,8 +49,9 @@ data class SetupState(
     val error: String? = null
 )
 
-class SetupViewModel : ViewModel() {
-    private val _state = MutableStateFlow(SetupState())
+class SetupViewModel(application: Application) : AndroidViewModel(application) {
+    private val appSettingsManager = AppSettingsManager(application)
+    private val _state = MutableStateFlow(SetupState(preferredLanguage = appSettingsManager.preferredLanguageFlow.value))
     val state: StateFlow<SetupState> = _state.asStateFlow()
 
     fun reset() {
@@ -248,6 +254,19 @@ class SetupViewModel : ViewModel() {
         _state.value = _state.value.copy(reminders = reminders)
     }
 
+    fun updateLanguage(lang: String) {
+        appSettingsManager.setPreferredLanguage(lang)
+        _state.value = _state.value.copy(preferredLanguage = lang)
+    }
+
+    fun updateSmokingStatus(status: String) {
+        _state.value = _state.value.copy(smokingStatus = status)
+    }
+
+    fun updateAlcoholStatus(status: String) {
+        _state.value = _state.value.copy(alcoholStatus = status)
+    }
+
     fun finishSetup() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, error = null)
@@ -281,7 +300,8 @@ class SetupViewModel : ViewModel() {
                     dateOfBirth = _state.value.dob.ifBlank { null },
                     gender = normalizedGender,
                     phone = _state.value.email,
-                    wearables = _state.value.selectedWearable
+                    wearables = _state.value.selectedWearable,
+                    preferredLanguage = _state.value.preferredLanguage
                 )
                 val patientResponse = RetrofitClient.apiService.createPatient(patientRecord)
                 
@@ -340,7 +360,9 @@ class SetupViewModel : ViewModel() {
                             goalWeightKg = _state.value.goalWeightKg,
                             healthConditions = _state.value.selectedConditions.toList(),
                             eveningActivities = _state.value.evening.toList(),
-                            reminders = _state.value.reminders
+                            reminders = _state.value.reminders,
+                            smokingStatus = _state.value.smokingStatus,
+                            alcoholStatus = _state.value.alcoholStatus
                         )
                         RetrofitClient.apiService.insertPlanSetup(planSetup)
                     } catch (e: Exception) {

@@ -23,5 +23,7 @@ data class SupabasePatientPlanSetup(
     @SerializedName("target_calories_system_generated") val targetCaloriesSystem: Int? = null,
     @SerializedName("protein_g_system_generated") val proteinGSystem: Int? = null,
     @SerializedName("carbs_g_system_generated") val carbsGSystem: Int? = null,
-    @SerializedName("fat_g_system_generated") val fatGSystem: Int? = null
+    @SerializedName("fat_g_system_generated") val fatGSystem: Int? = null,
+    @SerializedName("smoking_status") val smokingStatus: String? = null,
+    @SerializedName("alcohol_status") val alcoholStatus: String? = null
 )

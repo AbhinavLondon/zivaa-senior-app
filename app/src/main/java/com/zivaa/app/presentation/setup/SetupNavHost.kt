@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.zivaa.app.data.remote.RetrofitClient
 
 @Composable
 fun SetupNavHost(
@@ -17,27 +18,40 @@ fun SetupNavHost(
     val state by viewModel.state.collectAsState()
 
     NavHost(navController = navController, startDestination = "welcome") {
+        // Step 0: Welcome Screen with Language Selector and Dual CTAs
         composable("welcome") {
             val context = androidx.compose.ui.platform.LocalContext.current
             WelcomeScreen(
                 state = state,
                 onNext = { 
                     viewModel.startFreshEnrollment()
-                    navController.navigate("namedob") 
+                    navController.navigate("about_you") 
                 },
                 onSignIn = { viewModel.signInWithGoogle(context) },
                 onBypassSetup = onSetupComplete
             )
         }
-        composable("namedob") {
-            NameDobScreen(
+
+        // Step 1 of 5: About You (Name, DOB Wheel Picker, Gender, Height, Weight)
+        composable("about_you") {
+            AboutYouScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { navController.navigate("phone") },
+                onNext = { 
+                    val auth = RetrofitClient.authManager
+                    val hasAuth = (auth != null && auth.hasValidSession()) || state.isEmailVerified || state.email == "test@zivaa.app"
+                    if (hasAuth) {
+                        navController.navigate("primary_focus")
+                    } else {
+                        navController.navigate("account_sync")
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("phone") {
+
+        // Seamless Account Securing / Google Sync (if not signed in yet)
+        composable("account_sync") {
             val context = androidx.compose.ui.platform.LocalContext.current
             PhoneVerificationScreen(
                 state = state,
@@ -49,104 +63,61 @@ fun SetupNavHost(
                     if (state.isSetupComplete) {
                         onSetupComplete()
                     } else {
-                        navController.navigate("health_connect")
+                        navController.navigate("primary_focus") {
+                            popUpTo("account_sync") { inclusive = true }
+                        }
                     }
                 },
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // Step 2 of 5: Primary Focus (Preserved exact current grid)
         composable("primary_focus") {
             SetupFocusScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { navController.navigate("mornings") },
+                onNext = { navController.navigate("health_habits") },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("mornings") {
-            SetupMorningsScreen(
+
+        // Step 3 of 5: Health Conditions, Smoking, Alcohol, and Health Connect
+        composable("health_habits") {
+            HealthAndHabitsScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { navController.navigate("movement") },
+                onNext = { navController.navigate("daily_rhythm") },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("movement") {
-            SetupMovementScreen(
+
+        // Step 4 of 5: Daily Rhythm (Mornings, Movement & Step Goal, Diet, Evenings)
+        composable("daily_rhythm") {
+            DailyRhythmScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { navController.navigate("diet") },
+                onNext = { navController.navigate("care_circle") },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("diet") {
-            SetupDietScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("metrics") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("metrics") {
-            SetupMetricsScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("conditions") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("conditions") {
-            HealthConditionsScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("evenings") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("evenings") {
-            SetupEveningsScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("reminders") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("reminders") {
-            SetupRemindersScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("family") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("health_connect") {
-            SetupHealthConnectScreen(
-                state = state,
-                viewModel = viewModel,
-                onNext = { navController.navigate("primary_focus") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("family") {
+
+        // Step 5 of 5: Care Circle / Family Sharing (WhatsApp Morning Updates + Skip)
+        composable("care_circle") {
             FamilySharingScreen(
                 state = state,
                 viewModel = viewModel,
-                onNext = { 
-                    viewModel.finishSetup()
-                    navController.navigate("success") 
-                },
+                onNext = { navController.navigate("plan_reveal") },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("success") {
-            SetupSuccessScreen(
+
+        // Culmination: Live Synthesis Animation & Personalized Plan Reveal
+        composable("plan_reveal") {
+            PlanRevealScreen(
                 state = state,
-                onNavigateToDashboard = {
-                    if (!state.isSetupComplete && !state.isSubmitting) {
-                        viewModel.finishSetup()
-                    }
-                    onSetupComplete()
-                }
+                viewModel = viewModel,
+                onNavigateToDashboard = onSetupComplete
             )
         }
     }

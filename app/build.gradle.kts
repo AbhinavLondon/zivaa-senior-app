@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 34
-        versionName = "1.0.33"
+        versionCode = 35
+        versionName = "1.0.34"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.33 - Multilingual AI coaching & language preferences, circadian sleep consistency metrics, and actionable sleep nudges"
+                releaseNotes = "Zivaa v1.0.34 - Redesigned 5-step senior onboarding journey, language picker, physical baselines, lifestyle habits, and plan reveal"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
