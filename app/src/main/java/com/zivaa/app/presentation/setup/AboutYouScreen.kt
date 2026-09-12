@@ -1,7 +1,7 @@
 package com.zivaa.app.presentation.setup
 
+import com.zivaa.app.ui.theme.toEyebrowTitleCase
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,20 +10,21 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,56 +40,15 @@ fun AboutYouScreen(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+
     var showDobPicker by remember { mutableStateOf(false) }
+    var showHeightPicker by remember { mutableStateOf(false) }
+    var showWeightPicker by remember { mutableStateOf(false) }
+    var showGoalWeightPicker by remember { mutableStateOf(false) }
 
-    // Unit selectors for Height & Weight
-    var heightUnit by remember { mutableStateOf("ft/in") }
-    var weightUnit by remember { mutableStateOf("kg") }
-
-    // Local text states synced with SetupState
-    var feetText by remember(state.heightInches, heightUnit) {
-        mutableStateOf(
-            if (state.heightInches != null && heightUnit == "ft/in") {
-                (state.heightInches / 12).toString()
-            } else ""
-        )
-    }
-    var inchesText by remember(state.heightInches, heightUnit) {
-        mutableStateOf(
-            if (state.heightInches != null && heightUnit == "ft/in") {
-                (state.heightInches % 12).toString()
-            } else ""
-        )
-    }
-    var cmText by remember(state.heightInches, heightUnit) {
-        mutableStateOf(
-            if (state.heightInches != null && heightUnit == "cm") {
-                (state.heightInches * 2.54).roundToInt().toString()
-            } else ""
-        )
-    }
-
-    var weightText by remember(state.weightKg, weightUnit) {
-        mutableStateOf(
-            if (state.weightKg != null) {
-                if (weightUnit == "lbs") (state.weightKg * 2.20462).roundToInt().toString()
-                else state.weightKg.toString()
-            } else ""
-        )
-    }
-    var goalWeightText by remember(state.goalWeightKg, weightUnit) {
-        mutableStateOf(
-            if (state.goalWeightKg != null) {
-                if (weightUnit == "lbs") (state.goalWeightKg * 2.20462).roundToInt().toString()
-                else state.goalWeightKg.toString()
-            } else ""
-        )
-    }
-
-    val openDobPicker = {
+    val closeKeyboard = {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
-        showDobPicker = true
     }
 
     if (showDobPicker) {
@@ -96,12 +56,59 @@ fun AboutYouScreen(
             initialDate = state.dob,
             onDismissRequest = {
                 showDobPicker = false
-                focusManager.clearFocus(force = true)
+                closeKeyboard()
             },
             onDateSelected = {
                 viewModel.updateAboutYou(state.name, it, state.gender)
                 showDobPicker = false
-                focusManager.clearFocus(force = true)
+                closeKeyboard()
+            }
+        )
+    }
+
+    if (showHeightPicker) {
+        SeniorHeightBottomSheet(
+            initialHeightInches = state.heightInches,
+            onDismissRequest = {
+                showHeightPicker = false
+                closeKeyboard()
+            },
+            onHeightSelected = {
+                viewModel.updateHeight(it)
+                showHeightPicker = false
+                closeKeyboard()
+            }
+        )
+    }
+
+    if (showWeightPicker) {
+        SeniorWeightBottomSheet(
+            initialWeightKg = state.weightKg,
+            title = "What is your weight?",
+            onDismissRequest = {
+                showWeightPicker = false
+                closeKeyboard()
+            },
+            onWeightSelected = {
+                viewModel.updateWeight(it)
+                showWeightPicker = false
+                closeKeyboard()
+            }
+        )
+    }
+
+    if (showGoalWeightPicker) {
+        SeniorWeightBottomSheet(
+            initialWeightKg = state.goalWeightKg ?: state.weightKg,
+            title = "Target weight (optional)",
+            onDismissRequest = {
+                showGoalWeightPicker = false
+                closeKeyboard()
+            },
+            onWeightSelected = {
+                viewModel.updateGoalWeight(it)
+                showGoalWeightPicker = false
+                closeKeyboard()
             }
         )
     }
@@ -128,7 +135,7 @@ fun AboutYouScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 1. Full Name
+            // 1. Full Name (Standard 60dp box)
             ZivaaTextField(
                 value = state.name,
                 onValueChange = { viewModel.updateAboutYou(it, state.dob, state.gender) },
@@ -139,53 +146,27 @@ fun AboutYouScreen(
                     imeAction = ImeAction.Next
                 ),
                 keyboardActions = KeyboardActions(
-                    onNext = { openDobPicker() }
+                    onNext = {
+                        closeKeyboard()
+                        showDobPicker = true
+                    }
                 ),
                 modifier = Modifier.padding(bottom = 20.dp)
             )
 
-            // 2. Date of Birth Picker (Standard 60dp height, matching Full Name exactly)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-            ) {
-                Text(
-                    text = "DATE OF BIRTH",
-                    style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.eyebrow,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                Surface(
-                    onClick = openDobPicker,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = ZivaaTheme.colors.bg,
-                    border = BorderStroke(1.dp, ZivaaTheme.colors.lineStrong)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (state.dob.isNotBlank()) state.dob else "Tap to choose date of birth",
-                            style = ZivaaTheme.typography.bodyLarge,
-                            color = if (state.dob.isNotBlank()) ZivaaTheme.colors.ink else ZivaaTheme.colors.inkMute
-                        )
-                        Icon(
-                            imageVector = Icons.Default.CalendarToday,
-                            contentDescription = "Select DOB",
-                            tint = ZivaaTheme.colors.sage,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
+            // 2. Date of Birth Picker (Standard 60dp box)
+            StandardSelectorBox(
+                label = "Date of Birth",
+                displayText = if (state.dob.isNotBlank()) state.dob else "Tap to choose date of birth",
+                isPlaceholder = state.dob.isBlank(),
+                icon = Icons.Default.CalendarToday,
+                iconDescription = "Select DOB",
+                onClick = {
+                    closeKeyboard()
+                    showDobPicker = true
+                },
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
 
             // 3. Gender (Standard 48dp segmented pills)
             ZivaaSegmentedGenderSelection(
@@ -194,279 +175,67 @@ fun AboutYouScreen(
                 modifier = Modifier.padding(bottom = 20.dp)
             )
 
-            // 4. Height (Simplified with ft/in & cm toggle)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "HOW TALL ARE YOU?",
-                        style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.eyebrow
-                    )
-                    UnitTogglePill(
-                        options = listOf("ft/in", "cm"),
-                        selectedOption = heightUnit,
-                        onSelect = { newUnit ->
-                            heightUnit = newUnit
-                        }
-                    )
-                }
-
-                if (heightUnit == "ft/in") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Feet
-                        OutlinedTextField(
-                            value = feetText,
-                            onValueChange = { input ->
-                                val cleaned = input.filter { it.isDigit() }.take(1)
-                                feetText = cleaned
-                                val ft = cleaned.toIntOrNull()
-                                val inc = inchesText.toIntOrNull() ?: 0
-                                if (ft != null) {
-                                    viewModel.updateHeight((ft * 12) + inc)
-                                } else if (cleaned.isEmpty() && inchesText.isEmpty()) {
-                                    viewModel.updateHeight(null)
-                                }
-                            },
-                            placeholder = { Text("5", style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
-                            trailingIcon = {
-                                Text(
-                                    text = "ft",
-                                    style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = ZivaaTheme.colors.inkSoft,
-                                    modifier = Modifier.padding(end = 12.dp)
-                                )
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(60.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = ZivaaTheme.colors.lineStrong,
-                                unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
-                                focusedTextColor = ZivaaTheme.colors.ink,
-                                unfocusedTextColor = ZivaaTheme.colors.ink,
-                                focusedContainerColor = ZivaaTheme.colors.bg,
-                                unfocusedContainerColor = ZivaaTheme.colors.bg,
-                                cursorColor = ZivaaTheme.colors.sage
-                            ),
-                            singleLine = true,
-                            textStyle = ZivaaTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        )
-
-                        // Inches
-                        OutlinedTextField(
-                            value = inchesText,
-                            onValueChange = { input ->
-                                val cleaned = input.filter { it.isDigit() }.take(2)
-                                inchesText = cleaned
-                                val inc = cleaned.toIntOrNull()
-                                val ft = feetText.toIntOrNull() ?: 0
-                                if (inc != null) {
-                                    viewModel.updateHeight((ft * 12) + inc)
-                                } else if (cleaned.isEmpty() && feetText.isEmpty()) {
-                                    viewModel.updateHeight(null)
-                                }
-                            },
-                            placeholder = { Text("8", style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
-                            trailingIcon = {
-                                Text(
-                                    text = "in",
-                                    style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = ZivaaTheme.colors.inkSoft,
-                                    modifier = Modifier.padding(end = 12.dp)
-                                )
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(60.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = ZivaaTheme.colors.lineStrong,
-                                unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
-                                focusedTextColor = ZivaaTheme.colors.ink,
-                                unfocusedTextColor = ZivaaTheme.colors.ink,
-                                focusedContainerColor = ZivaaTheme.colors.bg,
-                                unfocusedContainerColor = ZivaaTheme.colors.bg,
-                                cursorColor = ZivaaTheme.colors.sage
-                            ),
-                            singleLine = true,
-                            textStyle = ZivaaTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        )
-                    }
-                } else {
-                    // cm
-                    OutlinedTextField(
-                        value = cmText,
-                        onValueChange = { input ->
-                            val cleaned = input.filter { it.isDigit() }.take(3)
-                            cmText = cleaned
-                            val cm = cleaned.toIntOrNull()
-                            if (cm != null) {
-                                viewModel.updateHeight((cm / 2.54).roundToInt())
-                            } else {
-                                viewModel.updateHeight(null)
-                            }
-                        },
-                        placeholder = { Text("172", style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
-                        trailingIcon = {
-                            Text(
-                                text = "cm",
-                                style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = ZivaaTheme.colors.inkSoft,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ZivaaTheme.colors.lineStrong,
-                            unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
-                            focusedTextColor = ZivaaTheme.colors.ink,
-                            unfocusedTextColor = ZivaaTheme.colors.ink,
-                            focusedContainerColor = ZivaaTheme.colors.bg,
-                            unfocusedContainerColor = ZivaaTheme.colors.bg,
-                            cursorColor = ZivaaTheme.colors.sage
-                        ),
-                        singleLine = true,
-                        textStyle = ZivaaTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                    )
-                }
+            // 4. Height Selector (Standard 60dp box with vertical scroll wheel)
+            val heightDisplay = if (state.heightInches != null) {
+                val ft = state.heightInches / 12
+                val inc = state.heightInches % 12
+                val cm = (state.heightInches * 2.54).roundToInt()
+                "$ft ft $inc in  ($cm cm)"
+            } else {
+                "Tap to choose your height"
             }
+            StandardSelectorBox(
+                label = "How tall are you?",
+                displayText = heightDisplay,
+                isPlaceholder = state.heightInches == null,
+                icon = Icons.Default.Height,
+                iconDescription = "Select Height",
+                onClick = {
+                    closeKeyboard()
+                    showHeightPicker = true
+                },
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
 
-            // 5. Weight (Simplified with kg & lbs toggle)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "YOUR WEIGHT",
-                        style = ZivaaTheme.typography.eyebrow,
-                        color = ZivaaTheme.colors.eyebrow
-                    )
-                    UnitTogglePill(
-                        options = listOf("kg", "lbs"),
-                        selectedOption = weightUnit,
-                        onSelect = { newUnit ->
-                            weightUnit = newUnit
-                        }
-                    )
-                }
-
-                OutlinedTextField(
-                    value = weightText,
-                    onValueChange = { input ->
-                        val cleaned = input.filter { it.isDigit() }.take(3)
-                        weightText = cleaned
-                        val num = cleaned.toIntOrNull()
-                        if (num != null) {
-                            val kg = if (weightUnit == "lbs") (num * 0.45359237).roundToInt() else num
-                            viewModel.updateWeight(kg)
-                        } else {
-                            viewModel.updateWeight(null)
-                        }
-                    },
-                    placeholder = { Text(if (weightUnit == "lbs") "154" else "70", style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
-                    trailingIcon = {
-                        Text(
-                            text = weightUnit,
-                            style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = ZivaaTheme.colors.inkSoft,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ZivaaTheme.colors.lineStrong,
-                        unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
-                        focusedTextColor = ZivaaTheme.colors.ink,
-                        unfocusedTextColor = ZivaaTheme.colors.ink,
-                        focusedContainerColor = ZivaaTheme.colors.bg,
-                        unfocusedContainerColor = ZivaaTheme.colors.bg,
-                        cursorColor = ZivaaTheme.colors.sage
-                    ),
-                    singleLine = true,
-                    textStyle = ZivaaTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Optional Target Weight
-                Text(
-                    text = "TARGET WEIGHT (OPTIONAL)",
-                    style = ZivaaTheme.typography.eyebrow,
-                    color = ZivaaTheme.colors.eyebrow,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                OutlinedTextField(
-                    value = goalWeightText,
-                    onValueChange = { input ->
-                        val cleaned = input.filter { it.isDigit() }.take(3)
-                        goalWeightText = cleaned
-                        val num = cleaned.toIntOrNull()
-                        if (num != null) {
-                            val kg = if (weightUnit == "lbs") (num * 0.45359237).roundToInt() else num
-                            viewModel.updateGoalWeight(kg)
-                        } else {
-                            viewModel.updateGoalWeight(null)
-                        }
-                    },
-                    placeholder = { Text(if (weightUnit == "lbs") "e.g. 148" else "e.g. 68", style = ZivaaTheme.typography.bodyLarge, color = ZivaaTheme.colors.inkMute) },
-                    trailingIcon = {
-                        Text(
-                            text = weightUnit,
-                            style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = ZivaaTheme.colors.inkSoft,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ZivaaTheme.colors.lineStrong,
-                        unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
-                        focusedTextColor = ZivaaTheme.colors.ink,
-                        unfocusedTextColor = ZivaaTheme.colors.ink,
-                        focusedContainerColor = ZivaaTheme.colors.bg,
-                        unfocusedContainerColor = ZivaaTheme.colors.bg,
-                        cursorColor = ZivaaTheme.colors.sage
-                    ),
-                    singleLine = true,
-                    textStyle = ZivaaTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                )
+            // 5. Weight Selector (Standard 60dp box with vertical scroll wheel)
+            val weightDisplay = if (state.weightKg != null) {
+                val lbs = (state.weightKg * 2.20462).roundToInt()
+                "${state.weightKg} kg  ($lbs lbs)"
+            } else {
+                "Tap to choose your weight"
             }
+            StandardSelectorBox(
+                label = "Your weight",
+                displayText = weightDisplay,
+                isPlaceholder = state.weightKg == null,
+                icon = Icons.Default.MonitorWeight,
+                iconDescription = "Select Weight",
+                onClick = {
+                    closeKeyboard()
+                    showWeightPicker = true
+                },
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            // 6. Optional Target Weight Selector (Standard 60dp box with vertical scroll wheel)
+            val goalWeightDisplay = if (state.goalWeightKg != null) {
+                val lbs = (state.goalWeightKg * 2.20462).roundToInt()
+                "${state.goalWeightKg} kg  ($lbs lbs)"
+            } else {
+                "Tap to set target weight (optional)"
+            }
+            StandardSelectorBox(
+                label = "Target weight (optional)",
+                displayText = goalWeightDisplay,
+                isPlaceholder = state.goalWeightKg == null,
+                icon = Icons.Default.Flag,
+                iconDescription = "Select Target Weight",
+                onClick = {
+                    closeKeyboard()
+                    showGoalWeightPicker = true
+                },
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -488,37 +257,51 @@ fun AboutYouScreen(
 }
 
 @Composable
-fun UnitTogglePill(
-    options: List<String>,
-    selectedOption: String,
-    onSelect: (String) -> Unit
+fun StandardSelectorBox(
+    label: String,
+    displayText: String,
+    isPlaceholder: Boolean,
+    icon: ImageVector,
+    iconDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = ZivaaTheme.colors.bgElev,
-        border = BorderStroke(1.dp, ZivaaTheme.colors.line)
+    Column(
+        modifier = modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Text(
+            text = label.toEyebrowTitleCase(),
+            style = ZivaaTheme.typography.eyebrow,
+            color = ZivaaTheme.colors.eyebrow,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = ZivaaTheme.colors.bg,
+            border = BorderStroke(1.dp, ZivaaTheme.colors.lineStrong)
         ) {
-            options.forEach { opt ->
-                val isSelected = opt.equals(selectedOption, ignoreCase = true)
-                Surface(
-                    onClick = { onSelect(opt) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) ZivaaTheme.colors.sage else Color.Transparent
-                ) {
-                    Text(
-                        text = opt,
-                        style = ZivaaTheme.typography.bodySmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 11.sp
-                        ),
-                        color = if (isSelected) ZivaaTheme.colors.sageInk else ZivaaTheme.colors.inkSoft,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = displayText,
+                    style = ZivaaTheme.typography.bodyLarge,
+                    color = if (isPlaceholder) ZivaaTheme.colors.inkMute else ZivaaTheme.colors.ink
+                )
+                Icon(
+                    imageVector = icon,
+                    contentDescription = iconDescription,
+                    tint = ZivaaTheme.colors.sage,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
