@@ -55,13 +55,29 @@ class AuthManager(context: Context) {
 
     val authEvents = Companion.authEvents
 
-    fun saveSession(accessToken: String, refreshToken: String, userId: String) {
-        sharedPreferences.edit()
+    fun saveSession(
+        accessToken: String, 
+        refreshToken: String, 
+        userId: String,
+        email: String? = null,
+        fullName: String? = null
+    ) {
+        val editor = sharedPreferences.edit()
             .putString("access_token", accessToken)
             .putString("refresh_token", refreshToken)
             .putString("user_id", userId)
-            .apply()
+        if (!email.isNullOrBlank()) {
+            editor.putString("user_email", email)
+        }
+        if (!fullName.isNullOrBlank()) {
+            editor.putString("full_name", fullName)
+        }
+        editor.apply()
         _authEvents.tryEmit(true)
+    }
+
+    fun getUserEmail(): String? {
+        return sharedPreferences.getString("user_email", null)
     }
 
     fun getAccessToken(): String? {

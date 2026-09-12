@@ -28,7 +28,8 @@ import com.zivaa.app.ui.theme.InstrumentSerif
 @Composable
 fun WelcomeScreen(
     state: SetupState,
-    onNext: () -> Unit,
+    onContinue: () -> Unit,
+    onManualEntry: () -> Unit,
     onSignIn: () -> Unit,
     onBypassSetup: () -> Unit,
     onLanguageSelected: (String) -> Unit = {}
@@ -41,7 +42,7 @@ fun WelcomeScreen(
 
     LaunchedEffect(state.isEmailVerified) {
         if (state.isEmailVerified && !state.isSetupComplete) {
-            onNext()
+            onContinue()
         }
     }
 
@@ -283,7 +284,7 @@ fun WelcomeScreen(
         
         // Secondary CTA: Alternative for seniors without a Google account
         TextButton(
-            onClick = onNext,
+            onClick = onManualEntry,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)

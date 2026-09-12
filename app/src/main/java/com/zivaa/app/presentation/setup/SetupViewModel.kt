@@ -64,6 +64,9 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        // Check if session is already active
+        checkExistingSession()
+
         // Listen for Deep Link auth successes
         viewModelScope.launch {
             AuthManager.authEvents.collect { success ->
@@ -100,6 +103,12 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
 
+            // Extract metadata from Supabase auth user
+            val authBody = authUserResponse.body()
+            val userMetadata = authBody?.get("user_metadata") as? Map<*, *>
+            val metaName = (userMetadata?.get("full_name") ?: userMetadata?.get("name")) as? String
+            val metaEmail = (authBody?.get("email") ?: userMetadata?.get("email")) as? String
+
             val response = RetrofitClient.apiService.getPatient("eq.$userId")
             val patient = response.body()?.firstOrNull()
             
@@ -107,6 +116,24 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
             // The DB trigger creates a skeleton row with dateOfBirth = NULL.
             val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
             
+            val cachedName = auth.getPatientProfile()["full_name"]
+            val resolvedName = when {
+                _state.value.name.isNotBlank() -> _state.value.name
+                !metaName.isNullOrBlank() -> metaName
+                !patient?.fullName.isNullOrBlank() && patient.fullName != "New User" -> patient.fullName
+                !cachedName.isNullOrBlank() -> cachedName
+                else -> ""
+            }
+
+            val cachedEmail = auth.getUserEmail()
+            val resolvedEmail = when {
+                _state.value.email.isNotBlank() -> _state.value.email
+                !metaEmail.isNullOrBlank() -> metaEmail
+                !cachedEmail.isNullOrBlank() -> cachedEmail
+                !patient?.phone.isNullOrBlank() && patient.phone.contains("@") -> patient.phone
+                else -> ""
+            }
+
             if (hasCompletedOnboarding && patient != null) {
                 // Cache profile locally in AuthManager
                 auth.savePatientProfile(
@@ -119,20 +146,12 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                 // Existing user who previously completed onboarding, bypass to dashboard
                 _state.value = _state.value.copy(
                     isSetupComplete = true,
-                    isSubmitting = false
+                    isSubmitting = false,
+                    name = resolvedName,
+                    email = resolvedEmail
                 )
             } else {
-                // Brand-new user or trigger-created skeleton row: continue onboarding!
-                val resolvedName = if (_state.value.name.isNotBlank()) {
-                    _state.value.name
-                } else {
-                    patient?.fullName ?: ""
-                }
-                val resolvedEmail = if (_state.value.email.isNotBlank()) {
-                    _state.value.email
-                } else {
-                    patient?.phone ?: ""
-                }
+                // Brand-new user or trigger-created skeleton row: continue onboarding with pre-filled name & email!
                 _state.value = _state.value.copy(
                     isEmailVerified = true,
                     isSubmitting = false,

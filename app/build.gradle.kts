@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.0.35"
+        versionCode = 37
+        versionName = "1.0.36"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.35 - 1-tap Google sign-in with manual entry fallback on welcome screen"
+                releaseNotes = "Zivaa v1.0.36 - Fix Google pre-fill for full name on About You screen"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

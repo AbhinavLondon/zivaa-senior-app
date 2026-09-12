@@ -23,7 +23,10 @@ fun SetupNavHost(
             val context = androidx.compose.ui.platform.LocalContext.current
             WelcomeScreen(
                 state = state,
-                onNext = { 
+                onContinue = { 
+                    navController.navigate("about_you") 
+                },
+                onManualEntry = { 
                     viewModel.startFreshEnrollment()
                     navController.navigate("about_you") 
                 },

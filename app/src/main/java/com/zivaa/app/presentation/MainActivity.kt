@@ -144,22 +144,36 @@ class MainActivity : ComponentActivity() {
                 val refreshToken = params["refresh_token"]
                 
                 if (accessToken != null && refreshToken != null) {
-                    val userId = decodeJwtUserId(accessToken)
-                    if (userId != null) {
-                        authManager.saveSession(accessToken, refreshToken, userId)
+                    val authInfo = decodeJwtInfo(accessToken)
+                    if (authInfo != null) {
+                        authManager.saveSession(
+                            accessToken = accessToken,
+                            refreshToken = refreshToken,
+                            userId = authInfo.first,
+                            email = authInfo.second,
+                            fullName = authInfo.third
+                        )
                     }
                 }
             }
         }
     }
 
-    private fun decodeJwtUserId(token: String): String? {
+    private fun decodeJwtInfo(token: String): Triple<String, String?, String?>? {
         try {
             val parts = token.split(".")
             if (parts.size == 3) {
                 val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
                 val json = org.json.JSONObject(payload)
-                return if (json.has("sub")) json.getString("sub") else null
+                val userId = if (json.has("sub")) json.getString("sub") else return null
+                val email = if (json.has("email")) json.getString("email") else null
+                var fullName: String? = null
+                val userMetadata = json.optJSONObject("user_metadata")
+                if (userMetadata != null) {
+                    val metaName = userMetadata.optString("full_name").ifEmpty { userMetadata.optString("name") }
+                    if (metaName.isNotEmpty()) fullName = metaName
+                }
+                return Triple(userId, email, fullName)
             }
         } catch (e: Exception) {
             e.printStackTrace()
