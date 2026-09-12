@@ -99,6 +99,90 @@ class HealthConnectManager(private val context: Context) {
         return true
     }
 
+    suspend fun checkBrandSyncStatus(brandPackage: String): com.zivaa.app.presentation.setup.wearable.BrandSyncReport {
+        val isInstalled = com.zivaa.app.presentation.setup.wearable.WearableCompanionDetector.isPackageInstalled(context, brandPackage)
+        val client = healthConnectClient ?: return com.zivaa.app.presentation.setup.wearable.BrandSyncReport(isAppInstalled = isInstalled)
+
+        return try {
+            val now = Instant.now()
+            val startOfDay = java.time.ZonedDateTime.now().toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+            val timeFilter48h = TimeRangeFilter.between(now.minus(48, java.time.temporal.ChronoUnit.HOURS), now)
+
+            fun isOriginMatch(recordPackage: String): Boolean {
+                if (brandPackage.isBlank()) return true
+                if (recordPackage.equals(brandPackage, ignoreCase = true)) return true
+                val stem = brandPackage.substringAfterLast(".").lowercase()
+                val target = if (stem.length >= 4) stem else brandPackage.lowercase()
+                return recordPackage.lowercase().contains(target) || (brandPackage.lowercase().contains("fitbit") && recordPackage.lowercase().contains("fitbit"))
+            }
+
+            // 1. Read latest HeartRateRecords (last 48 hours)
+            val hrRequest = androidx.health.connect.client.request.ReadRecordsRequest(
+                recordType = HeartRateRecord::class,
+                timeRangeFilter = timeFilter48h,
+                ascendingOrder = false,
+                pageSize = 25
+            )
+            val hrResult = client.readRecords(hrRequest)
+            val matchingHrRecord = hrResult.records.firstOrNull { isOriginMatch(it.metadata.dataOrigin.packageName) }
+            val hrRecordToUse = matchingHrRecord ?: hrResult.records.firstOrNull()
+            val latestBpm = hrRecordToUse?.samples?.maxByOrNull { it.time }?.beatsPerMinute?.toInt()
+                ?: hrRecordToUse?.samples?.lastOrNull()?.beatsPerMinute?.toInt()
+
+            // 2. Read latest StepsRecords to check dataOrigin
+            val stepsRequest = androidx.health.connect.client.request.ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = timeFilter48h,
+                ascendingOrder = false,
+                pageSize = 25
+            )
+            val stepsResult = client.readRecords(stepsRequest)
+            val matchingStepsRecord = stepsResult.records.firstOrNull { isOriginMatch(it.metadata.dataOrigin.packageName) }
+
+            // 3. Aggregate real total steps for TODAY (midnight to now)
+            val todayStepsAgg = try {
+                val agg = client.aggregate(
+                    androidx.health.connect.client.request.AggregateRequest(
+                        metrics = setOf(StepsRecord.COUNT_TOTAL),
+                        timeRangeFilter = TimeRangeFilter.between(startOfDay, now)
+                    )
+                )
+                val c = agg[StepsRecord.COUNT_TOTAL] ?: 0L
+                if (c > 0L) c else null
+            } catch (e: Exception) {
+                null
+            }
+
+            // Fallback to 24h aggregate if today's is 0 or null
+            val totalStepsToday = todayStepsAgg ?: try {
+                val agg24 = client.aggregate(
+                    androidx.health.connect.client.request.AggregateRequest(
+                        metrics = setOf(StepsRecord.COUNT_TOTAL),
+                        timeRangeFilter = TimeRangeFilter.between(now.minus(24, java.time.temporal.ChronoUnit.HOURS), now)
+                    )
+                )
+                val c = agg24[StepsRecord.COUNT_TOTAL] ?: 0L
+                if (c > 0L) c else null
+            } catch (e: Exception) {
+                null
+            }
+
+            val hasBrandRecords = (matchingHrRecord != null) || (matchingStepsRecord != null)
+            val lastSyncTime = matchingHrRecord?.endTime ?: matchingStepsRecord?.endTime ?: hrResult.records.firstOrNull()?.endTime
+
+            com.zivaa.app.presentation.setup.wearable.BrandSyncReport(
+                isAppInstalled = isInstalled,
+                hasHealthConnectRecords = hasBrandRecords,
+                latestHeartRateBpm = latestBpm,
+                totalStepsToday = totalStepsToday,
+                lastSyncTime = lastSyncTime
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            com.zivaa.app.presentation.setup.wearable.BrandSyncReport(isAppInstalled = isInstalled)
+        }
+    }
+
     suspend fun aggregateSteps(start: Instant, end: Instant): Long {
         val client = healthConnectClient ?: return 0L
         return try {

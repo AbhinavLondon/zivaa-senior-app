@@ -1,8 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Declare visibility for Health Connect app (required for Android 13 and lower) -->
+    <!-- Declare visibility for Health Connect & Wearable Companion Apps -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <package android:name="com.fitbit.FitbitMobile" />
+        <package android:name="com.sec.android.app.shealth" />
+        <package android:name="com.samsung.android.app.watchmanager" />
+        <package android:name="com.samsung.android.shealthmonitor" />
+        <package android:name="com.ouraring.oura" />
+        <package android:name="com.ultrahuman" />
+        <package android:name="com.gabit.app" />
+        <package android:name="com.garmin.android.apps.connectmobile" />
+        <package android:name="com.mediatek.wwsync.noise" />
+        <package android:name="com.coveiot.boatus" />
+        <package android:name="com.huami.midong" />
+        <package android:name="nl.appyhapps.healthsync" />
     </queries>
 
     <!-- Health Connect Read Permissions -->

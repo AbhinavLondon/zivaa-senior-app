@@ -336,9 +336,14 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                     preferredLanguage = _state.value.preferredLanguage
                 )
                 val patientResponse = RetrofitClient.apiService.createPatient(patientRecord)
+                val isPatientOk = patientResponse.isSuccessful || patientResponse.code() == 409
                 
-                if (patientResponse.isSuccessful && patientResponse.body()?.isNotEmpty() == true) {
-                    val patientId = patientResponse.body()!![0].id ?: userId
+                if (isPatientOk) {
+                    val patientId = if (patientResponse.isSuccessful && !patientResponse.body().isNullOrEmpty()) {
+                        patientResponse.body()!![0].id ?: userId
+                    } else {
+                        userId
+                    }
                     
                     // Cache profile locally in AuthManager
                     RetrofitClient.authManager?.savePatientProfile(
@@ -379,6 +384,7 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     // 4. Save Plan Setup
+                    var planSaved = false
                     try {
                         val planSetup = SupabasePatientPlanSetup(
                             patientId = patientId,
@@ -396,12 +402,57 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                             smokingStatus = _state.value.smokingStatus.ifBlank { null },
                             alcoholStatus = _state.value.alcoholStatus.ifBlank { null }
                         )
-                        RetrofitClient.apiService.insertPlanSetup(planSetup)
+                        val planResponse = RetrofitClient.apiService.insertPlanSetup(planSetup)
+                        if (planResponse.isSuccessful) {
+                            planSaved = true
+                            android.util.Log.d("SetupViewModel", "Plan setup saved successfully")
+                        } else {
+                            val err = planResponse.errorBody()?.string() ?: ""
+                            android.util.Log.w("SetupViewModel", "insertPlanSetup primary failed (${planResponse.code()}): $err. Retrying with resilient fallback...")
+                            
+                            // Resilient Fallback: If dedicated columns (smoking_status / alcohol_status) aren't in Supabase schema cache,
+                            // retry without those columns and embed lifestyle habits safely into healthConditions
+                            val fallbackConditions = _state.value.selectedConditions.toMutableList()
+                            if (_state.value.smokingStatus.isNotBlank()) {
+                                fallbackConditions.add("Smoking: ${_state.value.smokingStatus}")
+                            }
+                            if (_state.value.alcoholStatus.isNotBlank()) {
+                                fallbackConditions.add("Alcohol: ${_state.value.alcoholStatus}")
+                            }
+                            val fallbackPlanSetup = SupabasePatientPlanSetup(
+                                patientId = patientId,
+                                primaryFocus = _state.value.primaryFocus,
+                                wakeTime = _state.value.wakeTime,
+                                movementLevel = _state.value.movementLevel,
+                                stepsGoal = _state.value.stepsGoal,
+                                dietType = _state.value.dietType,
+                                heightInches = _state.value.heightInches,
+                                weightKg = _state.value.weightKg,
+                                goalWeightKg = _state.value.goalWeightKg,
+                                healthConditions = fallbackConditions,
+                                eveningActivities = _state.value.evening.toList(),
+                                reminders = _state.value.reminders,
+                                smokingStatus = null,
+                                alcoholStatus = null
+                            )
+                            val retryResponse = RetrofitClient.apiService.insertPlanSetup(fallbackPlanSetup)
+                            if (retryResponse.isSuccessful) {
+                                planSaved = true
+                                android.util.Log.d("SetupViewModel", "Plan setup saved successfully via fallback")
+                            } else {
+                                val retryErr = retryResponse.errorBody()?.string() ?: ""
+                                android.util.Log.e("SetupViewModel", "Fallback insertPlanSetup failed: ${retryResponse.code()} - $retryErr")
+                            }
+                        }
                     } catch (e: Exception) {
                         android.util.Log.e("SetupViewModel", "Error saving plan setup", e)
                     }
 
-                    _state.value = _state.value.copy(isSetupComplete = true, isSubmitting = false)
+                    _state.value = _state.value.copy(
+                        isSetupComplete = true,
+                        isSubmitting = false,
+                        error = if (!planSaved) "Notice: Plan setup had trouble saving, but your profile is ready." else null
+                    )
                 } else {
                     _state.value = _state.value.copy(
                         error = "Failed to create profile: ${patientResponse.errorBody()?.string()}",

@@ -56,7 +56,11 @@ fun ZivaaHeader(title: String, subtitle: String? = null, label: String? = null) 
 }
 
 @Composable
-fun ZivaaHeader(title: androidx.compose.ui.text.AnnotatedString, subtitle: String? = null, label: String? = null) {
+fun ZivaaHeader(
+    title: androidx.compose.ui.text.AnnotatedString,
+    subtitle: androidx.compose.ui.text.AnnotatedString?,
+    label: String? = null
+) {
     Column(
         modifier = Modifier.padding(top = 14.dp, bottom = 8.dp).fillMaxWidth()
     ) {
@@ -83,6 +87,16 @@ fun ZivaaHeader(title: androidx.compose.ui.text.AnnotatedString, subtitle: Strin
         }
     }
 }
+
+@Composable
+fun ZivaaHeader(title: androidx.compose.ui.text.AnnotatedString, subtitle: String? = null, label: String? = null) {
+    ZivaaHeader(
+        title = title,
+        subtitle = subtitle?.let { androidx.compose.ui.text.AnnotatedString(it) },
+        label = label
+    )
+}
+
 
 @Composable
 fun ZivaaButton(

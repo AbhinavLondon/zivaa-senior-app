@@ -54,6 +54,7 @@ fun PlanRevealScreen(
 ) {
     var isSynthesizing by remember { mutableStateOf(true) }
     var synthesisStep by remember { mutableStateOf(0) }
+    var pendingNavigation by remember { mutableStateOf(false) }
 
     val synthesisTexts = listOf(
         "Analyzing your movement and daily rhythms...",
@@ -73,8 +74,10 @@ fun PlanRevealScreen(
         isSynthesizing = false
     }
 
-    LaunchedEffect(state.isSetupComplete) {
-        // If finished and user tapped proceed
+    LaunchedEffect(state.isSetupComplete, pendingNavigation) {
+        if (pendingNavigation && state.isSetupComplete) {
+            onNavigateToDashboard()
+        }
     }
 
     Surface(
@@ -318,11 +321,13 @@ fun PlanRevealScreen(
                     ) {
                         Surface(
                             onClick = {
-                                if (!state.isSubmitting) {
-                                    if (!state.isSetupComplete) {
+                                if (state.isSetupComplete) {
+                                    onNavigateToDashboard()
+                                } else {
+                                    pendingNavigation = true
+                                    if (!state.isSubmitting) {
                                         viewModel.finishSetup()
                                     }
-                                    onNavigateToDashboard()
                                 }
                             },
                             modifier = Modifier
@@ -336,7 +341,7 @@ fun PlanRevealScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (state.isSubmitting) {
+                                if (state.isSubmitting || (pendingNavigation && !state.isSetupComplete)) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(24.dp),
                                         color = LocalZivaaColors.current.sageInk,
