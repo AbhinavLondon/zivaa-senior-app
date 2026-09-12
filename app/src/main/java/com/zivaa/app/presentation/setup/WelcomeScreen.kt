@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
@@ -35,6 +36,12 @@ fun WelcomeScreen(
     LaunchedEffect(state.isSetupComplete) {
         if (state.isSetupComplete) {
             onBypassSetup()
+        }
+    }
+
+    LaunchedEffect(state.isEmailVerified) {
+        if (state.isEmailVerified && !state.isSetupComplete) {
+            onNext()
         }
     }
 
@@ -227,27 +234,75 @@ fun WelcomeScreen(
         
         Spacer(modifier = Modifier.height(28.dp))
         
-        // Primary CTA: Get Started
-        ZivaaButton(text = "Get Started", onClick = onNext)
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        // Secondary CTA: I already have an account (Outlined for prominence)
-        OutlinedButton(
+        // Primary CTA: Continue with Google (1-Tap Entry)
+        Surface(
             onClick = onSignIn,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(ZivaaTheme.spacing.radiusPill),
-            border = BorderStroke(1.dp, ZivaaTheme.colors.lineStrong),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = ZivaaTheme.colors.ink
-            )
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFDADCE0)),
+            shadowElevation = 2.dp
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (state.isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = ZivaaTheme.colors.sage,
+                        strokeWidth = 2.5.dp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Connecting with Google...",
+                        style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        color = ZivaaTheme.colors.ink
+                    )
+                } else {
+                    Text(
+                        text = "G",
+                        style = ZivaaTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
+                        color = Color(0xFF4285F4),
+                        fontSize = 22.sp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Continue with Google",
+                        style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFF1F1F1F)
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(14.dp))
+        
+        // Secondary CTA: Alternative for seniors without a Google account
+        TextButton(
+            onClick = onNext,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
         ) {
             Text(
-                text = "I already have an account · Sign in",
-                style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = ZivaaTheme.colors.ink
+                text = "Or enter details manually",
+                style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = ZivaaTheme.colors.inkSoft
+            )
+        }
+
+        if (state.error != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = state.error,
+                color = ZivaaTheme.colors.rose,
+                style = ZivaaTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             )
         }
         

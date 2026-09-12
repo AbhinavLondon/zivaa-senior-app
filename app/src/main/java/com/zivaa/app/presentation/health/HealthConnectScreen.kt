@@ -100,7 +100,12 @@ fun HealthConnectScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(onClick = {
-                    val workRequest = OneTimeWorkRequestBuilder<HealthDataSyncWorker>().build()
+                    val syncWorkData = androidx.work.Data.Builder()
+                        .putString("sync_type", "Manual")
+                        .build()
+                    val workRequest = OneTimeWorkRequestBuilder<HealthDataSyncWorker>()
+                        .setInputData(syncWorkData)
+                        .build()
                     WorkManager.getInstance(context).enqueue(workRequest)
                     Toast.makeText(context, "Sync started! Check Supabase in a few seconds.", Toast.LENGTH_LONG).show()
                 }) {

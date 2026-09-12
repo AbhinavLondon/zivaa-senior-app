@@ -817,6 +817,7 @@ class DashboardViewModel(
                 // Trigger the background worker to silently handle the massive Supabase sync using changes tokens
                 val workData = androidx.work.Data.Builder()
                     .putBoolean("force_backfill", force)
+                    .putString("sync_type", "Foreground")
                     .build()
                 val oneTimeWork = androidx.work.OneTimeWorkRequestBuilder<com.zivaa.app.data.health.worker.HealthDataSyncWorker>()
                     .setInputData(workData)

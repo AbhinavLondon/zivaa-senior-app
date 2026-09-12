@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
             if (parts.size == 3) {
                 val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
                 val json = org.json.JSONObject(payload)
-                return json.optString("sub", null)
+                return if (json.has("sub")) json.getString("sub") else null
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -204,10 +204,15 @@ class MainActivity : ComponentActivity() {
         }
 
         // Automatically schedule background health data sync on app start
-        val workRequest = PeriodicWorkRequestBuilder<HealthDataSyncWorker>(1, TimeUnit.HOURS).build()
+        val syncWorkData = androidx.work.Data.Builder()
+            .putString("sync_type", "Background")
+            .build()
+        val workRequest = PeriodicWorkRequestBuilder<HealthDataSyncWorker>(1, TimeUnit.HOURS)
+            .setInputData(syncWorkData)
+            .build()
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "HealthDataSync",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             workRequest
         )
         

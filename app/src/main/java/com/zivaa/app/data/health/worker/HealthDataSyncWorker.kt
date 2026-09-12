@@ -176,16 +176,17 @@ class HealthDataSyncWorker(
                         val totalRecords = uniquePayload.size
                         val metricTypes = uniquePayload.map { it.metricType }.distinct()
                         
+                        val syncType = inputData.getString("sync_type") ?: "Background"
                         com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
                             com.zivaa.app.data.remote.SyncCompletePayload(
                                 patient_id = patientId, 
                                 timezone = java.util.TimeZone.getDefault().id, 
-                                sync_type = "Background",
+                                sync_type = syncType,
                                 records_synced = totalRecords,
                                 metric_types = metricTypes
                             )
                         )
-                        println("Sync complete orchestration triggered successfully.")
+                        println("Sync complete orchestration triggered successfully ($syncType).")
                     } catch (e: Exception) {
                         println("Failed to trigger sync complete orchestration: ${e.message}")
                     }

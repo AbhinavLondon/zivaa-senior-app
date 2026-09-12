@@ -28,7 +28,8 @@ fun SetupNavHost(
                     navController.navigate("about_you") 
                 },
                 onSignIn = { viewModel.signInWithGoogle(context) },
-                onBypassSetup = onSetupComplete
+                onBypassSetup = onSetupComplete,
+                onLanguageSelected = { viewModel.updateLanguage(it) }
             )
         }
 
