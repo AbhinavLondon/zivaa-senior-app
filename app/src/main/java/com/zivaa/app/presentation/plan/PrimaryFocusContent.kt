@@ -182,12 +182,12 @@ fun FocusCard(
             .fillMaxWidth()
             .scale(scale),
         shape = RoundedCornerShape(18.dp),
-        color = if (isSelected) option.toneBg().copy(alpha = 0.08f) else colors.bgElev,
+        color = colors.bgElev,
         border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) option.toneBg() else colors.lineStrong
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) colors.sage else colors.lineStrong
         ),
-        shadowElevation = if (isSelected) 3.dp else 1.dp
+        shadowElevation = if (isSelected) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -195,7 +195,7 @@ fun FocusCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Bubble (Exact icon intact)
+            // Icon Bubble (Intact original icon and tone)
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -220,7 +220,7 @@ fun FocusCard(
                 Text(
                     text = option.title,
                     style = typography.bodyLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                         fontSize = 16.sp
                     ),
                     color = colors.ink
@@ -232,18 +232,18 @@ fun FocusCard(
                         fontSize = 11.sp,
                         letterSpacing = 0.6.sp
                     ),
-                    color = if (isSelected) option.toneBg() else colors.inkMute
+                    color = if (isSelected) colors.sage else colors.inkMute
                 )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Sleek Circular Selection Checkmark
+            // Sleek Circular Selection Checkmark (Zivaa Green when selected)
             Box(
                 modifier = Modifier
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) option.toneBg() else Color.Transparent)
+                    .background(if (isSelected) colors.sage else Color.Transparent)
                     .border(
                         width = if (isSelected) 0.dp else 1.5.dp,
                         color = if (isSelected) Color.Transparent else colors.lineStrong,
@@ -255,7 +255,7 @@ fun FocusCard(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = option.toneOnBg(),
+                        tint = colors.sageInk,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -275,10 +275,11 @@ fun ValidationBlock(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 6.dp, bottom = 12.dp),
+            .padding(top = 8.dp, bottom = 12.dp),
         shape = RoundedCornerShape(20.dp),
-        color = selectedOption.toneBg().copy(alpha = 0.07f),
-        border = BorderStroke(1.dp, selectedOption.toneBg().copy(alpha = 0.35f))
+        color = colors.bgElev,
+        border = BorderStroke(1.5.dp, colors.sage),
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
@@ -293,13 +294,13 @@ fun ValidationBlock(
                     modifier = Modifier
                         .size(26.dp)
                         .clip(CircleShape)
-                        .background(selectedOption.toneBg()),
+                        .background(colors.sage),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = selectedOption.toneOnBg(),
+                        tint = colors.sageInk,
                         modifier = Modifier.size(15.dp)
                     )
                 }

@@ -19,10 +19,12 @@ fun SetupFocusScreen(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
+    val colors = LocalZivaaColors.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(LocalZivaaColors.current.bg)
+            .background(colors.bg)
     ) {
         ZivaaTopBar(stepNo = 2, totalSteps = 5, onBack = onBack)
         
@@ -37,9 +39,10 @@ fun SetupFocusScreen(
                             label = "Step 2 of 5 · Focus",
                             title = buildAnnotatedString {
                                 append("What's your ")
-                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                                    append("primary focus?")
+                                withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = colors.sage)) {
+                                    append("primary")
                                 }
+                                append(" focus?")
                             },
                             subtitle = "One answer shapes your daily plan, recovery pace, and wellness baselines. You can change this anytime."
                         )
