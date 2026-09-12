@@ -49,6 +49,7 @@ class ProfileViewModel(
     
     val darkThemeEnabled: StateFlow<Boolean> = appSettingsManager.darkThemeFlow
     val showLongevityPlanEnabled: StateFlow<Boolean> = appSettingsManager.showLongevityPlanFlow
+    val preferredLanguage: StateFlow<String> = appSettingsManager.preferredLanguageFlow
 
     init {
         loadProfile()
@@ -60,6 +61,18 @@ class ProfileViewModel(
     
     fun setShowLongevityPlan(enabled: Boolean) {
         appSettingsManager.setShowLongevityPlan(enabled)
+    }
+
+    fun setPreferredLanguage(language: String) {
+        appSettingsManager.setPreferredLanguage(language)
+        val userId = authManager.getUserId() ?: return
+        viewModelScope.launch {
+            try {
+                RetrofitClient.apiService.updatePatient("eq.$userId", mapOf("preferred_language" to language))
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
     }
 
     fun loadProfile() {
@@ -81,6 +94,10 @@ class ProfileViewModel(
         val dob = cached["dob"]
         val createdAt = cached["created_at"]
         val profilePicUrl = cached["profile_pic_url"]
+        val cachedLanguage = cached["preferred_language"]
+        if (!cachedLanguage.isNullOrBlank()) {
+            appSettingsManager.setPreferredLanguage(cachedLanguage)
+        }
         val wearablesStr = cached["wearables"] ?: ""
         val wearablesList = if (wearablesStr.isNotBlank()) wearablesStr.split(",").map { it.trim() } else emptyList()
 
@@ -109,9 +126,11 @@ class ProfileViewModel(
                     val freshCreatedAt = patient.createdAt
                     val freshPic = patient.profilePicUrl
                     val freshWearables = patient.wearables ?: ""
+                    val freshLanguage = patient.preferredLanguage ?: "English"
+                    appSettingsManager.setPreferredLanguage(freshLanguage)
 
                     // Update Cache
-                    authManager.savePatientProfile(freshName, freshLocation, freshCreatedAt, freshDob, freshPic)
+                    authManager.savePatientProfile(freshName, freshLocation, freshCreatedAt, freshDob, freshPic, freshLanguage)
                     // (We don't need to manually save wearables string to authManager unless we modify authManager signature, which we can skip for brevity)
 
                     val freshWearablesList = if (freshWearables.isNotBlank()) freshWearables.split(",").map { it.trim() } else emptyList()
@@ -243,7 +262,8 @@ class ProfileViewModel(
                             cached["location_city"],
                             cached["created_at"],
                             cached["dob"],
-                            picUrl
+                            picUrl,
+                            cached["preferred_language"]
                         )
                     } else {
                         _state.value = _state.value.copy(error = "Failed to update profile: ${updateRes.errorBody()?.string()}")

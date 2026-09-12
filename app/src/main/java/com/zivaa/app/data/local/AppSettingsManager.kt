@@ -15,6 +15,9 @@ class AppSettingsManager(context: Context) {
     private val _showLongevityPlanFlow = MutableStateFlow(prefs.getBoolean("show_longevity_plan", true))
     val showLongevityPlanFlow: StateFlow<Boolean> = _showLongevityPlanFlow.asStateFlow()
 
+    private val _preferredLanguageFlow = MutableStateFlow(prefs.getString("preferred_language", "English") ?: "English")
+    val preferredLanguageFlow: StateFlow<String> = _preferredLanguageFlow.asStateFlow()
+
     fun setDarkTheme(enabled: Boolean) {
         prefs.edit().putBoolean("dark_theme", enabled).apply()
         _darkThemeFlow.value = enabled
@@ -23,5 +26,10 @@ class AppSettingsManager(context: Context) {
     fun setShowLongevityPlan(enabled: Boolean) {
         prefs.edit().putBoolean("show_longevity_plan", enabled).apply()
         _showLongevityPlanFlow.value = enabled
+    }
+
+    fun setPreferredLanguage(language: String) {
+        prefs.edit().putString("preferred_language", language).apply()
+        _preferredLanguageFlow.value = language
     }
 }

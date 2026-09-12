@@ -36,7 +36,8 @@ data class PatientRecord(
     @SerializedName("location_city") val locationCity: String? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("profile_pic_url") val profilePicUrl: String? = null,
-    @SerializedName("caregiver_nudge_preference") val caregiverNudgePreference: String? = null
+    @SerializedName("caregiver_nudge_preference") val caregiverNudgePreference: String? = null,
+    @SerializedName("preferred_language") val preferredLanguage: String? = null
 )
 
 data class ConditionRecord(

@@ -468,8 +468,13 @@ fun CoachChatScreen(
                                     cursorBrush = SolidColor(ZivaaTheme.colors.accent),
                                     decorationBox = { innerTextField ->
                                         if (inputText.isEmpty()) {
+                                            val placeholderText = when {
+                                                viewModel.getPreferredLanguage().equals("Hindi", ignoreCase = true) -> "कोच से पूछें..."
+                                                viewModel.getPreferredLanguage().equals("Bengali", ignoreCase = true) -> "কোচকে জিজ্ঞাসা করুন..."
+                                                else -> "Ask coach"
+                                            }
                                             Text(
-                                                text = "Ask coach",
+                                                text = placeholderText,
                                                 style = ZivaaTheme.typography.bodyLarge.copy(
                                                     color = ZivaaTheme.colors.textMeta.copy(alpha = 0.65f),
                                                     fontSize = 16.sp
@@ -585,6 +590,7 @@ fun CoachChatScreen(
                         item {
                             CoachFreshStartView(
                                 userName = viewModel.getUserFirstName(),
+                                preferredLanguage = viewModel.getPreferredLanguage(),
                                 onSelectPrompt = { prompt ->
                                     viewModel.sendMessage(prompt)
                                 }
@@ -621,15 +627,56 @@ fun CoachChatScreen(
 @Composable
 fun CoachFreshStartView(
     userName: String,
+    preferredLanguage: String = "English",
     onSelectPrompt: (String) -> Unit
 ) {
+    val isHindi = preferredLanguage.equals("Hindi", ignoreCase = true)
+    val isBengali = preferredLanguage.equals("Bengali", ignoreCase = true)
+
+    val greetingText = when {
+        isHindi -> "नमस्ते $userName जी! मैं ज़ीवा हूँ, आपकी AI हेल्थ और जीवनशैली कोच"
+        isBengali -> "নমস্কার $userName! আমি জিভা, আপনার AI স্বাস্থ্য ও দীর্ঘায়ু কোচ"
+        else -> "Hello $userName! I'm Zivaa, your AI Health & Longevity Coach"
+    }
+
+    val subtitleText = when {
+        isHindi -> "आप मुझसे पूछ सकते हैं:"
+        isBengali -> "আপনি আমাকে জিজ্ঞাসা করতে পারেন:"
+        else -> "You can ask me about:"
+    }
+
+    data class PromptGuide(
+        val number: Int,
+        val emoji: String,
+        val category: String,
+        val question: String
+    )
+
+    val prompts = when {
+        isHindi -> listOf(
+            PromptGuide(1, "🩺", "लक्षण और राहत", "मुझे सुबह से सिर में हल्का भारीपन लग रहा है, क्या करें?"),
+            PromptGuide(2, "🥗", "पोषण और आहार", "ब्लड प्रेशर के लिए कुछ कम नमक वाले नाश्ते के सुझाव दें?"),
+            PromptGuide(3, "🏃‍♂️", "सक्रियता और नींद", "रात में गहरी और आरामदायक नींद के लिए क्या उपाय करें?")
+        )
+        isBengali -> listOf(
+            PromptGuide(1, "🩺", "লক্ষণ ও সুস্থতা", "সকাল থেকে হালকা মাথাব্যথা করছে, কী করা উচিত?"),
+            PromptGuide(2, "🥗", "পুষ্টি ও খাদ্যতালিকা", "রক্তচাপের জন্য কম লবণের স্বাস্থ্যকর জলখাবারের পরামর্শ দিন?"),
+            PromptGuide(3, "🏃‍♂️", "ঘুম ও বিশ্রাম", "রাতে কীভাবে ভালো ও গভীর ঘুম হতে পারে?")
+        )
+        else -> listOf(
+            PromptGuide(1, "🩺", "Symptoms & Recovery", "I have a mild headache since morning, what should I do?"),
+            PromptGuide(2, "🥗", "Longevity & Nutrition", "Suggest low-sodium breakfast ideas for blood pressure?"),
+            PromptGuide(3, "🏃‍♂️", "Movement & Sleep", "How can I improve my deep sleep at night?")
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 12.dp)
     ) {
         Text(
-            text = "Hello $userName! I'm Zivaa, your AI Health & Longevity Coach",
+            text = greetingText,
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Normal,
@@ -641,7 +688,7 @@ fun CoachFreshStartView(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "You can ask me about:",
+            text = subtitleText,
             style = ZivaaTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -650,19 +697,6 @@ fun CoachFreshStartView(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        data class PromptGuide(
-            val number: Int,
-            val emoji: String,
-            val category: String,
-            val question: String
-        )
-
-        val prompts = listOf(
-            PromptGuide(1, "🩺", "Symptoms & Recovery", "I have a mild headache since morning, what should I do?"),
-            PromptGuide(2, "🥗", "Longevity & Nutrition", "Suggest low-sodium breakfast ideas for blood pressure?"),
-            PromptGuide(3, "🏃‍♂️", "Movement & Sleep", "How can I improve my deep sleep at night?")
-        )
 
         prompts.forEach { item ->
             val promptAnnotated = buildAnnotatedString {

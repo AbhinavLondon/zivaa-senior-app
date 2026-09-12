@@ -57,6 +57,10 @@ class CoachChatViewModel(
         return if (first.isNotBlank()) first.replaceFirstChar { it.uppercase() } else "Abhinav"
     }
 
+    fun getPreferredLanguage(): String {
+        return authManager.getPatientProfile()["preferred_language"] ?: "English"
+    }
+
     init {
         // Pre-load past sessions for the history screen, but start the active chat fresh
         loadSessions()
@@ -148,7 +152,8 @@ class CoachChatViewModel(
                     patient_id = patientId,
                     message = text,
                     timezone = ZoneId.systemDefault().id,
-                    session_id = _currentSessionId.value
+                    session_id = _currentSessionId.value,
+                    preferred_language = getPreferredLanguage()
                 )
                 val response = com.zivaa.app.data.remote.ZivaaBackendClient.apiService.streamCoachMessage(request)
                 

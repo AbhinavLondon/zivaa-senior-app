@@ -76,14 +76,17 @@ class AuthManager(context: Context) {
         return sharedPreferences.getString("user_id", null)
     }
     
-    fun savePatientProfile(fullName: String, locationCity: String?, createdAt: String?, dob: String?, profilePicUrl: String?) {
-        sharedPreferences.edit()
+    fun savePatientProfile(fullName: String, locationCity: String?, createdAt: String?, dob: String?, profilePicUrl: String?, preferredLanguage: String? = null) {
+        val editor = sharedPreferences.edit()
             .putString("full_name", fullName)
             .putString("location_city", locationCity)
             .putString("created_at", createdAt)
             .putString("dob", dob)
             .putString("profile_pic_url", profilePicUrl)
-            .apply()
+        if (preferredLanguage != null) {
+            editor.putString("preferred_language", preferredLanguage)
+        }
+        editor.apply()
     }
     
     fun getPatientProfile(): Map<String, String?> {
@@ -92,7 +95,8 @@ class AuthManager(context: Context) {
             "location_city" to sharedPreferences.getString("location_city", null),
             "created_at" to sharedPreferences.getString("created_at", null),
             "dob" to sharedPreferences.getString("dob", null),
-            "profile_pic_url" to sharedPreferences.getString("profile_pic_url", null)
+            "profile_pic_url" to sharedPreferences.getString("profile_pic_url", null),
+            "preferred_language" to sharedPreferences.getString("preferred_language", null)
         )
     }
 

@@ -48,7 +48,19 @@ data class SupabaseDailyVitalRecord(
     val sleepStage1Hours: Double?,
     
     @SerializedName("sleep_stage_5_hours")
-    val sleepStage5Hours: Double?
+    val sleepStage5Hours: Double?,
+
+    @SerializedName("sleep_onset_time")
+    val sleepOnsetTime: String? = null,
+
+    @SerializedName("final_wakeup_time")
+    val finalWakeupTime: String? = null,
+
+    @SerializedName("sleep_consistency_pct")
+    val sleepConsistencyPct: Double? = null,
+
+    @SerializedName("bedtime_variance_mins")
+    val bedtimeVarianceMins: Double? = null
 )
 
 @Keep

@@ -52,6 +52,15 @@ class SleepViewModel : ViewModel() {
         
     var nightSummaryText by mutableStateOf("Loading night summary...")
         private set
+
+    var sleepConsistencyPct by mutableStateOf<Double?>(null)
+        private set
+
+    var bedtimeVarianceMins by mutableStateOf<Double?>(null)
+        private set
+
+    var actionNudgeText by mutableStateOf("")
+        private set
     
     init {
         fetchSleepData()
@@ -99,7 +108,13 @@ class SleepViewModel : ViewModel() {
                         // Latest sleep is today's record (which is the last one in the 7-day list)
                         val latest = sleepHistory.last().sleepHours
                         latestSleepHoursText = formatHoursMinutes(latest)
-                        
+
+                        // Extract pre-computed consistency from the latest daily record
+                        val recordWithConsistency = records.firstOrNull { it.sleepConsistencyPct != null }
+                        if (recordWithConsistency != null) {
+                            sleepConsistencyPct = recordWithConsistency.sleepConsistencyPct
+                            bedtimeVarianceMins = recordWithConsistency.bedtimeVarianceMins
+                        }
                     } // end if response.isSuccessful
                     
                     // Fetch raw sleep session for "How the night went"
@@ -277,6 +292,42 @@ class SleepViewModel : ViewModel() {
             val deepMins = deepest?.let { java.time.Duration.between(it.start, it.end).toMinutes() } ?: 0
             val remMins = longestRem?.let { java.time.Duration.between(it.start, it.end).toMinutes() } ?: 0
             
+            // Fallback consistency calculation if DB hasn't backfilled yet
+            if (sleepConsistencyPct == null && allStages.isNotEmpty()) {
+                try {
+                    val dailyOnsets = allStages
+                        .groupBy { it.end.atZone(localZone).minusHours(12).toLocalDate() }
+                        .mapNotNull { (_, stagesForDay) ->
+                            stagesForDay.minByOrNull { it.start }?.start
+                        }
+                    if (dailyOnsets.size >= 2) {
+                        val minutesPast6pm = dailyOnsets.map { instant ->
+                            val zdt = instant.atZone(localZone)
+                            val hour = zdt.hour
+                            val minute = zdt.minute
+                            if (hour >= 12) (hour - 18) * 60 + minute else (hour + 6) * 60 + minute
+                        }
+                        val mean = minutesPast6pm.average()
+                        val sumSq = minutesPast6pm.sumOf { (it - mean) * (it - mean) }
+                        val variance = Math.sqrt(sumSq / (minutesPast6pm.size - 1))
+                        val score = Math.max(0.0, Math.min(100.0, Math.round(100.0 - variance * 0.75).toDouble()))
+                        sleepConsistencyPct = score
+                        bedtimeVarianceMins = Math.round(variance * 10.0) / 10.0
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            // Generate actionable, clinical sleep nudge
+            actionNudgeText = when {
+                awakeDuration >= 25 -> "You experienced longer wake periods during the night. Limit fluids 90 minutes before bed and keep your bedroom cool to minimize awakenings."
+                deepMins in 1..25 -> "Deep slow-wave recovery was brief last night. A 15-minute gentle walk before dusk and finishing dinner by 8 PM can deepen physical rest tonight."
+                sleepConsistencyPct != null && sleepConsistencyPct!! >= 85.0 -> "Your sleep rhythm is steady. Get 15 minutes of natural morning sunlight before 10 AM to lock in your circadian body clock for tonight."
+                sleepConsistencyPct != null && sleepConsistencyPct!! < 75.0 -> "Your bedtime shifted recently. Aim to begin winding down around your regular time tonight to restore steady circadian rhythm."
+                else -> "Get 15 minutes of natural morning sunlight before 10 AM to anchor your body clock for an easy sleep tonight."
+            }
+
             return "Asleep: $startFormatted, Up: $endFormatted. Awake duration: $awakeDuration mins. Deep sleep: $deepMins mins. REM: $remMins mins."
             
         } catch (e: Exception) {

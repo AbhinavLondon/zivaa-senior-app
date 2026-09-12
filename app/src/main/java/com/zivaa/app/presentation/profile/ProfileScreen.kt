@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -50,6 +51,8 @@ fun ProfileScreen(
     var showAddCondition by remember { mutableStateOf(false) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
     val frequencySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    val languageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val conditionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var conditionInput by remember { mutableStateOf("") }
     val selectedConditions = remember { mutableStateListOf<String>() }
@@ -367,6 +370,7 @@ fun ProfileScreen(
             var morningReport by remember { mutableStateOf(true) }
             val darkTheme by viewModel.darkThemeEnabled.collectAsState()
             val showLongevityPlan by viewModel.showLongevityPlanEnabled.collectAsState()
+            val preferredLanguage by viewModel.preferredLanguage.collectAsState()
             var showDeleteDialog by remember { mutableStateOf(false) }
 
             LazyColumn(
@@ -565,30 +569,64 @@ fun ProfileScreen(
                             SettingToggle("Show my longevity plan", "Show longevity plan on Today's screen", showLongevityPlan) { viewModel.setShowLongevityPlan(it) }
                         ),
                         bottomContent = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .border(1.dp, ProfileTheme.colors.accentGreen, RoundedCornerShape(999.dp))
-                                    .background(Color.Transparent)
-                                    .clickable { onNavigateToCustomisePlan() },
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showLanguageDialog = true }
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit",
-                                        tint = ProfileTheme.colors.accentGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                                        Text(
+                                            text = "Preferred language",
+                                            style = ProfileTheme.typography.cardTitle
+                                        )
+                                        Text(
+                                            text = "Choose your preferred language",
+                                            style = ProfileTheme.typography.cardSubtitle,
+                                            color = ProfileTheme.colors.textSecondary
+                                        )
+                                    }
+                                    
                                     Text(
-                                        text = "Customise my plan",
-                                        style = ProfileTheme.typography.cardTitle.copy(color = ProfileTheme.colors.accentGreen)
+                                        text = preferredLanguage,
+                                        color = ProfileTheme.colors.accentGreen,
+                                        style = ProfileTheme.typography.cardTitle
                                     )
+                                }
+                                
+                                HorizontalDivider(
+                                    color = ProfileTheme.colors.divider,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .border(1.dp, ProfileTheme.colors.accentGreen, RoundedCornerShape(999.dp))
+                                        .background(Color.Transparent)
+                                        .clickable { onNavigateToCustomisePlan() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = ProfileTheme.colors.accentGreen,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Customise my plan",
+                                            style = ProfileTheme.typography.cardTitle.copy(color = ProfileTheme.colors.accentGreen)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -719,6 +757,70 @@ fun ProfileScreen(
                                 Column {
                                     Text(text = displayTitle, style = ProfileTheme.typography.cardTitle)
                                     Text(text = desc, style = ProfileTheme.typography.cardSubtitle, color = ProfileTheme.colors.textSecondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showLanguageDialog) {
+                ModalBottomSheet(
+                    onDismissRequest = { showLanguageDialog = false },
+                    sheetState = languageSheetState,
+                    containerColor = ProfileTheme.colors.cardBackground,
+                    dragHandle = { BottomSheetDefaults.DragHandle() }
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 24.dp),
+                        contentPadding = PaddingValues(bottom = 32.dp)
+                    ) {
+                        item {
+                            Text("Preferred Language", style = ProfileTheme.typography.sectionHeader)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        val languages = listOf(
+                            "English" to "English (Default)",
+                            "Hindi" to "हिंदी (Hindi)",
+                            "Bengali" to "বাংলা (Bengali)",
+                            "Marathi" to "मराठी (Marathi)",
+                            "Telugu" to "తెలుగు (Telugu)",
+                            "Tamil" to "தமிழ் (Tamil)",
+                            "Gujarati" to "ગુજરાતી (Gujarati)",
+                            "Kannada" to "ಕನ್ನಡ (Kannada)",
+                            "Malayalam" to "മലയാളം (Malayalam)",
+                            "Punjabi" to "ਪੰਜਾਬੀ (Punjabi)",
+                            "Odia" to "ଓଡ଼ିଆ (Odia)"
+                        )
+
+                        items(languages) { (langName, nativeLabel) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        viewModel.setPreferredLanguage(langName)
+                                        showLanguageDialog = false
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (preferredLanguage == langName),
+                                    onClick = {
+                                        viewModel.setPreferredLanguage(langName)
+                                        showLanguageDialog = false
+                                    },
+                                    colors = RadioButtonDefaults.colors(selectedColor = ProfileTheme.colors.accentGreen)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(text = langName, style = ProfileTheme.typography.cardTitle)
+                                    Text(text = nativeLabel, style = ProfileTheme.typography.cardSubtitle, color = ProfileTheme.colors.textSecondary)
                                 }
                             }
                         }

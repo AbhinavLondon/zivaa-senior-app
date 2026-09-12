@@ -223,7 +223,13 @@ data class SyncCompletePayload(val patient_id: String? = null, val timezone: Str
 data class UpdateTaskPayload(val patient_id: String? = null, val period: String? = null, val task_index: Int? = null, val completed: Boolean? = null)
 data class CategorySummaryResponse(val summary: String? = null)
 data class DeviceRegistrationRequest(val device_id: String? = null, val token: String? = null, val fcm_token: String? = null, val patient_id: String? = null, val timezone: String? = null)
-data class CoachChatRequest(val patient_id: String? = null, val message: String? = null, val timezone: String? = null, val session_id: String? = null)
+data class CoachChatRequest(
+    val patient_id: String? = null,
+    val message: String? = null,
+    val timezone: String? = null,
+    val session_id: String? = null,
+    @SerializedName("preferred_language") val preferred_language: String? = null
+)
 data class CoachChatResponse(val patient_id: String? = null, val reply: String = "", val suggested_actions: List<String>? = null, val acuity_level: String? = null, val timestamp: String? = null, val session_id: String? = null)
 data class CoachSessionSummary(val session_id: String = "", val title: String = "", val preview: String? = null, val message_count: Int = 0, val created_at: String = "", val updated_at: String = "")
 data class SymptomReplyRequest(val patient_id: String? = null, val symptom_id: String? = null, val reply_status: String = "")

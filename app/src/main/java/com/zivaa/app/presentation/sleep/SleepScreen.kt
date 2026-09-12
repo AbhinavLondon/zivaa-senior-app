@@ -93,8 +93,11 @@ fun SleepScreen(
                     latestSleep = viewModel.latestSleepHoursText,
                     latestSleepStartEndTime = viewModel.latestSleepStartEndTime,
                     summaryText = viewModel.nightSummaryText,
+                    actionNudgeText = viewModel.actionNudgeText,
                     heroInsightText = viewModel.heroInsightText,
-                    isHeroInsightLoading = viewModel.isHeroInsightLoading
+                    isHeroInsightLoading = viewModel.isHeroInsightLoading,
+                    sleepConsistencyPct = viewModel.sleepConsistencyPct,
+                    bedtimeVarianceMins = viewModel.bedtimeVarianceMins
                 )
 
                 SectionHeader(title = "How The Night Went")
@@ -151,7 +154,16 @@ private fun TopRow(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun HeroCard(latestSleep: String, latestSleepStartEndTime: String, summaryText: String, heroInsightText: String = "", isHeroInsightLoading: Boolean = false) {
+private fun HeroCard(
+    latestSleep: String,
+    latestSleepStartEndTime: String,
+    summaryText: String,
+    actionNudgeText: String = "",
+    heroInsightText: String = "",
+    isHeroInsightLoading: Boolean = false,
+    sleepConsistencyPct: Double? = null,
+    bedtimeVarianceMins: Double? = null
+) {
     val colors = ZivaaTheme.colors
     Box(
         modifier = Modifier
@@ -218,26 +230,62 @@ private fun HeroCard(latestSleep: String, latestSleepStartEndTime: String, summa
         Column(
             modifier = Modifier.padding(24.dp)
         ) {
-            // Pill
+            // Pills row (Status + Sleep Consistency)
             Row(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(pillBgColor)
-                    .padding(start = 9.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
+                // Main Status Pill
+                Row(
                     modifier = Modifier
-                        .size(7.dp)
                         .clip(CircleShape)
-                        .background(pillDotColor)
-                )
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = badgeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = pillTextColor
-                )
+                        .background(pillBgColor)
+                        .padding(start = 9.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(pillDotColor)
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = pillTextColor
+                    )
+                }
+
+                // Sleep Consistency Pill
+                if (sleepConsistencyPct != null) {
+                    val score = sleepConsistencyPct.toInt()
+                    val (consistencyLabel, consistencyDot) = when {
+                        score >= 85 -> "Steady Rhythm · ${score}%" to Color(0xFFD9E8D2)
+                        score >= 70 -> "Moderate · ${score}%" to brightAmber
+                        else -> "Variable · ${score}%" to brightRose
+                    }
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(pillBgColor)
+                            .padding(start = 9.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(consistencyDot)
+                        )
+                        Spacer(modifier = Modifier.width(7.dp))
+                        Text(
+                            text = consistencyLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = consistencyDot
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -277,12 +325,48 @@ private fun HeroCard(latestSleep: String, latestSleepStartEndTime: String, summa
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = summaryText,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
-                color = Color(0xD1F6F3EE) // 0.82 approx
-            )
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Actionable Sleep Nudge Banner (Replaces redundant stage summary)
+            val displayText = actionNudgeText.ifEmpty { summaryText }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0x1EF6F3EE))
+                    .border(0.5.dp, Color(0x33F6F3EE), RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = brightAmber,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "TODAY'S ACTION",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = brightAmber
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = displayText,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.5.sp,
+                            lineHeight = 19.5.sp
+                        ),
+                        color = Color(0xF2F6F3EE)
+                    )
+                }
+            }
         }
     }
 }
