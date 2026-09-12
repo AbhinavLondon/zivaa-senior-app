@@ -46,7 +46,7 @@ fun SeniorDobBottomSheet(
     val days = (1..31).toList()
     val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
     val currentYear = LocalDate.now().year
-    val years = (currentYear - 100..currentYear - 18).toList().reversed()
+    val years = (currentYear - 100..currentYear - 18).toList()
 
     val dayState = rememberLazyListState(initialFirstVisibleItemIndex = days.indexOf(initialDay).coerceAtLeast(0))
     val monthState = rememberLazyListState(initialFirstVisibleItemIndex = (initialMonth - 1).coerceIn(0, 11))
