@@ -23,8 +23,8 @@ data class SetupState(
     val gender: String = "",
     val email: String = "",
     val preferredLanguage: String = "English",
-    val smokingStatus: String = "Non-smoker",
-    val alcoholStatus: String = "Never / Teetotaler",
+    val smokingStatus: String = "",
+    val alcoholStatus: String = "",
     val isOtpSent: Boolean = false,
     val isEmailVerified: Boolean = false,
     val selectedConditions: Set<String> = emptySet(),
@@ -209,6 +209,16 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
         _state.value = _state.value.copy(selectedConditions = current)
     }
 
+    fun addCustomCondition(condition: String) {
+        val trimmed = condition.trim()
+        if (trimmed.isNotBlank()) {
+            val current = _state.value.selectedConditions.toMutableSet()
+            current.remove("None")
+            current.add(trimmed)
+            _state.value = _state.value.copy(selectedConditions = current)
+        }
+    }
+
     fun selectWearable(wearable: String) {
         _state.value = _state.value.copy(selectedWearable = wearable)
     }
@@ -382,8 +392,8 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                             healthConditions = _state.value.selectedConditions.toList(),
                             eveningActivities = _state.value.evening.toList(),
                             reminders = _state.value.reminders,
-                            smokingStatus = _state.value.smokingStatus,
-                            alcoholStatus = _state.value.alcoholStatus
+                            smokingStatus = _state.value.smokingStatus.ifBlank { null },
+                            alcoholStatus = _state.value.alcoholStatus.ifBlank { null }
                         )
                         RetrofitClient.apiService.insertPlanSetup(planSetup)
                     } catch (e: Exception) {

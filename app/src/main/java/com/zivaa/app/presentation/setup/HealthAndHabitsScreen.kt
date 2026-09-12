@@ -1,47 +1,35 @@
 package com.zivaa.app.presentation.setup
 
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LocalDrink
-import androidx.compose.material.icons.filled.SmokingRooms
-import androidx.compose.material.icons.rounded.Sync
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.health.connect.client.PermissionController
-import com.zivaa.app.data.health.HealthConnectManager
-import com.zivaa.app.data.health.HealthConnectSupport
-import com.zivaa.app.presentation.plan.PlanSetupTheme
-import com.zivaa.app.presentation.plan.PlanSetupTones
-import com.zivaa.app.presentation.plan.SelectionCard
-import com.zivaa.app.presentation.plan.SelectionChip
-import com.zivaa.app.ui.theme.Manrope
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,345 +39,339 @@ fun HealthAndHabitsScreen(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val healthConnectManager = remember { HealthConnectManager(context) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
-    val requestPermissionsLauncher = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(healthConnectManager.permissions)) {
-            viewModel.selectWearable("Google Health Connect")
-            Toast.makeText(context, "Health Connect connected successfully!", Toast.LENGTH_SHORT).show()
-        } else {
-            viewModel.selectWearable("Google Health Connect")
-            Toast.makeText(context, "Some permissions granted. You can adjust them anytime.", Toast.LENGTH_SHORT).show()
-        }
+    var customConditionText by remember { mutableStateOf("") }
+
+    val baseConditions = remember {
+        listOf(
+            "Diabetes",
+            "Blood pressure",
+            "Heart condition",
+            "High cholesterol",
+            "Knee or joint pain",
+            "Back pain",
+            "Thyroid",
+            "Acid reflux / GERD",
+            "Asthma / Breathing",
+            "Light sleep",
+            "Low appetite",
+            "Fatigue",
+            "None"
+        )
     }
 
-    val isConnected = state.selectedWearable == "Google Health Connect"
+    // Combine base conditions with any custom conditions added by the user
+    val customConditions = remember(state.selectedConditions) {
+        state.selectedConditions.filter { it !in baseConditions }
+    }
+    val allConditions = remember(customConditions) {
+        customConditions + baseConditions
+    }
+
+    val smokingOptions = remember {
+        listOf("Non-smoker", "Former smoker", "Occasional", "Regular")
+    }
+
+    val alcoholOptions = remember {
+        listOf("Never / Teetotaler", "Occasional", "Moderate", "Regular")
+    }
+
+    val commitCustomCondition = {
+        if (customConditionText.trim().isNotBlank()) {
+            viewModel.addCustomCondition(customConditionText.trim())
+            customConditionText = ""
+        }
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
+
+    val handleNext = {
+        if (customConditionText.trim().isNotBlank()) {
+            viewModel.addCustomCondition(customConditionText.trim())
+            customConditionText = ""
+        }
+        onNext()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(com.zivaa.app.ui.theme.LocalZivaaColors.current.bg)
+            .background(ZivaaTheme.colors.bg)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
             ZivaaTopBar(stepNo = 3, totalSteps = 5, onBack = onBack)
+
             ZivaaHeader(
                 label = "Step 3 of 5 · Baseline",
-                title = "Health & Lifestyle",
-                subtitle = "Helps Zivaa personalize daily activity thresholds, reminders, and gentle safety guardrails."
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // Section 1: Pre-existing Conditions
-                SelectionCard(
-                    tone = PlanSetupTones.Clay,
-                    icon = Icons.Default.Favorite,
-                    eyebrow = "Health · pick all that apply",
-                    question = "Anything to plan around?",
-                    hint = "Timings, meals and movement adjust quietly around these.",
-                    options = listOf(
-                        "Diabetes",
-                        "Blood pressure",
-                        "Heart condition",
-                        "High cholesterol",
-                        "Knee or joint pain",
-                        "Back pain",
-                        "Thyroid",
-                        "Acid reflux / GERD",
-                        "Asthma / Breathing",
-                        "Light sleep",
-                        "Low appetite",
-                        "Fatigue",
-                        "None"
-                    ),
-                    selectedOptions = state.selectedConditions,
-                    onOptionToggled = { viewModel.toggleCondition(it) }
-                )
-
-                // Section 2: Lifestyle Habits (Smoking & Alcohol)
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(
-                            elevation = 3.dp,
-                            shape = RoundedCornerShape(22.dp),
-                            ambientColor = Color(0x0A000000),
-                            spotColor = Color(0x10000000)
-                        ),
-                    shape = RoundedCornerShape(22.dp),
-                    color = PlanSetupTheme.BgElev,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, PlanSetupTheme.Line)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(PlanSetupTones.Amber.bg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SmokingRooms,
-                                    contentDescription = null,
-                                    tint = PlanSetupTones.Amber.fg,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = "Lifestyle · Daily Habits".toEyebrowTitleCase(),
-                                    fontFamily = Manrope,
-                                    fontSize = 12.sp,
-                                    letterSpacing = 0.2.sp,
-                                    color = PlanSetupTheme.Eyebrow,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = "Daily Habits",
-                                    fontFamily = Manrope,
-                                    fontSize = 21.sp,
-                                    lineHeight = 23.sp,
-                                    letterSpacing = (-0.1).sp,
-                                    color = PlanSetupTheme.Ink,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    text = "Confidential & optional. Used to fine-tune your hydration and metabolic suggestions.",
-                                    fontFamily = Manrope,
-                                    fontSize = 12.5.sp,
-                                    lineHeight = 18.sp,
-                                    color = PlanSetupTheme.InkSoft,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            }
-                        }
-
-                        // Smoking Chips
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Smoking",
-                                fontFamily = Manrope,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PlanSetupTheme.Ink
-                            )
-                            val smokingOptions = listOf("Non-smoker", "Former smoker", "Occasional", "Regular")
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                smokingOptions.forEach { option ->
-                                    val isSelected = state.smokingStatus == option
-                                    SelectionChip(
-                                        label = option,
-                                        isSelected = isSelected,
-                                        tone = PlanSetupTones.Amber,
-                                        onClick = {
-                                            viewModel.updateSmokingStatus(if (isSelected) "" else option)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Alcohol Chips
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Alcohol intake",
-                                fontFamily = Manrope,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PlanSetupTheme.Ink
-                            )
-                            val alcoholOptions = listOf("Never / Teetotaler", "Occasional", "Moderate", "Regular")
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                alcoholOptions.forEach { option ->
-                                    val isSelected = state.alcoholStatus == option
-                                    SelectionChip(
-                                        label = option,
-                                        isSelected = isSelected,
-                                        tone = PlanSetupTones.Amber,
-                                        onClick = {
-                                            viewModel.updateAlcoholStatus(if (isSelected) "" else option)
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                title = buildAnnotatedString {
+                    append("Health & ")
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = ZivaaTheme.colors.sage)) {
+                        append("lifestyle")
                     }
-                }
+                },
+                subtitle = "Helps Zivaa calibrate your daily checklist, safe physical baselines, and nutrition advice."
+            )
 
-                // Section 3: Wearable & Health Connect
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(
-                            elevation = 3.dp,
-                            shape = RoundedCornerShape(22.dp),
-                            ambientColor = Color(0x0A000000),
-                            spotColor = Color(0x10000000)
-                        ),
-                    shape = RoundedCornerShape(22.dp),
-                    color = PlanSetupTheme.BgElev,
-                    border = androidx.compose.foundation.BorderStroke(
-                        if (isConnected) 1.dp else 0.5.dp,
-                        if (isConnected) PlanSetupTones.Sage.bg else PlanSetupTheme.Line
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // 1. Pre-existing Conditions (No Card, Clean Surface)
+            Text(
+                text = "Anything to plan around? (Optional)".toEyebrowTitleCase(),
+                style = ZivaaTheme.typography.eyebrow,
+                color = ZivaaTheme.colors.eyebrow,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            Text(
+                text = "Timings, meals and safe movement adjust quietly around these.",
+                style = ZivaaTheme.typography.bodyMedium,
+                color = ZivaaTheme.colors.inkSoft,
+                modifier = Modifier.padding(bottom = 14.dp)
+            )
+
+            // Condition Pills
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                allConditions.forEach { condition ->
+                    val isSelected = state.selectedConditions.contains(condition)
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.toggleCondition(condition)
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) ZivaaTheme.colors.sage.copy(alpha = 0.12f) else ZivaaTheme.colors.bgElev,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.lineStrong
+                        )
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(PlanSetupTones.Sage.bg.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Sync,
-                                    contentDescription = null,
-                                    tint = PlanSetupTones.Sage.bg,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Wearable & Activity Sync".toEyebrowTitleCase(),
-                                    fontFamily = Manrope,
-                                    fontSize = 12.sp,
-                                    letterSpacing = 0.2.sp,
-                                    color = PlanSetupTheme.Eyebrow,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = "Google Health Connect",
-                                    fontFamily = Manrope,
-                                    fontSize = 20.sp,
-                                    lineHeight = 22.sp,
-                                    color = PlanSetupTheme.Ink,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Sync steps, sleep, and heart rate quietly in the background from your watch or phone.",
-                                    fontFamily = Manrope,
-                                    fontSize = 12.5.sp,
-                                    lineHeight = 17.sp,
-                                    color = PlanSetupTheme.InkSoft
-                                )
-                            }
-                        }
-
-                        if (isConnected) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(PlanSetupTones.Sage.bg.copy(alpha = 0.15f))
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = PlanSetupTones.Sage.bg,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "Connected · Vitals & steps will sync automatically",
-                                    fontFamily = Manrope,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PlanSetupTones.Sage.bg
+                                    tint = ZivaaTheme.colors.sage,
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        val support = healthConnectManager.checkHealthConnectSupportAndRedirect()
-                                        if (support == HealthConnectSupport.AVAILABLE) {
-                                            if (healthConnectManager.hasAllPermissions()) {
-                                                viewModel.selectWearable("Google Health Connect")
-                                                Toast.makeText(context, "Health Connect is already connected!", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                requestPermissionsLauncher.launch(healthConnectManager.permissions)
-                                            }
-                                        } else if (support == HealthConnectSupport.INSTALL_REQUIRED) {
-                                            Toast.makeText(context, "Please install Health Connect from the Play Store.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(ZivaaTheme.spacing.radiusPill),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, PlanSetupTones.Sage.bg)
-                            ) {
-                                Text(
-                                    text = "Connect Health Connect (Optional)",
-                                    fontFamily = Manrope,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PlanSetupTones.Sage.bg
-                                )
-                            }
+                            Text(
+                                text = condition,
+                                style = ZivaaTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.ink
+                            )
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
             }
+
+            // Free-Text Option to add any other condition
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = customConditionText,
+                    onValueChange = { customConditionText = it },
+                    placeholder = {
+                        Text(
+                            text = "Add another condition or note...",
+                            style = ZivaaTheme.typography.bodyMedium,
+                            color = ZivaaTheme.colors.inkMute
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ZivaaTheme.colors.sage,
+                        unfocusedBorderColor = ZivaaTheme.colors.lineStrong,
+                        focusedContainerColor = ZivaaTheme.colors.bgElev,
+                        unfocusedContainerColor = ZivaaTheme.colors.bgElev,
+                        cursorColor = ZivaaTheme.colors.sage,
+                        focusedTextColor = ZivaaTheme.colors.ink,
+                        unfocusedTextColor = ZivaaTheme.colors.ink
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { commitCustomCondition() }
+                    ),
+                    textStyle = ZivaaTheme.typography.bodyMedium
+                )
+
+                Surface(
+                    onClick = { commitCustomCondition() },
+                    modifier = Modifier
+                        .height(54.dp)
+                        .width(76.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (customConditionText.trim().isNotBlank()) ZivaaTheme.colors.sage else ZivaaTheme.colors.bgElev,
+                    border = BorderStroke(
+                        1.dp,
+                        if (customConditionText.trim().isNotBlank()) ZivaaTheme.colors.sage else ZivaaTheme.colors.lineStrong
+                    )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "+ Add",
+                            style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (customConditionText.trim().isNotBlank()) Color.White else ZivaaTheme.colors.inkMute
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // 2. Smoking Habit (Optional - No Default Selection)
+            Text(
+                text = "Smoking Habit (Optional)".toEyebrowTitleCase(),
+                style = ZivaaTheme.typography.eyebrow,
+                color = ZivaaTheme.colors.eyebrow,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            Text(
+                text = "Confidential. Used to calibrate circulation and respiratory baselines.",
+                style = ZivaaTheme.typography.bodyMedium,
+                color = ZivaaTheme.colors.inkSoft,
+                modifier = Modifier.padding(bottom = 14.dp)
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                smokingOptions.forEach { option ->
+                    val isSelected = state.smokingStatus == option
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.updateSmokingStatus(if (isSelected) "" else option)
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) ZivaaTheme.colors.sage.copy(alpha = 0.12f) else ZivaaTheme.colors.bgElev,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.lineStrong
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = ZivaaTheme.colors.sage,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Text(
+                                text = option,
+                                style = ZivaaTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.ink
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // 3. Alcohol Intake (Optional - No Default Selection)
+            Text(
+                text = "Alcohol Intake (Optional)".toEyebrowTitleCase(),
+                style = ZivaaTheme.typography.eyebrow,
+                color = ZivaaTheme.colors.eyebrow,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            Text(
+                text = "Confidential. Helps calibrate hydration and metabolic suggestions.",
+                style = ZivaaTheme.typography.bodyMedium,
+                color = ZivaaTheme.colors.inkSoft,
+                modifier = Modifier.padding(bottom = 14.dp)
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                alcoholOptions.forEach { option ->
+                    val isSelected = state.alcoholStatus == option
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.updateAlcoholStatus(if (isSelected) "" else option)
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) ZivaaTheme.colors.sage.copy(alpha = 0.12f) else ZivaaTheme.colors.bgElev,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.lineStrong
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = ZivaaTheme.colors.sage,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Text(
+                                text = option,
+                                style = ZivaaTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) ZivaaTheme.colors.sage else ZivaaTheme.colors.ink
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // Bottom Continue Button
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -398,7 +380,7 @@ fun HealthAndHabitsScreen(
         ) {
             ZivaaButton(
                 text = "Continue",
-                onClick = onNext,
+                onClick = handleNext,
                 enabled = true
             )
         }

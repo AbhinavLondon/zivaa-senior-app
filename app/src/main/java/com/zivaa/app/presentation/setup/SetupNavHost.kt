@@ -86,9 +86,19 @@ fun SetupNavHost(
             )
         }
 
-        // Step 3 of 5: Health Conditions, Smoking, Alcohol, and Health Connect
+        // Step 3 of 5: Health Conditions, Smoking, Alcohol
         composable("health_habits") {
             HealthAndHabitsScreen(
+                state = state,
+                viewModel = viewModel,
+                onNext = { navController.navigate("health_connect") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Dedicated Google Health Connect Page
+        composable("health_connect") {
+            SetupHealthConnectScreen(
                 state = state,
                 viewModel = viewModel,
                 onNext = { navController.navigate("daily_rhythm") },
