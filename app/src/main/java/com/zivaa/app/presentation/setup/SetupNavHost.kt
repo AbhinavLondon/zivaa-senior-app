@@ -36,7 +36,7 @@ fun SetupNavHost(
             )
         }
 
-        // Step 1 of 5: About You (Name, DOB Wheel Picker, Gender, Height, Weight)
+        // Step 1 of 6: About You (Name, DOB Wheel Picker, Gender, Height, Weight)
         composable("about_you") {
             AboutYouScreen(
                 state = state,
@@ -76,7 +76,7 @@ fun SetupNavHost(
             )
         }
 
-        // Step 2 of 5: Primary Focus (Preserved exact current grid)
+        // Step 2 of 6: Primary Focus (Preserved exact current grid)
         composable("primary_focus") {
             SetupFocusScreen(
                 state = state,
@@ -86,7 +86,7 @@ fun SetupNavHost(
             )
         }
 
-        // Step 3 of 5: Health Conditions, Smoking, Alcohol
+        // Step 3 of 6: Health Conditions, Smoking, Alcohol
         composable("health_habits") {
             HealthAndHabitsScreen(
                 state = state,
@@ -96,7 +96,7 @@ fun SetupNavHost(
             )
         }
 
-        // Dedicated Google Health Connect Page
+        // Step 4 of 6: Dedicated Google Health Connect Page
         composable("health_connect") {
             SetupHealthConnectScreen(
                 state = state,
@@ -106,7 +106,7 @@ fun SetupNavHost(
             )
         }
 
-        // Step 4 of 5: Daily Rhythm (Mornings, Movement & Step Goal, Diet, Evenings)
+        // Step 5 of 6: Daily Rhythm (Mornings, Movement & Step Goal, Diet, Evenings)
         composable("daily_rhythm") {
             DailyRhythmScreen(
                 state = state,
@@ -116,7 +116,7 @@ fun SetupNavHost(
             )
         }
 
-        // Step 5 of 5: Care Circle / Family Sharing (WhatsApp Morning Updates + Skip)
+        // Step 6 of 6: Care Circle / Family Sharing (WhatsApp Morning Updates + Skip)
         composable("care_circle") {
             FamilySharingScreen(
                 state = state,

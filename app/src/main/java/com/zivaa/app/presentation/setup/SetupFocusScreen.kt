@@ -26,7 +26,7 @@ fun SetupFocusScreen(
             .fillMaxSize()
             .background(colors.bg)
     ) {
-        ZivaaTopBar(stepNo = 2, totalSteps = 5, onBack = onBack)
+        ZivaaTopBar(stepNo = 2, totalSteps = 6, onBack = onBack)
         
         // Vertically scrollable content with header, focus options, and details
         Box(modifier = Modifier.weight(1f)) {
@@ -36,7 +36,7 @@ fun SetupFocusScreen(
                 header = {
                     Column {
                         ZivaaHeader(
-                            label = "Step 2 of 5 · Focus",
+                            label = "Step 2 of 6 · Focus",
                             title = buildAnnotatedString {
                                 append("What's your ")
                                 withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = colors.sage)) {

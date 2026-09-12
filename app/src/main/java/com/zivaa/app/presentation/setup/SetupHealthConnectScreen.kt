@@ -76,10 +76,10 @@ fun SetupHealthConnectScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
-            ZivaaTopBar(stepNo = 3, totalSteps = 5, onBack = onBack)
+            ZivaaTopBar(stepNo = 4, totalSteps = 6, onBack = onBack)
 
             ZivaaHeader(
-                label = "Device Sync · Optional",
+                label = "Step 4 of 6 · Device Sync · Optional",
                 title = buildAnnotatedString {
                     append("Connect ")
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = ZivaaTheme.colors.sage)) {
@@ -139,8 +139,8 @@ fun SetupHealthConnectScreen(
                 )
                 HealthFeatureCard(
                     icon = Icons.Rounded.Security,
-                    title = "Private & On-Device",
-                    description = "Your health data stays strictly encrypted on your phone.",
+                    title = "Safe and Secure",
+                    description = "Your health data is processed safely and securely.",
                     color = ZivaaTheme.colors.amber
                 )
             }

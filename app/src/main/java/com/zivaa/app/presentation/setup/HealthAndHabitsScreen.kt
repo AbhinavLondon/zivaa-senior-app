@@ -107,10 +107,10 @@ fun HealthAndHabitsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
-            ZivaaTopBar(stepNo = 3, totalSteps = 5, onBack = onBack)
+            ZivaaTopBar(stepNo = 3, totalSteps = 6, onBack = onBack)
 
             ZivaaHeader(
-                label = "Step 3 of 5 · Baseline",
+                label = "Step 3 of 6 · Baseline",
                 title = buildAnnotatedString {
                     append("Health & ")
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = ZivaaTheme.colors.sage)) {

@@ -120,10 +120,10 @@ fun AboutYouScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            ZivaaTopBar(stepNo = 1, totalSteps = 5, onBack = onBack)
+            ZivaaTopBar(stepNo = 1, totalSteps = 6, onBack = onBack)
 
             ZivaaHeader(
-                label = "Step 1 of 5 · About you",
+                label = "Step 1 of 6 · About you",
                 title = buildAnnotatedString {
                     append("Let's start with ")
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {

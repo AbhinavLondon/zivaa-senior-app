@@ -36,9 +36,9 @@ fun DailyRhythmScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
         ) {
-            ZivaaTopBar(stepNo = 4, totalSteps = 5, onBack = onBack)
+            ZivaaTopBar(stepNo = 5, totalSteps = 6, onBack = onBack)
             ZivaaHeader(
-                label = "Step 4 of 5 · Daily Rhythm",
+                label = "Step 5 of 6 · Daily Rhythm",
                 title = "Your Daily Rhythm",
                 subtitle = "Design a rhythm that fits your existing habits naturally."
             )

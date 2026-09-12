@@ -34,10 +34,10 @@ fun FamilySharingScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            ZivaaTopBar(stepNo = 5, totalSteps = 5, onBack = onBack)
+            ZivaaTopBar(stepNo = 6, totalSteps = 6, onBack = onBack)
 
             ZivaaHeader(
-                label = "STEP 5 OF 5 · CARE CIRCLE",
+                label = "STEP 6 OF 6 · CARE CIRCLE",
                 title = buildAnnotatedString {
                     append("Keep your family ")
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
