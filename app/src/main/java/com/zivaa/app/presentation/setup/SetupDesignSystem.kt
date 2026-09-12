@@ -170,7 +170,7 @@ fun ZivaaSegmentedGenderSelection(
     val options = listOf("Male", "Female", "Other")
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Gender",
+            text = "Gender".toEyebrowTitleCase(),
             style = ZivaaTheme.typography.eyebrow,
             color = ZivaaTheme.colors.eyebrow,
             modifier = Modifier.padding(bottom = 6.dp)

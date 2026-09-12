@@ -20,7 +20,7 @@ data class FamilyMember(
 data class SetupState(
     val name: String = "",
     val dob: String = "",
-    val gender: String = "Male",
+    val gender: String = "",
     val email: String = "",
     val preferredLanguage: String = "English",
     val smokingStatus: String = "Non-smoker",

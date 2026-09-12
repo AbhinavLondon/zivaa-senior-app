@@ -171,7 +171,10 @@ fun AboutYouScreen(
             // 3. Gender (Standard 48dp segmented pills)
             ZivaaSegmentedGenderSelection(
                 selectedOption = state.gender,
-                onOptionSelected = { viewModel.updateAboutYou(state.name, state.dob, it) },
+                onOptionSelected = {
+                    closeKeyboard()
+                    viewModel.updateAboutYou(state.name, state.dob, it)
+                },
                 modifier = Modifier.padding(bottom = 20.dp)
             )
 
@@ -240,6 +243,12 @@ fun AboutYouScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        val isFormValid = state.name.trim().isNotBlank() &&
+            state.dob.trim().isNotBlank() &&
+            state.gender.trim().isNotBlank() &&
+            state.heightInches != null && state.heightInches > 0 &&
+            state.weightKg != null && state.weightKg > 0
+
         // Bottom Continue Button
         Column(
             modifier = Modifier
@@ -250,7 +259,7 @@ fun AboutYouScreen(
             ZivaaButton(
                 text = "Continue",
                 onClick = onNext,
-                enabled = state.name.isNotBlank()
+                enabled = isFormValid
             )
         }
     }
