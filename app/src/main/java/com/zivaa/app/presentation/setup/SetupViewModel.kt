@@ -116,21 +116,23 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
             // The DB trigger creates a skeleton row with dateOfBirth = NULL.
             val hasCompletedOnboarding = patient != null && !patient.dateOfBirth.isNullOrBlank()
             
+            val patientName = patient?.fullName
             val cachedName = auth.getPatientProfile()["full_name"]
             val resolvedName = when {
                 _state.value.name.isNotBlank() -> _state.value.name
                 !metaName.isNullOrBlank() -> metaName
-                !patient?.fullName.isNullOrBlank() && patient.fullName != "New User" -> patient.fullName
+                !patientName.isNullOrBlank() && patientName != "New User" -> patientName
                 !cachedName.isNullOrBlank() -> cachedName
                 else -> ""
             }
 
+            val patientPhone = patient?.phone
             val cachedEmail = auth.getUserEmail()
             val resolvedEmail = when {
                 _state.value.email.isNotBlank() -> _state.value.email
                 !metaEmail.isNullOrBlank() -> metaEmail
                 !cachedEmail.isNullOrBlank() -> cachedEmail
-                !patient?.phone.isNullOrBlank() && patient.phone.contains("@") -> patient.phone
+                !patientPhone.isNullOrBlank() && patientPhone.contains("@") -> patientPhone
                 else -> ""
             }
 
