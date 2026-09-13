@@ -353,13 +353,14 @@ fun DashboardScreen(
 
                     StatsStrip(
                         steps = viewModel.steps,
-                        stepsGoal = viewModel.stepsGoal,
+                        stepsGoal = viewModel.stepsGoal ?: 10000,
                         mood = viewModel.mood,
                         sleepHours = viewModel.sleepHours,
                         avgHeartRate = viewModel.heartRate,
                         oxygenLevel = viewModel.oxygenLevel,
                         mostRecentCheckin = mostRecentCheckin,
                         sleepInsightText = viewModel.sleepInsightText,
+                        modifier = Modifier,
                         onNavigateToMovement = onNavigateToMovement,
                         onNavigateToSleep = onNavigateToSleep,
                         onNavigateToMood = onNavigateToMood,
@@ -1402,19 +1403,19 @@ fun GoalsCard(
 @Composable
 fun StatsStrip(
     steps: String,
-    stepsGoal: Int? = 10000,
+    stepsGoal: Int,
     mood: String,
     sleepHours: String,
-    avgHeartRate: String = "0",
-    oxygenLevel: String = "--",
-    mostRecentCheckin: SupabasePatientCheckin? = null,
-    sleepInsightText: String? = null,
-    modifier: Modifier = Modifier,
-    onNavigateToMovement: () -> Unit = {},
-    onNavigateToSleep: () -> Unit = {},
-    onNavigateToMood: () -> Unit = {},
-    onNavigateToCheckIn: () -> Unit = {},
-    onNavigateToHeartRate: () -> Unit = {}
+    avgHeartRate: String,
+    oxygenLevel: String,
+    mostRecentCheckin: SupabasePatientCheckin?,
+    sleepInsightText: String?,
+    modifier: Modifier,
+    onNavigateToMovement: () -> Unit,
+    onNavigateToSleep: () -> Unit,
+    onNavigateToMood: () -> Unit,
+    onNavigateToCheckIn: () -> Unit,
+    onNavigateToHeartRate: () -> Unit
 ) {
     val colors = ZivaaTheme.colors
     val currentSteps = steps.replace(",", "").toIntOrNull() ?: 0

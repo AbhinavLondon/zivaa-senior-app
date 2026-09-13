@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -30,52 +32,78 @@ import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
 import com.zivaa.app.ui.theme.InstrumentSerif
 import kotlinx.coroutines.isActive
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 // ═══════════════════════════════════════════════════════════════════
-// AMBIENT FLOATING PARTICLES ENGINE
+// AMBIENT PARTICLES: RISING FROM BOTTOM, RANDOMLY GATHERING & SETTLING
 // ═══════════════════════════════════════════════════════════════════
 
-private class FloatingParticle(
-    var x: Float,
-    var y: Float,
+private class RisingAndGatheringParticle(
+    val startXRatio: Float,
+    val startYRatio: Float,
     val baseRadiusDp: Float,
-    val speedY: Float,
-    val swayAmplitude: Float,
-    val swayFrequency: Float,
-    val phase: Float,
+    val riseSpeed: Float,
+    val swayAmpDp: Float,
+    val swayFreq: Float,
+    val gatherDelay: Float,
+    val gatherDuration: Float,
+    val targetOrbitRadiusDp: Float,
+    val curveDirection: Float,
+    val orbitSpeed: Float,
     val color: Color,
-    val isGlowingOrb: Boolean
+    val isGlowingOrb: Boolean,
+    val phase: Float
 )
 
 @Composable
-fun AmbientFloatingParticlesBackground(modifier: Modifier = Modifier) {
+fun AmbientFloatingParticlesBackground(
+    emblemCenter: Offset = Offset.Unspecified,
+    modifier: Modifier = Modifier
+) {
     val particles = remember {
         val colors = listOf(
+            Color(0xFF7ED8AF), // Luminous Zivaa Green
+            Color(0xFF52B788), // Rich Zivaa Emerald
             Color(0xFFE2C07D), // Champagne Gold
-            Color(0xFFF3DFA2), // Warm Gold
-            Color(0xFF6EE7B7), // Bioluminescent Emerald
-            Color(0xFFA7F3D0), // Soft Sage Mint
+            Color(0xFFA7F3D0), // Soft Mint Sage
+            Color(0xFFF3DFA2), // Warm Amber Gold
             Color(0xFFFFFDF8)  // Starlight Ivory
         )
-        List(42) { i ->
-            val isOrb = (i % 7 == 0) // ~6 soft ambient blurred bokeh orbs
+        List(52) { i ->
+            val isOrb = (i % 7 == 0)
             val radius = if (isOrb) {
-                Random.nextFloat() * 10f + 12f // 12..22dp
+                Random.nextFloat() * 6f + 11f // 11..17dp
             } else {
-                Random.nextFloat() * 3.2f + 1.4f // 1.4..4.6dp
+                Random.nextFloat() * 2.5f + 1.4f // 1.4..3.9dp
             }
-            FloatingParticle(
-                x = Random.nextFloat(),
-                y = Random.nextFloat(),
+
+            // Distribute settled orbit radius across 3 concentric tiers aligned with the 3 big rings:
+            // Tier 1 ~76dp, Tier 2 ~116dp, Tier 3 ~156dp
+            val targetRadius = when (i % 3) {
+                0 -> Random.nextFloat() * 16f + 68f // 68..84dp (around Ring 1)
+                1 -> Random.nextFloat() * 20f + 106f // 106..126dp (around Ring 2)
+                else -> Random.nextFloat() * 24f + 144f // 144..168dp (around Ring 3)
+            }
+
+            RisingAndGatheringParticle(
+                startXRatio = Random.nextFloat() * 0.90f + 0.05f,
+                startYRatio = Random.nextFloat() * 0.70f + 0.45f, // Rising from lower screen / below bottom
                 baseRadiusDp = radius,
-                speedY = Random.nextFloat() * 0.00035f + 0.00018f,
-                swayAmplitude = Random.nextFloat() * 0.022f + 0.008f,
-                swayFrequency = Random.nextFloat() * 1.8f + 0.9f,
-                phase = Random.nextFloat() * (Math.PI.toFloat() * 2f),
+                riseSpeed = Random.nextFloat() * 0.045f + 0.028f, // Slow, peaceful, stately rise
+                swayAmpDp = Random.nextFloat() * 10f + 4f,
+                swayFreq = Random.nextFloat() * 1.0f + 0.7f,
+                gatherDelay = Random.nextFloat() * 2.2f + 1.2f, // Randomly begins gathering between 1.2s and 3.4s
+                gatherDuration = Random.nextFloat() * 0.7f + 1.9f, // 1.9s..2.6s gentle transition
+                targetOrbitRadiusDp = targetRadius,
+                curveDirection = if (Random.nextBoolean()) 1f else -1f,
+                orbitSpeed = (Random.nextFloat() * 0.15f + 0.18f) * if (Random.nextBoolean()) 1f else -1f, // Serene slow orbit
                 color = colors[i % colors.size],
-                isGlowingOrb = isOrb
+                isGlowingOrb = isOrb,
+                phase = Random.nextFloat() * (Math.PI.toFloat() * 2f)
             )
         }
     }
@@ -89,13 +117,6 @@ fun AmbientFloatingParticlesBackground(modifier: Modifier = Modifier) {
                 if (lastNanos != 0L) {
                     val dt = (nowNanos - lastNanos) / 1_000_000_000f
                     animationTime += dt
-                    for (p in particles) {
-                        p.y -= p.speedY * (dt * 60f)
-                        if (p.y < -0.06f) {
-                            p.y = 1.06f
-                            p.x = Random.nextFloat()
-                        }
-                    }
                 }
                 lastNanos = nowNanos
             }
@@ -106,62 +127,140 @@ fun AmbientFloatingParticlesBackground(modifier: Modifier = Modifier) {
         val w = size.width
         val h = size.height
 
-        // 1. Deep Luxurious Obsidian-Emerald Forest Gradient
+        val cx = if (emblemCenter != Offset.Unspecified && emblemCenter.x > 0f) emblemCenter.x else w * 0.5f
+        val cy = if (emblemCenter != Offset.Unspecified && emblemCenter.y > 0f) emblemCenter.y else h * 0.27f
+        val centerOffset = Offset(cx, cy)
+
+        // 1. Pure OLED Black Background with subtle depth
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xFF06120E), // Deep midnight forest at top
-                    Color(0xFF0C2018), // Rich botanical sage in middle
-                    Color(0xFF143025)  // Warm moss-emerald at base
+                    Color(0xFF000000), // Pure Black
+                    Color(0xFF050806), // Ultra subtle deep midnight hue
+                    Color(0xFF000000)  // Pure Black
                 )
             )
         )
 
-        // 2. Upper Ambient Sage Halo behind the Logo Medallion
+        // 2. Upper Ambient Luminous Zivaa Green Halo behind Emblem
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0x4D2D5E4E), // Luminous sage core
-                    Color(0x24244D3F),
+                    Color(0x38234B3F), // Soft Zivaa Green halo
+                    Color(0x14102D24),
                     Color.Transparent
                 ),
-                center = Offset(w * 0.5f, h * 0.28f),
-                radius = w * 0.85f
+                center = centerOffset,
+                radius = w * 0.80f
             ),
-            center = Offset(w * 0.5f, h * 0.28f),
-            radius = w * 0.85f
+            center = centerOffset,
+            radius = w * 0.80f
         )
 
-        // 3. Lower Warm Golden-Hour Aura behind Action Buttons
+        // 3. Lower Ambient Aura framing action buttons
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0x28C98A3A), // Warm amber gold
-                    Color(0x12C98A3A),
+                    Color(0x181F4D3F),
                     Color.Transparent
                 ),
-                center = Offset(w * 0.5f, h * 0.88f),
-                radius = w * 0.95f
+                center = Offset(w * 0.5f, h * 0.90f),
+                radius = w * 0.90f
             ),
-            center = Offset(w * 0.5f, h * 0.88f),
-            radius = w * 0.95f
+            center = Offset(w * 0.5f, h * 0.90f),
+            radius = w * 0.90f
         )
 
-        // 4. Render All Floating Light Particles
+        // 4. Three Big Thin Concentric Circles around the Logo
+        // Emerging smoothly as particles settle down (between ~2.0s and 3.8s)
+        val circlesProgress = ((animationTime - 2.0f) / 1.8f).coerceIn(0f, 1f)
+        val circlesEase = circlesProgress * circlesProgress * (3f - 2f * circlesProgress)
+
+        if (circlesEase > 0.005f) {
+            // Ring 1 (Inner big circle): radius ~76dp - Light White
+            val r1 = 76.dp.toPx() + sin(animationTime * 1.0f) * 1.2.dp.toPx()
+            drawCircle(
+                color = Color.White.copy(alpha = circlesEase * 0.42f),
+                radius = r1,
+                center = centerOffset,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+            )
+
+            // Ring 2 (Middle big circle): radius ~116dp - Light White
+            val r2 = 116.dp.toPx() + sin(animationTime * 0.8f + 1.2f) * 1.6.dp.toPx()
+            drawCircle(
+                color = Color.White.copy(alpha = circlesEase * 0.28f),
+                radius = r2,
+                center = centerOffset,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 0.95f.dp.toPx())
+            )
+
+            // Ring 3 (Outer big circle): radius ~156dp - Light White
+            val r3 = 156.dp.toPx() + sin(animationTime * 0.6f + 2.4f) * 2.0.dp.toPx()
+            drawCircle(
+                color = Color.White.copy(alpha = circlesEase * 0.18f),
+                radius = r3,
+                center = centerOffset,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 0.85f.dp.toPx())
+            )
+        }
+
+        // 5. Render All Rising, Gathering, and Settling Particles
         for (p in particles) {
-            val posX = (p.x + sin(p.phase + animationTime * p.swayFrequency) * p.swayAmplitude) * w
-            val posY = p.y * h
-            val pulse = (sin(p.phase * 2f + animationTime * 2.4f) + 1f) * 0.5f // 0..1
+            val posX: Float
+            val posY: Float
+            val settleFactor: Float
+
+            if (animationTime < p.gatherDelay) {
+                // Phase 1: Rising slowly from the bottom to the top
+                val freeY = (p.startYRatio * h) - (p.riseSpeed * animationTime * h)
+                val freeX = (p.startXRatio * w) + sin(p.phase + animationTime * p.swayFreq) * p.swayAmpDp.dp.toPx()
+                posX = freeX
+                posY = freeY
+                settleFactor = 0f
+            } else {
+                // Phase 2 & 3: Randomly starts gathering together, then settles around the logo
+                val startGatherY = (p.startYRatio * h) - (p.riseSpeed * p.gatherDelay * h)
+                val startGatherX = (p.startXRatio * w) + sin(p.phase + p.gatherDelay * p.swayFreq) * p.swayAmpDp.dp.toPx()
+
+                val dx = startGatherX - cx
+                val dy = startGatherY - cy
+                val distStart = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                val phiStart = atan2(dy, dx)
+
+                val tg = animationTime - p.gatherDelay
+                val u = (tg / p.gatherDuration).coerceIn(0f, 1f)
+                val s = u * u * (3f - 2f * u) // Smoothstep
+                settleFactor = s
+
+                val targetOrbitPx = p.targetOrbitRadiusDp.dp.toPx()
+                val currentRadius = if (u < 1f) {
+                    distStart * (1f - s) + targetOrbitPx * s
+                } else {
+                    targetOrbitPx + sin(p.phase + animationTime * 1.2f) * 3.5.dp.toPx()
+                }
+
+                // Gentle, graceful curve towards orbit (NO rapid spinning!)
+                val curveAngle = (p.curveDirection * 0.45f) * s // ~25 degree subtle arc
+                val orbitAngle = p.orbitSpeed * tg // very gentle slow orbit
+                val currentAngle = phiStart + curveAngle + orbitAngle
+
+                posX = cx + currentRadius * cos(currentAngle)
+                posY = cy + currentRadius * sin(currentAngle)
+            }
+
+            val pulse = (sin(p.phase * 2f + animationTime * 2.0f) + 1f) * 0.5f // 0..1
+            val settleBoost = 1f + settleFactor * 0.35f
             val radiusPx = p.baseRadiusDp.dp.toPx()
 
             if (p.isGlowingOrb) {
                 // Out-of-focus bokeh orb with radial gradient fade
-                val orbAlpha = 0.12f + pulse * 0.18f
+                val orbAlpha = (0.09f + pulse * 0.15f) * settleBoost
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            p.color.copy(alpha = orbAlpha),
-                            p.color.copy(alpha = orbAlpha * 0.35f),
+                            p.color.copy(alpha = orbAlpha.coerceAtMost(0.40f)),
+                            p.color.copy(alpha = (orbAlpha * 0.35f).coerceAtMost(0.20f)),
                             Color.Transparent
                         ),
                         center = Offset(posX, posY),
@@ -171,18 +270,18 @@ fun AmbientFloatingParticlesBackground(modifier: Modifier = Modifier) {
                     center = Offset(posX, posY)
                 )
             } else {
-                // Crystalline floating star mote
-                val moteAlpha = 0.35f + pulse * 0.55f
+                // Crystalline floating starlight mote
+                val moteAlpha = (0.35f + pulse * 0.48f) * settleBoost
 
                 // Outer soft luminous halo
                 drawCircle(
-                    color = p.color.copy(alpha = moteAlpha * 0.30f),
+                    color = p.color.copy(alpha = (moteAlpha * 0.30f).coerceAtMost(0.42f)),
                     radius = radiusPx * 2.2f,
                     center = Offset(posX, posY)
                 )
                 // Core sparkling point
                 drawCircle(
-                    color = p.color.copy(alpha = moteAlpha),
+                    color = p.color.copy(alpha = moteAlpha.coerceAtMost(1.0f)),
                     radius = radiusPx,
                     center = Offset(posX, posY)
                 )
@@ -205,14 +304,16 @@ fun WelcomeScreen(
     onBypassSetup: () -> Unit,
     onLanguageSelected: (String) -> Unit = {}
 ) {
+    var userInitiatedSignIn by remember { mutableStateOf(false) }
+
     LaunchedEffect(state.isSetupComplete) {
-        if (state.isSetupComplete) {
+        if (userInitiatedSignIn && state.isSetupComplete) {
             onBypassSetup()
         }
     }
 
     LaunchedEffect(state.isEmailVerified) {
-        if (state.isEmailVerified && !state.isSetupComplete) {
+        if (userInitiatedSignIn && state.isEmailVerified && !state.isSetupComplete) {
             onContinue()
         }
     }
@@ -235,31 +336,12 @@ fun WelcomeScreen(
         )
     }
 
-    // Concentric breathing halo animation for the central logo emblem
-    val infiniteTransition = rememberInfiniteTransition(label = "halo")
-    val haloScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.48f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloScale"
-    )
-    val haloAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.42f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloAlpha"
-    )
+    var emblemCenter by remember { mutableStateOf(Offset.Unspecified) }
 
     if (showLanguageSheet) {
         ModalBottomSheet(
             onDismissRequest = { showLanguageSheet = false },
-            containerColor = Color(0xFF0C1F18),
+            containerColor = Color(0xFF0D1310),
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0x666EE7B7)) }
         ) {
             Column(
@@ -326,8 +408,11 @@ fun WelcomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Layer 1: Living Ambient Floating Particles Background
-        AmbientFloatingParticlesBackground(modifier = Modifier.fillMaxSize())
+        // Layer 1: Living Ambient Particles: Gathering, Swirling & Orbiting around Zivaa
+        AmbientFloatingParticlesBackground(
+            emblemCenter = emblemCenter,
+            modifier = Modifier.fillMaxSize()
+        )
 
         // Layer 2: Foreground Content
         Column(
@@ -362,36 +447,41 @@ fun WelcomeScreen(
                             color = Color.White
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("▾", fontSize = 13.sp, color = Color(0xFFE2C07D))
+                        Text("▾", fontSize = 13.sp, color = Color(0xFF7ED8AF))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.9f))
+            Spacer(modifier = Modifier.weight(0.75f))
 
-            // Central Emblem: Concentric Breathing Ring + Jewel "Z" Medallion
+            // Central Emblem: Concentric Breathing Ring + Signature Zivaa Green Medallion
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(130.dp)
+                modifier = Modifier
+                    .size(130.dp)
+                    .onGloballyPositioned { coordinates ->
+                        val pos = coordinates.positionInRoot()
+                        val size = coordinates.size
+                        emblemCenter = Offset(pos.x + size.width / 2f, pos.y + size.height / 2f)
+                    }
             ) {
-                // Expanding breathing wave ring
+                // Ambient Zivaa Green glow behind medallion
                 Box(
                     modifier = Modifier
-                        .size((84 * haloScale).dp)
-                        .clip(CircleShape)
-                        .background(Color.Transparent)
-                        .border(1.5.dp, Color(0xFF6EE7B7).copy(alpha = haloAlpha), CircleShape)
+                        .size(104.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0x4D52B788),
+                                    Color(0x22234B3F),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
                 )
 
-                // Secondary subtle gold ripple
-                Box(
-                    modifier = Modifier
-                        .size((96 * (1f + (haloScale - 1f) * 0.7f)).dp)
-                        .clip(CircleShape)
-                        .border(1.dp, Color(0xFFE2C07D).copy(alpha = haloAlpha * 0.7f), CircleShape)
-                )
-
-                // Core Medallion
+                // Core Medallion in Authentic Zivaa Green
                 Surface(
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
@@ -400,13 +490,13 @@ fun WelcomeScreen(
                         2.5.dp,
                         Brush.linearGradient(
                             listOf(
-                                Color(0xFFE2C07D), // Champagne Gold
-                                Color(0x44E2C07D),
-                                Color(0xFF6EE7B7)  // Soft Emerald
+                                Color(0xFF7ED8AF), // Luminous Zivaa Green
+                                Color(0xFF234B3F), // Signature Zivaa Green
+                                Color(0xFF52B788)  // Vibrant Zivaa Emerald
                             )
                         )
                     ),
-                    shadowElevation = 16.dp
+                    shadowElevation = 18.dp
                 ) {
                     Box(
                         modifier = Modifier
@@ -414,8 +504,9 @@ fun WelcomeScreen(
                             .background(
                                 Brush.radialGradient(
                                     colors = listOf(
-                                        Color(0xFF2E6353), // Jewel emerald
-                                        Color(0xFF132F26)
+                                        Color(0xFF2E6353), // Radiant Zivaa Green
+                                        Color(0xFF234B3F), // Classic Zivaa Green
+                                        Color(0xFF16352C)  // Deep Zivaa Green shadow
                                     )
                                 )
                             ),
@@ -433,87 +524,70 @@ fun WelcomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Elegant Frosted Pill: "✨ AI ELDERCARE & LONGEVITY"
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0x26E2C07D),
-                border = BorderStroke(1.dp, Color(0x4DE2C07D))
-            ) {
-                Text(
-                    text = "✨  AI ELDERCARE & LONGEVITY",
-                    color = Color(0xFFE2C07D),
-                    style = ZivaaTheme.typography.eyebrow.copy(
-                        fontSize = 11.sp,
-                        letterSpacing = 1.8.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Main Display Headline
+            // Brand Name right under Z icon
             Text(
-                text = buildAnnotatedString {
-                    append("Care tailored around\n")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = Color(0xFFE2C07D))) {
-                        append("your life.")
-                    }
-                },
-                style = ZivaaTheme.typography.displayLarge.copy(
-                    fontSize = 35.sp,
-                    lineHeight = 43.sp,
+                text = "Zivaa",
+                style = ZivaaTheme.typography.displayMedium.copy(
+                    fontFamily = InstrumentSerif,
+                    fontSize = 32.sp,
+                    letterSpacing = 2.5.sp,
                     fontWeight = FontWeight.Normal
                 ),
-                color = Color.White,
+                color = Color(0xFFFBF9F5)
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Main Display Headline: "Welcome to your Longevity companion."
+            Text(
+                text = buildAnnotatedString {
+                    append("Welcome to your\n")
+                    withStyle(
+                        SpanStyle(
+                            fontStyle = FontStyle.Italic,
+                            fontFamily = InstrumentSerif,
+                            color = Color(0xFF7ED8AF), // Luminous Zivaa Green
+                            fontWeight = FontWeight.Normal
+                        )
+                    ) {
+                        append("Longevity")
+                    }
+                    append(" companion.")
+                },
+                style = ZivaaTheme.typography.displayLarge.copy(
+                    fontSize = 34.sp,
+                    lineHeight = 42.sp,
+                    fontFamily = InstrumentSerif,
+                    fontWeight = FontWeight.Normal
+                ),
+                color = Color(0xFFFBF9F5),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Body Subtitle (High contrast for older adults)
+            // Sub-headline: "Care tailored around your life."
             Text(
-                text = "A gentle companion for your daily vitals, joint comfort, and peace of mind.",
+                text = "Care tailored around your life.",
                 style = ZivaaTheme.typography.bodyLarge.copy(
-                    fontSize = 16.sp,
-                    lineHeight = 23.sp
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Medium
                 ),
-                color = Color(0xFFD4E2DC),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 310.dp)
+                color = Color(0xFFCCE0D6),
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Reassurance Capsule
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0x1FFFFFFF),
-                border = BorderStroke(1.dp, Color(0x28FFFFFF))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Takes 2 Minutes · 5 Gentle Steps",
-                        color = Color(0xFFE5EDE9),
-                        style = ZivaaTheme.typography.eyebrow.copy(
-                            fontSize = 11.5.sp,
-                            letterSpacing = 0.8.sp
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1.1f))
+            Spacer(modifier = Modifier.weight(1.0f))
 
             // Primary CTA: 1-Tap Google Sign-In (Pristine Luxury White Button)
             Surface(
-                onClick = onSignIn,
+                onClick = {
+                    userInitiatedSignIn = true
+                    onSignIn()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

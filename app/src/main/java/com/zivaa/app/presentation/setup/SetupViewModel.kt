@@ -163,7 +163,7 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         } catch (e: Exception) {
-            _state.value = _state.value.copy(isEmailVerified = true, isSubmitting = false)
+            _state.value = _state.value.copy(isEmailVerified = false, isSubmitting = false)
         }
     }
 
@@ -386,6 +386,17 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                     // 4. Save Plan Setup
                     var planSaved = false
                     try {
+                        val macros = com.zivaa.app.util.MacroCalculator.calculateDailyMacros(
+                            weightKg = _state.value.weightKg,
+                            heightInches = _state.value.heightInches,
+                            goalWeightKg = _state.value.goalWeightKg,
+                            dobStr = _state.value.dob.ifBlank { null },
+                            gender = _state.value.gender,
+                            movementLevel = _state.value.movementLevel,
+                            dietType = _state.value.dietType,
+                            healthConditions = _state.value.selectedConditions.toList()
+                        )
+
                         val planSetup = SupabasePatientPlanSetup(
                             patientId = patientId,
                             primaryFocus = _state.value.primaryFocus,
@@ -400,12 +411,16 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                             eveningActivities = _state.value.evening.toList(),
                             reminders = _state.value.reminders,
                             smokingStatus = _state.value.smokingStatus.ifBlank { null },
-                            alcoholStatus = _state.value.alcoholStatus.ifBlank { null }
+                            alcoholStatus = _state.value.alcoholStatus.ifBlank { null },
+                            targetCaloriesSystem = macros.targetCalories,
+                            proteinGSystem = macros.proteinG,
+                            carbsGSystem = macros.carbsG,
+                            fatGSystem = macros.fatG
                         )
                         val planResponse = RetrofitClient.apiService.insertPlanSetup(planSetup)
                         if (planResponse.isSuccessful) {
                             planSaved = true
-                            android.util.Log.d("SetupViewModel", "Plan setup saved successfully")
+                            android.util.Log.d("SetupViewModel", "Plan setup saved successfully with system generated macros: $macros")
                         } else {
                             val err = planResponse.errorBody()?.string() ?: ""
                             android.util.Log.w("SetupViewModel", "insertPlanSetup primary failed (${planResponse.code()}): $err. Retrying with resilient fallback...")
@@ -433,12 +448,16 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                                 eveningActivities = _state.value.evening.toList(),
                                 reminders = _state.value.reminders,
                                 smokingStatus = null,
-                                alcoholStatus = null
+                                alcoholStatus = null,
+                                targetCaloriesSystem = macros.targetCalories,
+                                proteinGSystem = macros.proteinG,
+                                carbsGSystem = macros.carbsG,
+                                fatGSystem = macros.fatG
                             )
                             val retryResponse = RetrofitClient.apiService.insertPlanSetup(fallbackPlanSetup)
                             if (retryResponse.isSuccessful) {
                                 planSaved = true
-                                android.util.Log.d("SetupViewModel", "Plan setup saved successfully via fallback")
+                                android.util.Log.d("SetupViewModel", "Plan setup saved successfully via fallback with system generated macros: $macros")
                             } else {
                                 val retryErr = retryResponse.errorBody()?.string() ?: ""
                                 android.util.Log.e("SetupViewModel", "Fallback insertPlanSetup failed: ${retryResponse.code()} - $retryErr")
