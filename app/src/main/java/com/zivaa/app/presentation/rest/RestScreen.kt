@@ -1,8 +1,10 @@
 package com.zivaa.app.presentation.rest
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,12 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.border
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
@@ -38,16 +39,23 @@ import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.chart.column.ColumnChart.MergeMode
-import com.patrykandpatrick.vico.compose.component.shapeComponent
-import com.patrykandpatrick.vico.core.component.shape.Shapes
-import com.patrykandpatrick.vico.core.component.shape.DashedShape
+import com.patrykandpatrick.vico.compose.component.lineComponent
 import com.patrykandpatrick.vico.compose.component.shapeComponent
 import com.patrykandpatrick.vico.compose.component.textComponent
+import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
+import com.patrykandpatrick.vico.core.chart.decoration.ThresholdLine
+import com.patrykandpatrick.vico.core.chart.values.ChartValues
+import com.patrykandpatrick.vico.core.component.marker.MarkerComponent
+import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.component.shape.DashedShape
+import com.patrykandpatrick.vico.core.marker.Marker
+import com.patrykandpatrick.vico.core.marker.MarkerLabelFormatter
+import java.util.Locale
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zivaa.app.ui.theme.ZivaaTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RestScreen(
     onNavigateBack: () -> Unit,
@@ -95,24 +103,26 @@ fun RestScreen(
                 else -> "Needs Attention"
             }
 
-            Column(
+            val lazyListState = rememberLazyListState()
+
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(paddingValues),
+                state = lazyListState
             ) {
-                // Top Hero Card (Dark Gray Box)
+                item {
+                    // Top Hero Card (Dark Gray Box)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                             .clip(RoundedCornerShape(22.dp))
                             .background(Color(0xFF1B1D23))
                             .padding(24.dp)
                     ) {
                         Column {
-                            // "Mobility score [i]   Score / 100" header -> "Rest Score [i]   Score / 100"
+                            // "Rest Score [i]   Score / 100" header
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -164,22 +174,22 @@ fun RestScreen(
                             
                             // Values
                             val durPts = (b?.get("duration_pts") as? Number)?.toInt() ?: 0
-                            val durVal = (b?.get("sleep_hours") as? Number)?.toDouble()?.let { String.format("%.1fh", it) } ?: "--h"
+                            val durVal = (b?.get("sleep_hours") as? Number)?.toDouble()?.let { String.format(Locale.US, "%.1fh", it) } ?: "--h"
                             
                             val qualPts = (b?.get("quality_pts") as? Number)?.toInt() ?: 0
                             val effVal = (b?.get("sleep_efficiency_pct") as? Number)?.toInt()?.let { "${it}%" } ?: "--%"
                             
                             val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
-                            val deepVal = deepValNum?.let { String.format("%.1fh", it) } ?: "No data"
+                            val deepVal = deepValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
                             val remValNum = (b?.get("sleep_stage_6_hours") as? Number)?.toDouble()
-                            val remVal = remValNum?.let { String.format("%.1fh", it) } ?: "No data"
+                            val remVal = remValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
                             val rhrPts = (b?.get("vitals_pts") as? Number)?.toInt() ?: 0
                             val rhrVal = (b?.get("resting_heart_rate") as? Number)?.toInt()?.let { "$it bpm" } ?: "-- bpm"
                             
                             val tempPts = (b?.get("penalty_pts") as? Number)?.toInt() ?: 0
-                            val tempVal = (b?.get("skin_temp_delta") as? Number)?.toDouble()?.let { String.format("%+.1f°C", it) } ?: "--"
+                            val tempVal = (b?.get("skin_temp_delta") as? Number)?.toDouble()?.let { String.format(Locale.US, "%+.1f°C", it) } ?: "--"
 
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RestFactorTile(
@@ -252,8 +262,7 @@ fun RestScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 val rrValNum = (b?.get("respiratory_rate") as? Number)?.toDouble()
-                                val rrVal = rrValNum?.let { String.format("%.1f brpm", it) } ?: "No data"
-                                // If penalties is 30 (both triggered) or 15 but temp was 0, it means respiratory triggered it.
+                                val rrVal = rrValNum?.let { String.format(Locale.US, "%.1f brpm", it) } ?: "No data"
                                 val totalPenalties = (b?.get("penalty_pts") as? Number)?.toInt() ?: 0
                                 val rrPenalty = if (totalPenalties == 30 || (totalPenalties == 15 && tempPts == 0)) 15 else 0
                                 
@@ -271,75 +280,135 @@ fun RestScreen(
                             }
                         }
                     }
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            // Charts section
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Sticky filters at the top
+                stickyHeader {
+                    Surface(
+                        color = Color(0xFF13151A),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             RestTimeRangeFilterBar(
                                 selectedRange = viewModel.selectedTimeRange,
                                 onRangeSelected = { viewModel.setTimeRange(it) }
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             RestChartTypeFilterBar(
                                 selectedType = viewModel.selectedChartType,
                                 onTypeSelected = { viewModel.setChartType(it) }
                             )
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            RestChartCard(
-                                title = "Rest Score",
-                                dates = viewModel.chartDates,
-                                values = viewModel.chartRestScores,
-                                chartType = viewModel.selectedChartType,
-                                color = Color(0xFF4EAE7B)
-                            )
-                            
-                            RestChartCard(
-                                title = "Total Sleep (hours)",
-                                dates = viewModel.chartDates,
-                                values = viewModel.chartTotalSleep,
-                                chartType = viewModel.selectedChartType,
-                                color = Color(0xFF3B82F6)
-                            )
-                            
-                            RestSleepStagesChartCard(
-                                title = "Sleep Stages",
-                                dates = viewModel.chartDates,
-                                deep = viewModel.chartSleepDeep,
-                                rem = viewModel.chartSleepRem,
-                                light = viewModel.chartSleepLight
-                            )
-                            
-                            RestChartCard(
-                                title = "Resting Heart Rate (bpm)",
-                                dates = viewModel.chartDates,
-                                values = viewModel.chartRestingHr,
-                                chartType = RestChartType.LINE, // Forced line
-                                color = Color(0xFFEF4444)
-                            )
-                            
-                            RestChartCard(
-                                title = "Skin Temp Change (°C)",
-                                dates = viewModel.chartDates,
-                                values = viewModel.chartSkinTemp,
-                                chartType = viewModel.selectedChartType,
-                                color = Color(0xFFF59E0B)
-                            )
-                            
-                            RestChartCard(
-                                title = "Respiratory Rate (brpm)",
-                                dates = viewModel.chartDates,
-                                values = viewModel.chartRespRate,
-                                chartType = viewModel.selectedChartType,
-                                color = Color(0xFF8B5CF6)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(48.dp))
                         }
                     }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        RestChartCard(
+                            title = "Rest Score",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartRestScores,
+                            chartType = viewModel.selectedChartType,
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFF4EAE7B),
+                            showAverageLine = true,
+                            averageValue = viewModel.averageRestScore,
+                            unitSuffix = "",
+                            isDecimal = false
+                        )
+                        
+                        RestChartCard(
+                            title = "Total Sleep (hours)",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartTotalSleep,
+                            chartType = viewModel.selectedChartType,
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFF3B82F6),
+                            showAverageLine = true,
+                            averageValue = viewModel.averageTotalSleep,
+                            unitSuffix = "h",
+                            isDecimal = true
+                        )
+                        
+                        RestSleepStagesChartCard(
+                            title = "Sleep Stages",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            deep = viewModel.chartSleepDeep,
+                            rem = viewModel.chartSleepRem,
+                            light = viewModel.chartSleepLight
+                        )
+                        
+                        RestChartCard(
+                            title = "Resting Heart Rate (bpm)",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartRestingHr,
+                            chartType = RestChartType.LINE, // Forced line
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFFEF4444),
+                            showAverageLine = true,
+                            averageValue = viewModel.averageRestingHr,
+                            unitSuffix = " bpm",
+                            isDecimal = false
+                        )
+                        
+                        RestChartCard(
+                            title = "Skin Temp Change (°C)",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartSkinTemp,
+                            chartType = viewModel.selectedChartType,
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFFF59E0B),
+                            showAverageLine = false,
+                            isNoData = !viewModel.hasSkinTempData,
+                            unitSuffix = "°C",
+                            isDecimal = true
+                        )
+                        
+                        RestChartCard(
+                            title = "Respiratory Rate (brpm)",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartRespRate,
+                            chartType = viewModel.selectedChartType,
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFF8B5CF6),
+                            showAverageLine = false,
+                            isNoData = !viewModel.hasRespRateData,
+                            unitSuffix = " brpm",
+                            isDecimal = true
+                        )
+                        
+                        Spacer(modifier = Modifier.height(48.dp))
+                    }
+                }
             }
         }
+    }
+}
 
 @Composable
 fun RestArcDialer(
@@ -528,11 +597,9 @@ fun RestTimeRangeFilterBar(
     onRangeSelected: (RestTimeRange) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = ZivaaTheme.colors.isDark
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 22.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(ZivaaTheme.colors.surfaceCard)
             .border(0.5.dp, ZivaaTheme.colors.line, RoundedCornerShape(999.dp))
@@ -570,33 +637,29 @@ fun RestChartTypeFilterBar(
     onTypeSelected: (RestChartType) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = ZivaaTheme.colors.isDark
     Row(
         modifier = modifier
-            .width(200.dp)
-            .padding(horizontal = 22.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(ZivaaTheme.colors.surfaceCard)
             .border(0.5.dp, ZivaaTheme.colors.line, RoundedCornerShape(999.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         RestChartType.entries.forEach { type ->
             val isSelected = type == selectedType
             Box(
                 modifier = Modifier
-                    .weight(1f)
                     .clip(RoundedCornerShape(999.dp))
                     .background(if (isSelected) ZivaaTheme.colors.sage else Color.Transparent)
                     .clickable { onTypeSelected(type) }
-                    .padding(vertical = 8.dp),
+                    .padding(horizontal = 22.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = type.label,
                     style = ZivaaTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                     ),
                     color = if (isSelected) Color.White else ZivaaTheme.colors.inkMute
@@ -607,22 +670,174 @@ fun RestChartTypeFilterBar(
 }
 
 @Composable
+fun RestChartAxisRow(
+    timeRange: RestTimeRange,
+    startLabel: String,
+    labels: List<String> = emptyList(),
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(26.dp)
+            .padding(top = 6.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        when (timeRange) {
+            RestTimeRange.SEVEN_DAYS -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    labels.forEachIndexed { index, label ->
+                        val isToday = index == labels.size - 1
+                        Text(
+                            text = label,
+                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                fontSize = 11.sp,
+                                fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal
+                            ),
+                            color = if (isToday) ZivaaTheme.colors.sage else Color(0xFFA0A6B2),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            RestTimeRange.THIRTY_DAYS -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (startLabel.isNotBlank()) startLabel else (labels.firstOrNull() ?: ""),
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
+                        color = Color(0xFFA0A6B2)
+                    )
+                    Text(
+                        text = "Today",
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold),
+                        color = ZivaaTheme.colors.sage
+                    )
+                }
+            }
+            RestTimeRange.THREE_MONTHS -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (startLabel.isNotBlank()) startLabel else (labels.firstOrNull() ?: ""),
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
+                        color = Color(0xFFA0A6B2)
+                    )
+                    Text(
+                        text = "6 weeks ago",
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
+                        color = Color(0xFFA0A6B2).copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = "Today",
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold),
+                        color = ZivaaTheme.colors.sage
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun rememberRestMarker(
+    dates: List<String>,
+    unitSuffix: String = "",
+    isDecimal: Boolean = false,
+    title: String = ""
+): Marker {
+    val isDark = ZivaaTheme.colors.isDark
+    val pillBgColor = if (isDark) Color(0xFF282B33) else ZivaaTheme.colors.surfaceCard
+    val labelBackground = shapeComponent(Shapes.pillShape, pillBgColor)
+    val label = textComponent(
+        background = labelBackground,
+        padding = dimensionsOf(horizontal = 10.dp, vertical = 5.dp),
+        color = Color.White,
+        textSize = 11.5.sp,
+        margins = dimensionsOf(bottom = 6.dp)
+    )
+    val indicator = shapeComponent(Shapes.pillShape, ZivaaTheme.colors.sage)
+    val guideline = lineComponent(
+        color = ZivaaTheme.colors.sage.copy(alpha = 0.4f),
+        thickness = 1.5.dp,
+        shape = DashedShape(shape = Shapes.rectShape, dashLengthDp = 4f, gapLengthDp = 4f)
+    )
+
+    return MarkerComponent(
+        label = label,
+        indicator = indicator,
+        guideline = guideline
+    ).apply {
+        labelFormatter = object : MarkerLabelFormatter {
+            override fun getLabel(
+                markedEntries: List<Marker.EntryModel>,
+                chartValues: ChartValues
+            ): CharSequence {
+                if (markedEntries.isEmpty()) return ""
+                val index = markedEntries.first().entry.x.toInt()
+                val dateLabel = if (index in dates.indices) dates[index] else ""
+                val total = markedEntries.sumOf { it.entry.y.toDouble() }
+
+                if (total <= 0.0 && !title.contains("Skin Temp", ignoreCase = true)) {
+                    return if (dateLabel.isNotBlank()) "No data · $dateLabel" else "No data"
+                }
+
+                val formattedVal = when {
+                    title.contains("Skin Temp", ignoreCase = true) -> String.format(Locale.US, "%+.1f%s", total, unitSuffix)
+                    isDecimal -> String.format(Locale.US, "%.1f%s", total, unitSuffix)
+                    else -> "${total.toInt()}$unitSuffix"
+                }
+
+                return if (dateLabel.isNotBlank()) "$formattedVal · $dateLabel" else formattedVal
+            }
+        }
+    }
+}
+
+@Composable
 fun RestChartCard(
     title: String,
     dates: List<String>,
+    detailedDates: List<String> = emptyList(),
     values: List<Float>,
     chartType: RestChartType,
-    color: Color
+    timeRange: RestTimeRange = RestTimeRange.SEVEN_DAYS,
+    startDateLabel: String = "",
+    color: Color,
+    showAverageLine: Boolean = false,
+    averageValue: Float = 0f,
+    isNoData: Boolean = false,
+    unitSuffix: String = "",
+    isDecimal: Boolean = false
 ) {
-    if (dates.isEmpty() || values.isEmpty()) return
-    
-    val isSevenDays = values.size <= 7
-    val barThickness = when (values.size) {
-        in 25..90 -> 4.5.dp
-        in 10..24 -> 12.dp
-        else -> 20.dp
+    if (dates.isEmpty() && values.isEmpty()) return
+
+    val isDark = ZivaaTheme.colors.isDark
+    val isSevenDays = timeRange == RestTimeRange.SEVEN_DAYS
+    val noDataState = isNoData || (values.all { it == 0f } && (title.contains("Skin Temp", ignoreCase = true) || title.contains("Respiratory", ignoreCase = true)))
+
+    val barThickness = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> 20.dp
+        RestTimeRange.THIRTY_DAYS -> 7.dp
+        RestTimeRange.THREE_MONTHS -> 16.dp
     }
-    
+    val barSpacing = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> 14.dp
+        RestTimeRange.THIRTY_DAYS -> 2.5.dp
+        RestTimeRange.THREE_MONTHS -> 6.dp
+    }
+
     val chartEntryModel = if (chartType == RestChartType.LINE) {
         val entries = values.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
         entryModelOf(entries)
@@ -632,33 +847,59 @@ fun RestChartCard(
         }
         entryModelOf(*series.toTypedArray())
     }
-    
-    val axisFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
-        val i = value.toInt()
-        if (i in dates.indices) dates[i] else ""
-    }
 
-    val isDark = ZivaaTheme.colors.isDark
     val pastBarColor = if (isDark) Color(0xFF4A4E58) else Color(0xFFB8B0A2)
-    
     val columns = List(values.size) { index ->
         if (index == values.size - 1) {
-            com.patrykandpatrick.vico.compose.component.lineComponent(color = color, thickness = barThickness, shape = Shapes.pillShape)
+            lineComponent(color = color, thickness = barThickness, shape = Shapes.pillShape)
         } else {
-            com.patrykandpatrick.vico.compose.component.lineComponent(color = pastBarColor, thickness = barThickness, shape = Shapes.pillShape)
+            lineComponent(color = pastBarColor, thickness = barThickness, shape = Shapes.pillShape)
         }
     }
 
     val chartMax = (values.maxOrNull() ?: 0f) * 1.15f
     val plotAreaHeightDp = 150.dp
-    val rangeLabel = if (values.size <= 7) "7 Days" else if (values.size <= 30) "30 Days" else "3 Months"
-    val heroValue = if (isSevenDays) values.last() else (values.sum() / values.size)
+    val rangeLabel = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> "7 Days"
+        RestTimeRange.THIRTY_DAYS -> "30 Days"
+        RestTimeRange.THREE_MONTHS -> "3 Months"
+    }
+
+    val heroValue = if (isSevenDays) (values.lastOrNull() ?: 0f) else {
+        val nonZeros = values.filter { it > 0f }
+        if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else 0f
+    }
     val heroSubtitle = if (isSevenDays) "latest" else "average"
+
+    val avgLine = if (showAverageLine && averageValue > 0f) {
+        val avgLabelText = when {
+            title.contains("Rest Score", ignoreCase = true) -> "Avg ${averageValue.toInt()}"
+            title.contains("Sleep", ignoreCase = true) -> "Avg ${String.format(Locale.US, "%.1fh", averageValue)}"
+            title.contains("Heart Rate", ignoreCase = true) -> "Avg ${averageValue.toInt()} bpm"
+            else -> "Avg ${String.format(Locale.US, "%.1f", averageValue)}"
+        }
+        ThresholdLine(
+            thresholdValue = averageValue,
+            lineComponent = lineComponent(
+                color = Color.White.copy(alpha = 0.35f),
+                thickness = 1.dp,
+                shape = DashedShape(shape = Shapes.rectShape, dashLengthDp = 4f, gapLengthDp = 4f)
+            ),
+            labelComponent = textComponent(
+                color = Color(0xFFA0A6B2),
+                textSize = 9.5.sp,
+                margins = dimensionsOf(bottom = 4.dp)
+            ),
+            labelHorizontalPosition = ThresholdLine.LabelHorizontalPosition.Start,
+            thresholdLabel = avgLabelText
+        )
+    } else null
+
+    val decorations = if (avgLine != null) listOf(avgLine) else emptyList()
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 24.dp)
             .shadow(
                 elevation = if (isDark) 20.dp else 10.dp,
                 shape = RoundedCornerShape(22.dp),
@@ -680,58 +921,111 @@ fun RestChartCard(
             )
             Spacer(modifier = Modifier.height(14.dp))
             Column(modifier = Modifier.padding(bottom = 18.dp)) {
-                Text(
-                    text = if (heroValue % 1 == 0f) heroValue.toInt().toString() else String.format("%.1f", heroValue),
-                    style = ZivaaTheme.typography.displayLarge.copy(
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = color
+                if (noDataState) {
+                    Text(
+                        text = "No data",
+                        style = ZivaaTheme.typography.displayLarge.copy(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6B7280)
+                        )
                     )
-                )
-                Text(
-                    text = heroSubtitle,
-                    style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = ZivaaTheme.colors.inkMute
-                )
+                    Text(
+                        text = "no readings recorded",
+                        style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = ZivaaTheme.colors.inkMute
+                    )
+                } else {
+                    val heroText = if (title.contains("Skin Temp", ignoreCase = true)) {
+                        String.format(Locale.US, "%+.1f", heroValue)
+                    } else if (heroValue % 1 == 0f) {
+                        heroValue.toInt().toString()
+                    } else {
+                        String.format(Locale.US, "%.1f", heroValue)
+                    }
+                    Text(
+                        text = heroText,
+                        style = ZivaaTheme.typography.displayLarge.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                    )
+                    Text(
+                        text = heroSubtitle,
+                        style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = ZivaaTheme.colors.inkMute
+                    )
+                }
             }
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(plotAreaHeightDp)
             ) {
-                Chart(
-                    modifier = Modifier.fillMaxSize(),
-                    chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
-                    chart = if (chartType == RestChartType.BAR) {
-                        columnChart(
-                            columns = columns,
-                            mergeMode = MergeMode.Stack,
-                            axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(minY = 0f, maxY = if (chartMax > 0f) chartMax else 10f)
+                if (noDataState) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No recorded readings for this period",
+                            style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                            color = Color(0xFFA0A6B2).copy(alpha = 0.6f)
                         )
-                    } else {
-                        lineChart(
-                            lines = listOf(
-                                com.patrykandpatrick.vico.compose.chart.line.lineSpec(
-                                    lineColor = color,
-                                    lineBackgroundShader = null,
-                                    lineThickness = 3.dp,
-                                    point = shapeComponent(shape = Shapes.pillShape, color = color),
-                                    pointSize = 6.dp
+                    }
+                } else {
+                    Chart(
+                        modifier = Modifier.fillMaxSize(),
+                        chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
+                        chart = if (chartType == RestChartType.BAR) {
+                            columnChart(
+                                columns = columns,
+                                mergeMode = MergeMode.Stack,
+                                spacing = barSpacing,
+                                decorations = decorations,
+                                axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
+                                    minY = 0f,
+                                    maxY = if (chartMax > 0f) chartMax else 10f
                                 )
-                            ),
-                            axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(minY = 0f, maxY = if (chartMax > 0f) chartMax else 10f)
-                        )
-                    },
-                    model = chartEntryModel,
-                    startAxis = null,
-                    bottomAxis = rememberBottomAxis(
-                        valueFormatter = axisFormatter,
-                        label = textComponent(color = ZivaaTheme.colors.inkMute, textSize = 11.sp),
-                        axis = null,
-                        tick = null,
-                        guideline = null
+                            )
+                        } else {
+                            lineChart(
+                                lines = listOf(
+                                    com.patrykandpatrick.vico.compose.chart.line.lineSpec(
+                                        lineColor = color,
+                                        lineBackgroundShader = null,
+                                        lineThickness = 3.dp,
+                                        point = shapeComponent(shape = Shapes.pillShape, color = color),
+                                        pointSize = 6.dp
+                                    )
+                                ),
+                                decorations = decorations,
+                                axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
+                                    minY = 0f,
+                                    maxY = if (chartMax > 0f) chartMax else 10f
+                                )
+                            )
+                        },
+                        model = chartEntryModel,
+                        marker = rememberRestMarker(
+                            dates = detailedDates.ifEmpty { dates },
+                            unitSuffix = unitSuffix,
+                            isDecimal = isDecimal,
+                            title = title
+                        ),
+                        startAxis = null,
+                        bottomAxis = null
                     )
+                }
+            }
+
+            if (!noDataState) {
+                RestChartAxisRow(
+                    timeRange = timeRange,
+                    startLabel = startDateLabel,
+                    labels = dates
                 )
             }
         }
@@ -742,38 +1036,44 @@ fun RestChartCard(
 fun RestSleepStagesChartCard(
     title: String,
     dates: List<String>,
+    detailedDates: List<String> = emptyList(),
+    timeRange: RestTimeRange = RestTimeRange.SEVEN_DAYS,
+    startDateLabel: String = "",
     deep: List<Float>,
     rem: List<Float>,
     light: List<Float>
 ) {
     if (dates.isEmpty() || deep.isEmpty()) return
-    
+
     val deepEntries = deep.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
     val remEntries = rem.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
     val lightEntries = light.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-    
+
     val model = entryModelOf(deepEntries, remEntries, lightEntries)
-    
-    val axisFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
-        val i = value.toInt()
-        if (i in dates.indices) dates[i] else ""
-    }
 
     val isDark = ZivaaTheme.colors.isDark
-    
-    val barThickness = when (deep.size) {
-        in 25..90 -> 4.5.dp
-        in 10..24 -> 12.dp
-        else -> 20.dp
+
+    val barThickness = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> 20.dp
+        RestTimeRange.THIRTY_DAYS -> 7.dp
+        RestTimeRange.THREE_MONTHS -> 16.dp
     }
-    
-    val rangeLabel = if (deep.size <= 7) "7 Days" else if (deep.size <= 30) "30 Days" else "3 Months"
+    val barSpacing = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> 14.dp
+        RestTimeRange.THIRTY_DAYS -> 2.5.dp
+        RestTimeRange.THREE_MONTHS -> 6.dp
+    }
+
+    val rangeLabel = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> "7 Days"
+        RestTimeRange.THIRTY_DAYS -> "30 Days"
+        RestTimeRange.THREE_MONTHS -> "3 Months"
+    }
     val plotAreaHeightDp = 150.dp
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 24.dp)
             .shadow(
                 elevation = if (isDark) 20.dp else 10.dp,
                 shape = RoundedCornerShape(22.dp),
@@ -811,7 +1111,7 @@ fun RestSleepStagesChartCard(
                     Text("Light", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
                 }
             }
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -822,23 +1122,30 @@ fun RestSleepStagesChartCard(
                     chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
                     chart = columnChart(
                         columns = listOf(
-                            com.patrykandpatrick.vico.compose.component.lineComponent(color = Color(0xFF4EAE7B), thickness = barThickness),
-                            com.patrykandpatrick.vico.compose.component.lineComponent(color = Color(0xFF3B82F6), thickness = barThickness),
-                            com.patrykandpatrick.vico.compose.component.lineComponent(color = Color(0xFF9CA3AF), thickness = barThickness, shape = Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50))
+                            lineComponent(color = Color(0xFF4EAE7B), thickness = barThickness),
+                            lineComponent(color = Color(0xFF3B82F6), thickness = barThickness),
+                            lineComponent(color = Color(0xFF9CA3AF), thickness = barThickness, shape = Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50))
                         ),
-                        mergeMode = MergeMode.Stack
+                        mergeMode = MergeMode.Stack,
+                        spacing = barSpacing
                     ),
                     model = model,
+                    marker = rememberRestMarker(
+                        dates = detailedDates.ifEmpty { dates },
+                        unitSuffix = "h",
+                        isDecimal = true,
+                        title = "Sleep Stages"
+                    ),
                     startAxis = null,
-                    bottomAxis = rememberBottomAxis(
-                        valueFormatter = axisFormatter,
-                        label = textComponent(color = ZivaaTheme.colors.inkMute, textSize = 11.sp),
-                        axis = null,
-                        tick = null,
-                        guideline = null
-                    )
+                    bottomAxis = null
                 )
             }
+
+            RestChartAxisRow(
+                timeRange = timeRange,
+                startLabel = startDateLabel,
+                labels = dates
+            )
         }
     }
 }

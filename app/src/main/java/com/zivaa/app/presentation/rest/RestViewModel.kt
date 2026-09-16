@@ -42,6 +42,7 @@ class RestViewModel : ViewModel() {
     private var allScores = emptyList<SupabaseZivaaScoreRecord>()
 
     var chartDates by mutableStateOf<List<String>>(emptyList())
+    var chartDetailedDates by mutableStateOf<List<String>>(emptyList())
     var chartRestScores by mutableStateOf<List<Float>>(emptyList())
     var chartTotalSleep by mutableStateOf<List<Float>>(emptyList())
     var chartSleepDeep by mutableStateOf<List<Float>>(emptyList())
@@ -50,6 +51,15 @@ class RestViewModel : ViewModel() {
     var chartRestingHr by mutableStateOf<List<Float>>(emptyList())
     var chartSkinTemp by mutableStateOf<List<Float>>(emptyList())
     var chartRespRate by mutableStateOf<List<Float>>(emptyList())
+
+    var startDateLabel by mutableStateOf("")
+    var midDateLabel by mutableStateOf("")
+    var hasSkinTempData by mutableStateOf(false)
+    var hasRespRateData by mutableStateOf(false)
+
+    var averageRestScore by mutableStateOf(0f)
+    var averageTotalSleep by mutableStateOf(0f)
+    var averageRestingHr by mutableStateOf(0f)
 
     fun setTimeRange(range: RestTimeRange) {
         selectedTimeRange = range
@@ -165,14 +175,16 @@ class RestViewModel : ViewModel() {
 
         if (range == RestTimeRange.THREE_MONTHS) {
             val chunks = targetVitalsRaw.chunked(7)
+            startDateLabel = chunks.firstOrNull()?.firstOrNull()?.let { formatShortDate(it.date) } ?: ""
+            midDateLabel = "6 weeks ago"
+
             chartDates = chunks.mapIndexed { index, chunk ->
-                if (index == chunks.size - 1) "This wk"
-                else if (index == 0) {
-                    val date = java.time.LocalDate.parse(chunk.first().date.take(10))
-                    val sm = date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.US)
-                    "${date.dayOfMonth} $sm"
-                } else ""
+                if (index == chunks.size - 1) "Today"
+                else if (index == 0) formatShortDate(chunk.first().date)
+                else ""
             }
+
+            chartDetailedDates = chunks.map { chunk -> formatChunkDateRange(chunk) }
             
             chartRestScores = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { scoreMap[it.date.take(10)]?.restScore?.toFloat() }.filter { it > 0f }
@@ -211,8 +223,15 @@ class RestViewModel : ViewModel() {
                 val vals = chunk.mapNotNull { it.respiratoryRateAvg?.toFloat() }.filter { it > 0f }
                 if (vals.isNotEmpty()) vals.average().toFloat() else 0f
             }
+
+            hasSkinTempData = chunks.any { chunk -> chunk.any { it.skinTemperatureDelta != null } }
+            hasRespRateData = chunks.any { chunk -> chunk.any { it.respiratoryRateAvg != null && it.respiratoryRateAvg > 0 } }
         } else {
+            startDateLabel = targetVitalsRaw.firstOrNull()?.let { formatShortDate(it.date) } ?: ""
+            midDateLabel = ""
+
             chartDates = targetVitalsRaw.map { getShortDayLabel(it.date, range) }
+            chartDetailedDates = targetVitalsRaw.map { formatDetailedDate(it.date) }
             
             chartRestScores = targetVitalsRaw.map { vital -> 
                 scoreMap[vital.date.take(10)]?.restScore?.toFloat() ?: 0f 
@@ -232,6 +251,50 @@ class RestViewModel : ViewModel() {
             chartRestingHr = targetVitalsRaw.map { it.restingHeartRateCalculated?.toFloat() ?: 0f }
             chartSkinTemp = targetVitalsRaw.map { it.skinTemperatureDelta?.toFloat() ?: 0f }
             chartRespRate = targetVitalsRaw.map { it.respiratoryRateAvg?.toFloat() ?: 0f }
+
+            hasSkinTempData = targetVitalsRaw.any { it.skinTemperatureDelta != null }
+            hasRespRateData = targetVitalsRaw.any { it.respiratoryRateAvg != null && it.respiratoryRateAvg > 0 }
+        }
+
+        averageRestScore = chartRestScores.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
+        averageTotalSleep = chartTotalSleep.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
+        averageRestingHr = chartRestingHr.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
+    }
+
+    private fun formatShortDate(dateString: String): String {
+        return try {
+            val date = LocalDate.parse(dateString.take(10))
+            val sm = date.month.getDisplayName(TextStyle.SHORT, Locale.US)
+            "${date.dayOfMonth} $sm"
+        } catch (e: Exception) {
+            dateString.takeLast(5)
+        }
+    }
+
+    private fun formatDetailedDate(dateString: String): String {
+        return try {
+            val date = LocalDate.parse(dateString.take(10))
+            val sm = date.month.getDisplayName(TextStyle.SHORT, Locale.US)
+            "${date.dayOfMonth} $sm"
+        } catch (e: Exception) {
+            dateString.takeLast(5)
+        }
+    }
+
+    private fun formatChunkDateRange(chunk: List<SupabaseDailyVitalRecord>): String {
+        if (chunk.isEmpty()) return ""
+        return try {
+            val start = LocalDate.parse(chunk.first().date.take(10))
+            val end = LocalDate.parse(chunk.last().date.take(10))
+            val sm1 = start.month.getDisplayName(TextStyle.SHORT, Locale.US)
+            val sm2 = end.month.getDisplayName(TextStyle.SHORT, Locale.US)
+            if (sm1 == sm2) {
+                "${start.dayOfMonth} - ${end.dayOfMonth} $sm1"
+            } else {
+                "${start.dayOfMonth} $sm1 - ${end.dayOfMonth} $sm2"
+            }
+        } catch (e: Exception) {
+            ""
         }
     }
 
