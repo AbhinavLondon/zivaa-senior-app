@@ -34,6 +34,9 @@ import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.column.columnChart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.chart.line.lineSpec
+import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
 import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.patrykandpatrick.vico.core.axis.AxisPosition
@@ -350,6 +353,7 @@ fun RestScreen(
                             title = "Sleep Stages",
                             dates = viewModel.chartDates,
                             detailedDates = viewModel.chartDetailedDates,
+                            chartType = viewModel.selectedChartType,
                             timeRange = viewModel.selectedTimeRange,
                             startDateLabel = viewModel.startDateLabel,
                             deep = viewModel.chartSleepDeep,
@@ -755,7 +759,8 @@ fun rememberRestMarker(
     dates: List<String>,
     unitSuffix: String = "",
     isDecimal: Boolean = false,
-    title: String = ""
+    title: String = "",
+    chartType: RestChartType = RestChartType.BAR
 ): Marker {
     val isDark = ZivaaTheme.colors.isDark
     val pillBgColor = if (isDark) Color(0xFF282B33) else ZivaaTheme.colors.surfaceCard
@@ -787,7 +792,11 @@ fun rememberRestMarker(
                 if (markedEntries.isEmpty()) return ""
                 val index = markedEntries.first().entry.x.toInt()
                 val dateLabel = if (index in dates.indices) dates[index] else ""
-                val total = markedEntries.sumOf { it.entry.y.toDouble() }
+                val total = if (title.contains("Sleep Stages", ignoreCase = true) && chartType == RestChartType.LINE) {
+                    markedEntries.maxOfOrNull { it.entry.y.toDouble() } ?: 0.0
+                } else {
+                    markedEntries.sumOf { it.entry.y.toDouble() }
+                }
 
                 if (total <= 0.0 && !title.contains("Skin Temp", ignoreCase = true)) {
                     return if (dateLabel.isNotBlank()) "No data · $dateLabel" else "No data"
@@ -1013,7 +1022,8 @@ fun RestChartCard(
                             dates = detailedDates.ifEmpty { dates },
                             unitSuffix = unitSuffix,
                             isDecimal = isDecimal,
-                            title = title
+                            title = title,
+                            chartType = chartType
                         ),
                         startAxis = null,
                         bottomAxis = null
@@ -1037,6 +1047,7 @@ fun RestSleepStagesChartCard(
     title: String,
     dates: List<String>,
     detailedDates: List<String> = emptyList(),
+    chartType: RestChartType = RestChartType.BAR,
     timeRange: RestTimeRange = RestTimeRange.SEVEN_DAYS,
     startDateLabel: String = "",
     deep: List<Float>,
@@ -1044,12 +1055,6 @@ fun RestSleepStagesChartCard(
     light: List<Float>
 ) {
     if (dates.isEmpty() || deep.isEmpty()) return
-
-    val deepEntries = deep.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-    val remEntries = rem.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-    val lightEntries = light.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-
-    val model = entryModelOf(deepEntries, remEntries, lightEntries)
 
     val isDark = ZivaaTheme.colors.isDark
 
@@ -1064,12 +1069,51 @@ fun RestSleepStagesChartCard(
         RestTimeRange.THREE_MONTHS -> 6.dp
     }
 
+    val pointSize = when (timeRange) {
+        RestTimeRange.SEVEN_DAYS -> 5.dp
+        RestTimeRange.THIRTY_DAYS -> 3.dp
+        RestTimeRange.THREE_MONTHS -> 4.dp
+    }
+
+    val maxTotal = (0 until deep.size).maxOfOrNull { i ->
+        deep.getOrElse(i) { 0f } + rem.getOrElse(i) { 0f } + light.getOrElse(i) { 0f }
+    } ?: 0f
+    val chartMax = if (maxTotal > 0f) maxTotal * 1.15f else 10f
+
     val rangeLabel = when (timeRange) {
         RestTimeRange.SEVEN_DAYS -> "7 Days"
         RestTimeRange.THIRTY_DAYS -> "30 Days"
         RestTimeRange.THREE_MONTHS -> "3 Months"
     }
     val plotAreaHeightDp = 150.dp
+
+    val lightLineColor = Color(0xFF9CA3AF)
+    val remLineColor = Color(0xFF3B82F6)
+    val deepLineColor = Color(0xFF4EAE7B)
+
+    val chartModel = if (chartType == RestChartType.BAR) {
+        val deepEntries = deep.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
+        val remEntries = rem.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
+        val lightEntries = light.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
+        entryModelOf(deepEntries, remEntries, lightEntries)
+    } else {
+        val totalEntries = (0 until deep.size).map { index ->
+            val d = deep.getOrElse(index) { 0f }
+            val r = rem.getOrElse(index) { 0f }
+            val l = light.getOrElse(index) { 0f }
+            FloatEntry(x = index.toFloat(), y = d + r + l)
+        }
+        val remCumulativeEntries = (0 until deep.size).map { index ->
+            val d = deep.getOrElse(index) { 0f }
+            val r = rem.getOrElse(index) { 0f }
+            FloatEntry(x = index.toFloat(), y = d + r)
+        }
+        val deepCumulativeEntries = (0 until deep.size).map { index ->
+            val d = deep.getOrElse(index) { 0f }
+            FloatEntry(x = index.toFloat(), y = d)
+        }
+        entryModelOf(totalEntries, remCumulativeEntries, deepCumulativeEntries)
+    }
 
     Box(
         modifier = Modifier
@@ -1096,17 +1140,17 @@ fun RestSleepStagesChartCard(
             Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF4EAE7B)))
+                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(deepLineColor))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Deep", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF3B82F6)))
+                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(remLineColor))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("REM", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFF9CA3AF)))
+                    Box(modifier = Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(lightLineColor))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Light", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
                 }
@@ -1120,21 +1164,68 @@ fun RestSleepStagesChartCard(
                 Chart(
                     modifier = Modifier.fillMaxSize(),
                     chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
-                    chart = columnChart(
-                        columns = listOf(
-                            lineComponent(color = Color(0xFF4EAE7B), thickness = barThickness),
-                            lineComponent(color = Color(0xFF3B82F6), thickness = barThickness),
-                            lineComponent(color = Color(0xFF9CA3AF), thickness = barThickness, shape = Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50))
-                        ),
-                        mergeMode = MergeMode.Stack,
-                        spacing = barSpacing
-                    ),
-                    model = model,
+                    chart = if (chartType == RestChartType.BAR) {
+                        columnChart(
+                            columns = listOf(
+                                lineComponent(color = deepLineColor, thickness = barThickness),
+                                lineComponent(color = remLineColor, thickness = barThickness),
+                                lineComponent(
+                                    color = lightLineColor,
+                                    thickness = barThickness,
+                                    shape = Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+                                )
+                            ),
+                            mergeMode = MergeMode.Stack,
+                            spacing = barSpacing,
+                            axisValuesOverrider = AxisValuesOverrider.fixed(
+                                minY = 0f,
+                                maxY = chartMax
+                            )
+                        )
+                    } else {
+                        lineChart(
+                            lines = listOf(
+                                lineSpec(
+                                    lineColor = lightLineColor,
+                                    lineBackgroundShader = verticalGradient(
+                                        colors = arrayOf(Color(0xFF2D3039), Color(0xFF22252C))
+                                    ),
+                                    lineThickness = 2.5.dp,
+                                    point = shapeComponent(shape = Shapes.pillShape, color = lightLineColor),
+                                    pointSize = pointSize
+                                ),
+                                lineSpec(
+                                    lineColor = remLineColor,
+                                    lineBackgroundShader = verticalGradient(
+                                        colors = arrayOf(Color(0xFF1E3555), Color(0xFF15263D))
+                                    ),
+                                    lineThickness = 2.5.dp,
+                                    point = shapeComponent(shape = Shapes.pillShape, color = remLineColor),
+                                    pointSize = pointSize
+                                ),
+                                lineSpec(
+                                    lineColor = deepLineColor,
+                                    lineBackgroundShader = verticalGradient(
+                                        colors = arrayOf(Color(0xFF1B4533), Color(0xFF133225))
+                                    ),
+                                    lineThickness = 2.5.dp,
+                                    point = shapeComponent(shape = Shapes.pillShape, color = deepLineColor),
+                                    pointSize = pointSize
+                                )
+                            ),
+                            axisValuesOverrider = AxisValuesOverrider.fixed(
+                                minY = 0f,
+                                maxY = chartMax
+                            )
+                        )
+                    },
+                    model = chartModel,
                     marker = rememberRestMarker(
                         dates = detailedDates.ifEmpty { dates },
                         unitSuffix = "h",
                         isDecimal = true,
-                        title = "Sleep Stages"
+                        title = "Sleep Stages",
+                        chartType = chartType
                     ),
                     startAxis = null,
                     bottomAxis = null
