@@ -8,12 +8,34 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.zivaa.app.data.health.HealthConnectManager
 import com.zivaa.app.data.remote.RetrofitClient
+import com.zivaa.app.data.remote.SupabaseDailyVitalRecord
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
+
+enum class MovementTimeRange(val label: String) {
+    SEVEN_DAYS("7 Days"),
+    THIRTY_DAYS("30 Days"),
+    THREE_MONTHS("3 Months")
+}
+
+enum class MovementChartType(val label: String) {
+    BAR("Bar"),
+    LINE("Line")
+}
+
+data class DayMobilityData(
+    val date: LocalDate,
+    val steps: Int,
+    val cadence: Int,
+    val activeMinutes: Double,
+    val activeHours: Int,
+    val mobilityScore: Int = 0
+)
 
 class MovementViewModel(
     private val healthConnectManager: HealthConnectManager? = null,
@@ -41,13 +63,54 @@ class MovementViewModel(
     var isHeroInsightLoading by mutableStateOf(false)
         private set
 
-    // Last 7 days of data (e.g., pairs of "Day" to "Steps")
+    var selectedTimeRange by mutableStateOf(MovementTimeRange.SEVEN_DAYS)
+
+    fun setTimeRange(range: MovementTimeRange) {
+        selectedTimeRange = range
+        applyTimeRange(range)
+    }
+
+    var selectedChartType by mutableStateOf(MovementChartType.BAR)
+        private set
+
+    fun setChartType(type: MovementChartType) {
+        selectedChartType = type
+    }
+
+    private var allDailyMobilityData: List<DayMobilityData> = emptyList()
+
+    // Longitudinal 7-day data for Movement KPIs
     var weeklySteps by mutableStateOf<List<Pair<String, Int>>>(emptyList())
     var averageSteps by mutableStateOf(0)
+
+    var weeklyCadence by mutableStateOf<List<Pair<String, Int>>>(emptyList())
+    var averageCadence by mutableStateOf(0)
+
+    var weeklyActiveMinutes by mutableStateOf<List<Pair<String, Double>>>(emptyList())
+    var averageActiveMinutes by mutableStateOf(0.0)
+
+    var weeklyActiveHours by mutableStateOf<List<Pair<String, Int>>>(emptyList())
+    var averageActiveHours by mutableStateOf(0.0)
+
+    var weeklyMobilityScore by mutableStateOf<List<Pair<String, Int>>>(emptyList())
+    var averageMobilityScore by mutableStateOf(0)
+
+    var mobilityScoreInsightText by mutableStateOf("")
+        private set
+
+    var cadenceInsightText by mutableStateOf("")
+        private set
+
+    var activeMinutesInsightText by mutableStateOf("")
+        private set
+
+    var activeHoursInsightText by mutableStateOf("")
+        private set
 
     // Hourly distribution (Hour string to Steps)
     var hourlySteps by mutableStateOf<List<Pair<String, Int>>>(emptyList())
     var hourlyStepsSource by mutableStateOf<String?>(null)
+    var mobilitySummary by mutableStateOf<MobilitySummary?>(null)
 
     private val hours24Labels = listOf(
         "12A", "", "", "3A", "", "",
@@ -109,20 +172,7 @@ class MovementViewModel(
                     }
                     totalStepsToday = java.text.NumberFormat.getNumberInstance().format(stepsToday)
 
-                    // 2. Weekly Steps (Past 7 Days)
-                    val weekList = mutableListOf<Pair<String, Int>>()
-                    var totalWeekSteps = 0
-                    for (i in 6 downTo 0) {
-                        val targetDate = today.minusDays(i.toLong())
-                        val dayStart = targetDate.atStartOfDay(zone).toInstant()
-                        val dayEnd = targetDate.plusDays(1).atStartOfDay(zone).toInstant()
-                        val daySteps = healthConnectManager.aggregateSteps(dayStart, dayEnd).toInt()
-                        val dayLetter = targetDate.dayOfWeek.name.take(1)
-                        weekList.add(dayLetter to daySteps)
-                        totalWeekSteps += daySteps
-                    }
-                    weeklySteps = weekList
-                    averageSteps = totalWeekSteps / 7
+                    // 2. Weekly steps & mobility KPIs are harmonized below once mobilitySummary is ready
 
                     // 3. Hourly Steps Today (24 Hours: Midnight to Midnight)
                     val userId = RetrofitClient.authManager?.getUserId()
@@ -202,7 +252,8 @@ class MovementViewModel(
                     // Instantly stop loading spinner so graphs appear immediately
                     isLoading = false
 
-                    // Fetch goal steps from Supabase in background
+                    // Fetch goal steps and movement profile from Supabase in background
+                    var userMovementLevel: String? = null
                     if (userId != null) {
                         try {
                             val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
@@ -210,7 +261,9 @@ class MovementViewModel(
                                 stepsGoalQuery = "not.is.null"
                             )
                             if (planSetupResponse.isSuccessful && planSetupResponse.body()?.isNotEmpty() == true) {
-                                goalSteps = planSetupResponse.body()!!.first().stepsGoal
+                                val setup = planSetupResponse.body()!!.first()
+                                goalSteps = setup.stepsGoal
+                                userMovementLevel = setup.movementLevel
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("MovementVM", "Error fetching plan setup: ${e.message}")
@@ -237,6 +290,42 @@ class MovementViewModel(
                             overGoalText = "Set a goal to start tracking your daily progress, $firstName."
                         }
                     }
+
+                    val targetActiveHours = if (userMovementLevel?.contains("gentle", ignoreCase = true) == true) 6 else 8
+
+                    // Compute comprehensive 4-KPI Mobility Health Summary
+                    val winningSourcePkg = todayStepsRecords.groupBy { it.metadata.dataOrigin.packageName }
+                        .maxByOrNull { entry -> entry.value.sumOf { it.count } }?.key
+                    mobilitySummary = MobilityCalculator.calculateMobilitySummary(
+                        todayStepsRecords = todayStepsRecords,
+                        hourlySteps = hourlySteps,
+                        resolvedTotalSteps = stepsToday,
+                        goalSteps = goalSteps,
+                        winningSourcePackage = winningSourcePkg,
+                        zone = zone,
+                        targetActiveHours = targetActiveHours
+                    )
+
+                    val historicalRecords = if (userId != null) {
+                        try {
+                            val vitalsResp = RetrofitClient.apiService.getDailyVitals("eq.$userId", limit = 100)
+                            if (vitalsResp.isSuccessful) vitalsResp.body() ?: emptyList() else emptyList()
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                    } else emptyList()
+
+                    populateWeeklyMobilityKPIs(
+                        historicalRecords = historicalRecords,
+                        todaySteps = stepsToday,
+                        todayCadence = mobilitySummary?.cadenceSpm ?: 0,
+                        todayActiveMinutes = (mobilitySummary?.activeMinutes ?: 0).toDouble(),
+                        todayActiveHours = mobilitySummary?.activeHoursCount ?: 0,
+                        healthConnectManager = healthConnectManager,
+                        today = today,
+                        zone = zone
+                    )
+
                     return@launch
                 } catch (e: Exception) {
                     android.util.Log.e("MovementVM", "Error reading local Health Connect data", e)
@@ -247,7 +336,7 @@ class MovementViewModel(
             try {
                 val userId = RetrofitClient.authManager?.getUserId()
                 if (userId != null) {
-                    val dbResponse = RetrofitClient.apiService.getDailyVitals("eq.$userId")
+                    val dbResponse = RetrofitClient.apiService.getDailyVitals("eq.$userId", limit = 100)
                     if (dbResponse.isSuccessful) {
                         val records = dbResponse.body() ?: emptyList()
                         if (records.isNotEmpty()) {
@@ -256,17 +345,22 @@ class MovementViewModel(
                             val steps = todayRecord?.totalSteps ?: 0
                             totalStepsToday = java.text.NumberFormat.getNumberInstance().format(steps)
 
+                            var userMovementLevel: String? = null
                             try {
                                 val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
                                     patientIdQuery = "eq.$userId",
                                     stepsGoalQuery = "not.is.null"
                                 )
                                 if (planSetupResponse.isSuccessful && planSetupResponse.body()?.isNotEmpty() == true) {
-                                    goalSteps = planSetupResponse.body()!!.first().stepsGoal
+                                    val setup = planSetupResponse.body()!!.first()
+                                    goalSteps = setup.stepsGoal
+                                    userMovementLevel = setup.movementLevel
                                 }
                             } catch (e: Exception) {
                                 android.util.Log.e("MovementVM", "Error fetching plan setup: ${e.message}")
                             }
+
+                            val targetActiveHours = if (userMovementLevel?.contains("gentle", ignoreCase = true) == true) 6 else 8
 
                             val currentGoal = goalSteps
                             if (currentGoal != null) {
@@ -276,23 +370,6 @@ class MovementViewModel(
                                 isGoalMet = false
                                 overGoalText = "Set a goal to start tracking your daily progress, $firstName."
                             }
-
-                            val weekList = mutableListOf<Pair<String, Int>>()
-                            var totalWeekSteps = 0
-                            for (i in 6 downTo 0) {
-                                val targetDate = today.minusDays(i.toLong())
-                                val dayLetter = targetDate.dayOfWeek.name.take(1)
-                                val targetStr = targetDate.toString()
-                                val recordForDate = records.find { record ->
-                                    val safeDate = (record.date as? String) ?: ""
-                                    if (safeDate.length >= 10) safeDate.take(10) == targetStr else false
-                                }
-                                val dailySteps = recordForDate?.totalSteps ?: 0
-                                weekList.add(dayLetter to dailySteps)
-                                totalWeekSteps += dailySteps
-                            }
-                            weeklySteps = weekList
-                            averageSteps = totalWeekSteps / 7
 
                             val hourlyResponse = RetrofitClient.apiService.getHourlyVitals("eq.$userId", limit = 48)
                             if (hourlyResponse.isSuccessful) {
@@ -325,15 +402,51 @@ class MovementViewModel(
                             } else {
                                 hourlySteps = hours24Labels.map { it to 0 }
                             }
+                            val totalStepsInt = totalStepsToday.replace(",", "").toIntOrNull() ?: 0
+                            mobilitySummary = MobilityCalculator.fromFallback(
+                                totalSteps = totalStepsInt,
+                                formattedSteps = totalStepsToday,
+                                goalSteps = goalSteps,
+                                distanceMeters = todayRecord?.distanceMeters,
+                                activeCalories = todayRecord?.activeCalories,
+                                avgCadenceSpm = todayRecord?.avgCadenceSpm,
+                                activeMovementMinutes = todayRecord?.activeMovementMinutes,
+                                activeHoursCount = todayRecord?.activeHoursCount,
+                                sourceLabel = hourlyStepsSource ?: "Phone Pedometer",
+                                zone = zone,
+                                targetActiveHours = targetActiveHours
+                            )
+
+                            populateWeeklyMobilityKPIs(
+                                historicalRecords = records,
+                                todaySteps = steps,
+                                todayCadence = todayRecord?.avgCadenceSpm?.toInt() ?: 0,
+                                todayActiveMinutes = todayRecord?.activeMovementMinutes ?: 0.0,
+                                todayActiveHours = todayRecord?.activeHoursCount ?: 0,
+                                healthConnectManager = null,
+                                today = today,
+                                zone = zone
+                            )
+
                             launchInsights(userId, steps, goalSteps ?: 10000, averageSteps, zone.id, firstName)
                         } else {
                             totalStepsToday = "0"
                             isGoalMet = false
                             weeklySteps = List(7) { "-" to 0 }
+                            weeklyCadence = List(7) { "-" to 0 }
+                            weeklyActiveMinutes = List(7) { "-" to 0.0 }
+                            weeklyActiveHours = List(7) { "-" to 0 }
+                            weeklyMobilityScore = List(7) { "-" to 0 }
+                            averageMobilityScore = 0
                             hourlySteps = hours24Labels.map { it to 0 }
                         }
                     } else {
                         weeklySteps = List(7) { "-" to 0 }
+                        weeklyCadence = List(7) { "-" to 0 }
+                        weeklyActiveMinutes = List(7) { "-" to 0.0 }
+                        weeklyActiveHours = List(7) { "-" to 0 }
+                        weeklyMobilityScore = List(7) { "-" to 0 }
+                        averageMobilityScore = 0
                         hourlySteps = hours24Labels.map { it to 0 }
                     }
                 }
@@ -341,10 +454,315 @@ class MovementViewModel(
                 e.printStackTrace()
                 totalStepsToday = "0"
                 weeklySteps = List(7) { "-" to 0 }
+                weeklyCadence = List(7) { "-" to 0 }
+                weeklyActiveMinutes = List(7) { "-" to 0.0 }
+                weeklyActiveHours = List(7) { "-" to 0 }
+                weeklyMobilityScore = List(7) { "-" to 0 }
+                averageMobilityScore = 0
                 hourlySteps = hours24Labels.map { it to 0 }
             } finally {
                 isLoading = false
             }
+        }
+    }
+
+    private suspend fun populateWeeklyMobilityKPIs(
+        historicalRecords: List<SupabaseDailyVitalRecord>,
+        todaySteps: Int,
+        todayCadence: Int,
+        todayActiveMinutes: Double,
+        todayActiveHours: Int,
+        healthConnectManager: HealthConnectManager?,
+        today: LocalDate,
+        zone: ZoneId
+    ) {
+        val list = mutableListOf<DayMobilityData>()
+
+        for (i in 89 downTo 0) {
+            val targetDate = today.minusDays(i.toLong())
+            val targetStr = targetDate.toString()
+            val dbRecord = historicalRecords.find { 
+                val dateStr = (it.date as? String) ?: ""
+                if (dateStr.length >= 10) dateStr.take(10) == targetStr else false
+            }
+
+            if (i == 0) {
+                val todayScore = mobilitySummary?.mobilityScore?.overallScore
+                    ?: MobilityCalculator.calculateMobilityScore(
+                        totalSteps = todaySteps,
+                        goalSteps = goalSteps,
+                        cadenceSpm = todayCadence,
+                        activeMinutes = todayActiveMinutes.roundToInt(),
+                        activeHoursCount = todayActiveHours,
+                        isCompletedDay = false
+                    ).overallScore
+
+                list.add(
+                    DayMobilityData(
+                        date = targetDate,
+                        steps = todaySteps,
+                        cadence = todayCadence,
+                        activeMinutes = todayActiveMinutes,
+                        activeHours = todayActiveHours,
+                        mobilityScore = todayScore
+                    )
+                )
+            } else {
+                val dayStart = targetDate.atStartOfDay(zone).toInstant()
+                val dayEnd = targetDate.plusDays(1).atStartOfDay(zone).toInstant()
+                val daySteps = if (healthConnectManager != null && i < 30) {
+                    try {
+                        val hcSteps = healthConnectManager.aggregateSteps(dayStart, dayEnd).toInt()
+                        if (hcSteps > 0) hcSteps else (dbRecord?.totalSteps ?: 0)
+                    } catch (e: Exception) {
+                        dbRecord?.totalSteps ?: 0
+                    }
+                } else {
+                    dbRecord?.totalSteps ?: 0
+                }
+                val dayCadence = dbRecord?.avgCadenceSpm?.toInt() ?: 0
+                val dayActiveMins = dbRecord?.activeMovementMinutes ?: 0.0
+                val dayActiveHours = dbRecord?.activeHoursCount ?: 0
+
+                val dayScore = if (daySteps > 0 || dayCadence > 0 || dayActiveMins > 0.0 || dayActiveHours > 0) {
+                    MobilityCalculator.calculateMobilityScore(
+                        totalSteps = daySteps,
+                        goalSteps = goalSteps,
+                        cadenceSpm = dayCadence,
+                        activeMinutes = dayActiveMins.roundToInt(),
+                        activeHoursCount = dayActiveHours,
+                        elapsedDaytimeHours = 12,
+                        isCompletedDay = true
+                    ).overallScore
+                } else {
+                    0
+                }
+
+                list.add(
+                    DayMobilityData(
+                        date = targetDate,
+                        steps = daySteps,
+                        cadence = dayCadence,
+                        activeMinutes = dayActiveMins,
+                        activeHours = dayActiveHours,
+                        mobilityScore = dayScore
+                    )
+                )
+            }
+        }
+
+        allDailyMobilityData = list
+        applyTimeRange(selectedTimeRange)
+    }
+
+    private fun applyTimeRange(range: MovementTimeRange) {
+        if (allDailyMobilityData.isEmpty()) return
+
+        when (range) {
+            MovementTimeRange.SEVEN_DAYS -> {
+                val days = allDailyMobilityData.takeLast(7)
+                weeklySteps = days.map { it.date.dayOfWeek.name.take(1) to it.steps }
+                weeklyCadence = days.map { it.date.dayOfWeek.name.take(1) to it.cadence }
+                weeklyActiveMinutes = days.map { it.date.dayOfWeek.name.take(1) to it.activeMinutes }
+                weeklyActiveHours = days.map { it.date.dayOfWeek.name.take(1) to it.activeHours }
+                weeklyMobilityScore = days.map { it.date.dayOfWeek.name.take(1) to it.mobilityScore }
+
+                averageSteps = days.sumOf { it.steps } / 7
+
+                val activeCadenceDays = days.filter { it.cadence > 0 }
+                averageCadence = if (activeCadenceDays.isNotEmpty()) (activeCadenceDays.sumOf { it.cadence } / activeCadenceDays.size) else 0
+
+                averageActiveMinutes = days.sumOf { it.activeMinutes } / 7.0
+                averageActiveHours = days.sumOf { it.activeHours } / 7.0
+
+                val validScoreDays = days.filter { it.mobilityScore > 0 }
+                averageMobilityScore = if (validScoreDays.isNotEmpty()) (validScoreDays.map { it.mobilityScore.toDouble() }.average()).toInt() else (weeklyMobilityScore.lastOrNull()?.second ?: 0)
+            }
+
+            MovementTimeRange.THIRTY_DAYS -> {
+                val days = allDailyMobilityData.takeLast(30)
+                val startMonth = days.first().date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.US)
+                val startDay = days.first().date.dayOfMonth
+                val startLabel = "$startDay $startMonth"
+
+                weeklySteps = days.mapIndexed { index, d ->
+                    val label = when (index) {
+                        0 -> startLabel
+                        days.size - 1 -> "Today"
+                        else -> ""
+                    }
+                    label to d.steps
+                }
+                weeklyCadence = days.mapIndexed { index, d ->
+                    val label = when (index) {
+                        0 -> startLabel
+                        days.size - 1 -> "Today"
+                        else -> ""
+                    }
+                    label to d.cadence
+                }
+                weeklyActiveMinutes = days.mapIndexed { index, d ->
+                    val label = when (index) {
+                        0 -> startLabel
+                        days.size - 1 -> "Today"
+                        else -> ""
+                    }
+                    label to d.activeMinutes
+                }
+                weeklyActiveHours = days.mapIndexed { index, d ->
+                    val label = when (index) {
+                        0 -> startLabel
+                        days.size - 1 -> "Today"
+                        else -> ""
+                    }
+                    label to d.activeHours
+                }
+                weeklyMobilityScore = days.mapIndexed { index, d ->
+                    val label = when (index) {
+                        0 -> startLabel
+                        days.size - 1 -> "Today"
+                        else -> ""
+                    }
+                    label to d.mobilityScore
+                }
+
+                // Strictly ignore null/zero values for averages
+                val validSteps = days.filter { it.steps > 0 }
+                averageSteps = if (validSteps.isNotEmpty()) (validSteps.map { it.steps.toDouble() }.average()).toInt() else 0
+
+                val validCadence = days.filter { it.cadence > 0 }
+                averageCadence = if (validCadence.isNotEmpty()) (validCadence.map { it.cadence.toDouble() }.average()).toInt() else 0
+
+                val validMins = days.filter { it.activeMinutes > 0.0 }
+                averageActiveMinutes = if (validMins.isNotEmpty()) validMins.map { it.activeMinutes }.average() else 0.0
+
+                val validHours = days.filter { it.activeHours > 0 }
+                averageActiveHours = if (validHours.isNotEmpty()) validHours.map { it.activeHours.toDouble() }.average() else 0.0
+
+                val validScores = days.filter { it.mobilityScore > 0 }
+                averageMobilityScore = if (validScores.isNotEmpty()) (validScores.map { it.mobilityScore.toDouble() }.average()).toInt() else (weeklyMobilityScore.lastOrNull()?.second ?: 0)
+            }
+
+            MovementTimeRange.THREE_MONTHS -> {
+                // 12 weekly bars across 84 days
+                val days = allDailyMobilityData.takeLast(84)
+                val weeks = days.chunked(7)
+
+                val stepsList = mutableListOf<Pair<String, Int>>()
+                val cadenceList = mutableListOf<Pair<String, Int>>()
+                val activeMinsList = mutableListOf<Pair<String, Double>>()
+                val activeHoursList = mutableListOf<Pair<String, Int>>()
+                val mobilityScoreList = mutableListOf<Pair<String, Int>>()
+
+                weeks.forEachIndexed { weekIndex, weekDays ->
+                    val label = when (weekIndex) {
+                        0 -> {
+                            val sm = weekDays.first().date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.US)
+                            "${weekDays.first().date.dayOfMonth} $sm"
+                        }
+                        weeks.size - 1 -> "This wk"
+                        else -> ""
+                    }
+
+                    val activeWeekSteps = weekDays.filter { it.steps > 0 }
+                    val weekSteps = if (activeWeekSteps.isNotEmpty()) activeWeekSteps.map { it.steps.toDouble() }.average().toInt() else 0
+
+                    val activeWeekCadence = weekDays.filter { it.cadence > 0 }
+                    val weekCadence = if (activeWeekCadence.isNotEmpty()) activeWeekCadence.map { it.cadence.toDouble() }.average().toInt() else 0
+
+                    val activeWeekMins = weekDays.filter { it.activeMinutes > 0.0 }
+                    val weekMins = if (activeWeekMins.isNotEmpty()) activeWeekMins.map { it.activeMinutes }.average() else 0.0
+
+                    val activeWeekHours = weekDays.filter { it.activeHours > 0 }
+                    val weekHours = if (activeWeekHours.isNotEmpty()) activeWeekHours.map { it.activeHours.toDouble() }.average().toInt() else 0
+
+                    val activeWeekScores = weekDays.filter { it.mobilityScore > 0 }
+                    val weekScore = if (activeWeekScores.isNotEmpty()) activeWeekScores.map { it.mobilityScore.toDouble() }.average().toInt() else 0
+
+                    stepsList.add(label to weekSteps)
+                    cadenceList.add(label to weekCadence)
+                    activeMinsList.add(label to weekMins)
+                    activeHoursList.add(label to weekHours)
+                    mobilityScoreList.add(label to weekScore)
+                }
+
+                weeklySteps = stepsList
+                weeklyCadence = cadenceList
+                weeklyActiveMinutes = activeMinsList
+                weeklyActiveHours = activeHoursList
+                weeklyMobilityScore = mobilityScoreList
+
+                // Overall 3-month averages strictly ignoring null/zero values across all days
+                val validSteps = allDailyMobilityData.filter { it.steps > 0 }
+                averageSteps = if (validSteps.isNotEmpty()) (validSteps.map { it.steps.toDouble() }.average()).toInt() else 0
+
+                val validCadence = allDailyMobilityData.filter { it.cadence > 0 }
+                averageCadence = if (validCadence.isNotEmpty()) (validCadence.map { it.cadence.toDouble() }.average()).toInt() else 0
+
+                val validMins = allDailyMobilityData.filter { it.activeMinutes > 0.0 }
+                averageActiveMinutes = if (validMins.isNotEmpty()) validMins.map { it.activeMinutes }.average() else 0.0
+
+                val validHours = allDailyMobilityData.filter { it.activeHours > 0 }
+                averageActiveHours = if (validHours.isNotEmpty()) validHours.map { it.activeHours.toDouble() }.average() else 0.0
+
+                val validScores = allDailyMobilityData.filter { it.mobilityScore > 0 }
+                averageMobilityScore = if (validScores.isNotEmpty()) (validScores.map { it.mobilityScore.toDouble() }.average()).toInt() else (weeklyMobilityScore.lastOrNull()?.second ?: 0)
+            }
+        }
+
+        updateInsightsForTimeRange(range)
+    }
+
+    private fun updateInsightsForTimeRange(range: MovementTimeRange) {
+        val periodLabel = when (range) {
+            MovementTimeRange.SEVEN_DAYS -> "week"
+            MovementTimeRange.THIRTY_DAYS -> "last 30 days"
+            MovementTimeRange.THREE_MONTHS -> "last 3 months"
+        }
+
+        mobilityScoreInsightText = if (averageMobilityScore >= 85) {
+            "Averaging $averageMobilityScore/100 across the $periodLabel — Optimal Mobility tier with outstanding volume, pace, and daily regularity."
+        } else if (averageMobilityScore >= 70) {
+            "Averaging $averageMobilityScore/100 across the $periodLabel — Steady & Active tier maintaining a solid daily functional baseline."
+        } else if (averageMobilityScore >= 50) {
+            "Averaging $averageMobilityScore/100 across the $periodLabel — Building Rhythm tier with good activity, and opportunity to boost pace or hourly breaks."
+        } else if (averageMobilityScore > 0) {
+            "Averaging $averageMobilityScore/100 across the $periodLabel — Gentle Mobility tier. Short walks and frequent movement will raise your score."
+        } else {
+            "Composite mobility vitality (0–100) combining step volume, walking pace, moving time, and hourly breaks."
+        }
+
+        if (insightText.isEmpty() || insightText.contains("Averaging")) {
+            insightText = "Averaging ${java.text.NumberFormat.getNumberInstance().format(averageSteps)} steps a day across the $periodLabel."
+        }
+
+        cadenceInsightText = if (averageCadence > 0) {
+            val tier = when {
+                averageCadence >= 100 -> "Brisk & Confident pace (100+ spm), supporting high cardiovascular vitality"
+                averageCadence >= 80 -> "Steady & Stable pace (80-100 spm), ideal for balance and endurance"
+                else -> "Gentle Mobility pace (<80 spm), excellent for joint flexibility and continuous circulation"
+            }
+            "Averaging $averageCadence spm across walking bouts — $tier over the $periodLabel."
+        } else {
+            "Gentle pacing recorded across the $periodLabel. Sustained walking bouts will populate your average cadence."
+        }
+
+        val roundedMins = kotlin.math.round(averageActiveMinutes).toInt()
+        activeMinutesInsightText = if (roundedMins >= 30) {
+            "Averaging $roundedMins mins/day of active upright movement, surpassing the recommended 30-minute daily activity target across the $periodLabel."
+        } else if (roundedMins > 0) {
+            "Averaging $roundedMins mins/day on your feet over the $periodLabel. Aiming for 30 minutes a day supports long-term mobility and bone density."
+        } else {
+            "Upright moving time counts every minute you spend walking on your feet each day."
+        }
+
+        val formattedHours = String.format(java.util.Locale.US, "%.1f", averageActiveHours)
+        activeHoursInsightText = if (averageActiveHours >= 6.0) {
+            "Active across an average of $formattedHours daytime hours each day — excellent movement regularity with few prolonged sitting stretches over the $periodLabel."
+        } else if (averageActiveHours > 0) {
+            "Active across an average of $formattedHours daytime hours each day over the $periodLabel. Walking at least 150 steps each hour between 8 AM and 8 PM helps break up sedentary time."
+        } else {
+            "Tracks hours between 8 AM and 8 PM with at least 150 steps to help you stay regularly active throughout the day."
         }
     }
 
@@ -463,6 +881,13 @@ class MovementViewModel(
                         isGoalMet = false
                         overGoalText = "Set a goal to start tracking your daily progress, $firstName."
                     }
+
+                    mobilitySummary = mobilitySummary?.copy(
+                        goalSteps = newGoal,
+                        goalProgress = if (newGoal != null && newGoal > 0) {
+                            (mobilitySummary?.totalSteps?.toFloat() ?: steps.toFloat()) / newGoal.toFloat()
+                        } else null
+                    )
 
                     // Invalidate cached hero insight so fresh AI message is generated immediately
                     try {

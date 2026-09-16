@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,7 +32,8 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
     onNavigateHome: () -> Unit = {},
     onNavigateToCustomisePlan: () -> Unit = {},
-    onNavigateToHealthWallet: () -> Unit = {}
+    onNavigateToHealthWallet: () -> Unit = {},
+    onNavigateToTakeTour: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -173,22 +175,8 @@ fun ProfileScreen(
 
     var showAddCaregiver by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var cgName by remember { mutableStateOf("") }
-    var cgRelation by remember { mutableStateOf("") }
-    var cgPhone by remember { mutableStateOf("") }
-    var cgCity by remember { mutableStateOf("") }
-    var cgCountryCode by remember { mutableStateOf("+91") }
-    var showCountryDropdown by remember { mutableStateOf(false) }
-    
-    val countryCodes = listOf("🇮🇳 +91" to "+91", "🇺🇸 +1" to "+1", "🇬🇧 +44" to "+44", "🇦🇺 +61" to "+61")
-    val relations = listOf("Son", "Daughter", "Spouse", "Neighbour", "Doctor", "Friend")
 
     if (showAddCaregiver) {
-        val textFieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = ProfileTheme.colors.accentGreen,
-            focusedLabelColor = ProfileTheme.colors.accentGreen,
-            cursorColor = ProfileTheme.colors.accentGreen
-        )
         ModalBottomSheet(
             onDismissRequest = { showAddCaregiver = false },
             sheetState = sheetState,
@@ -202,146 +190,14 @@ fun ProfileScreen(
                     .padding(bottom = 32.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text("Care Circle", style = ProfileTheme.typography.sectionHeader)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Add someone", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "They'll get the morning report over WhatsApp, and a call if anything urgent comes up.",
-                    style = ProfileTheme.typography.cardTitle,
-                    color = ProfileTheme.colors.textSecondary
+                AddCaregiverForm(
+                    patientName = state.fullName,
+                    onSave = { name, relation, phone, city ->
+                        viewModel.addCaregiver(name, relation, phone, city)
+                        showAddCaregiver = false
+                    },
+                    onCancel = { showAddCaregiver = false }
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                OutlinedTextField(
-                    value = cgName,
-                    onValueChange = { cgName = it },
-                    label = { Text("Their name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = textFieldColors
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(0.35f)
-                            .height(56.dp)
-                            .background(Color.Transparent, RoundedCornerShape(12.dp))
-                            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
-                            .clickable { showCountryDropdown = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val displayCode = countryCodes.find { it.second == cgCountryCode }?.first ?: "🇮🇳 +91"
-                        Text(displayCode, style = ProfileTheme.typography.cardSubtitle)
-                        DropdownMenu(
-                            expanded = showCountryDropdown,
-                            onDismissRequest = { showCountryDropdown = false },
-                            modifier = Modifier.background(ProfileTheme.colors.cardBackground)
-                        ) {
-                            countryCodes.forEach { (label, code) ->
-                                DropdownMenuItem(
-                                    text = { Text(label, color = ProfileTheme.colors.textPrimary) },
-                                    onClick = { 
-                                        cgCountryCode = code
-                                        showCountryDropdown = false 
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = cgPhone,
-                        onValueChange = { cgPhone = it },
-                        label = { Text("WhatsApp number") },
-                        modifier = Modifier.weight(0.65f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = textFieldColors
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    "Who They Are To ${state.fullName.substringBefore(" ").lowercase().replaceFirstChar { it.uppercase() }}",
-                    style = ProfileTheme.typography.sectionHeader
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                @OptIn(ExperimentalLayoutApi::class)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    relations.forEach { relation ->
-                        val isSelected = cgRelation == relation
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    if (isSelected) ProfileTheme.colors.accentGreen else Color.Transparent,
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .border(
-                                    1.dp,
-                                    if (isSelected) ProfileTheme.colors.accentGreen else Color.LightGray,
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .clickable { cgRelation = relation }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = relation,
-                                color = if (isSelected) Color.White else ProfileTheme.colors.textPrimary
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                OutlinedTextField(
-                    value = cgCity,
-                    onValueChange = { cgCity = it },
-                    label = { Text("City (optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    colors = textFieldColors
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { showAddCaregiver = false },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Text("Cancel", color = ProfileTheme.colors.textPrimary)
-                    }
-                    Button(
-                        onClick = {
-                            if (cgName.isNotBlank() && cgRelation.isNotBlank()) {
-                                viewModel.addCaregiver(cgName, cgRelation, "$cgCountryCode$cgPhone", cgCity)
-                            }
-                            showAddCaregiver = false
-                            cgName = ""
-                            cgRelation = ""
-                            cgPhone = ""
-                            cgCity = ""
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = ProfileTheme.colors.accentGreen),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Text("Add to circle")
-                    }
-                }
             }
         }
     }
@@ -449,7 +305,12 @@ fun ProfileScreen(
                     }
                     CareCircleCard(
                         contacts = contacts,
-                        onAddClick = { showAddCaregiver = true }
+                        onAddClick = { showAddCaregiver = true },
+                        onToggleAlerts = { contact ->
+                            state.caregivers.find { it.id == contact.id }?.let {
+                                viewModel.toggleCaregiverAlerts(it)
+                            }
+                        }
                     )
                 }
 
@@ -597,6 +458,49 @@ fun ProfileScreen(
                                     )
                                 }
                                 
+                                HorizontalDivider(
+                                    color = ProfileTheme.colors.divider,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onNavigateToTakeTour() }
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                                        Text(
+                                            text = "Take a tour",
+                                            style = ProfileTheme.typography.cardTitle
+                                        )
+                                        Text(
+                                            text = "Guided walkthrough of Today's screen",
+                                            style = ProfileTheme.typography.cardSubtitle,
+                                            color = ProfileTheme.colors.textSecondary
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Start",
+                                            color = ProfileTheme.colors.accentGreen,
+                                            style = ProfileTheme.typography.cardTitle
+                                        )
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Start tour",
+                                            tint = ProfileTheme.colors.accentGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
                                 HorizontalDivider(
                                     color = ProfileTheme.colors.divider,
                                     modifier = Modifier.padding(vertical = 4.dp)

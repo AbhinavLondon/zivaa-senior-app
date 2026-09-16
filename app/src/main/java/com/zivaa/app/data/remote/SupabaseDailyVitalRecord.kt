@@ -59,8 +59,35 @@ data class SupabaseDailyVitalRecord(
     @SerializedName("sleep_consistency_pct")
     val sleepConsistencyPct: Double? = null,
 
+    @SerializedName("sleep_stage_5_pct")
+    val sleepStage5Pct: Double? = null,
+
+    @SerializedName("sleep_stage_6_hours")
+    val sleepStage6Hours: Double? = null,
+
+    @SerializedName("sleep_stage_6_pct")
+    val sleepStage6Pct: Double? = null,
+
+    @SerializedName("sleep_efficiency_pct")
+    val sleepEfficiencyPct: Double? = null,
+
+    @SerializedName("skin_temperature_delta")
+    val skinTemperatureDelta: Double? = null,
+
+    @SerializedName("respiratory_rate_avg")
+    val respiratoryRateAvg: Double? = null,
+
     @SerializedName("bedtime_variance_mins")
-    val bedtimeVarianceMins: Double? = null
+    val bedtimeVarianceMins: Double? = null,
+
+    @SerializedName("avg_cadence_spm")
+    val avgCadenceSpm: Double? = null,
+
+    @SerializedName("active_movement_minutes")
+    val activeMovementMinutes: Double? = null,
+
+    @SerializedName("active_hours_count")
+    val activeHoursCount: Int? = null
 )
 
 @Keep

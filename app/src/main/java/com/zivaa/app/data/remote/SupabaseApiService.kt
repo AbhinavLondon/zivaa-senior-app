@@ -25,6 +25,13 @@ interface SupabaseApiService {
         @retrofit2.http.Query("limit") limit: Int = 10
     ): Response<List<SupabaseDailyVitalRecord>>
 
+    @retrofit2.http.GET("rest/v1/zivaa_score")
+    suspend fun getZivaaScores(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("order") order: String = "date.desc",
+        @retrofit2.http.Query("limit") limit: Int = 90
+    ): Response<List<SupabaseZivaaScoreRecord>>
+
     @JvmSuppressWildcards
     @retrofit2.http.GET("rest/v1/vitals_daily")
     suspend fun getDailyVitalsDynamic(

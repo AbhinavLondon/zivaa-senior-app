@@ -57,6 +57,17 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putBoolean(scopedKey, complete).putBoolean(KEY_SETUP_COMPLETE, complete).apply()
     }
 
+    fun isTodayTourCompleted(patientId: String? = null): Boolean {
+        val scopedKey = getScopedKey(KEY_TODAY_TOUR_COMPLETED, patientId)
+        return prefs.getBoolean(scopedKey, false)
+    }
+
+    fun setTodayTourCompleted(completed: Boolean, patientId: String? = null) {
+        val scopedKey = getScopedKey(KEY_TODAY_TOUR_COMPLETED, patientId)
+        prefs.edit().putBoolean(scopedKey, completed).apply()
+    }
+
+
     fun getListViewedAfternoonDate(patientId: String? = null): String? {
         return prefs.getString(getScopedKey(KEY_VIEWED_AFTERNOON, patientId), null)
     }
@@ -230,6 +241,7 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_CHANGES_TOKEN = "changes_token"
         private const val KEY_PHONE_SENSOR_ENABLED = "phone_sensor_enabled"
         private const val KEY_SETUP_COMPLETE = "setup_complete"
+        private const val KEY_TODAY_TOUR_COMPLETED = "today_tour_completed"
         private const val KEY_VIEWED_AFTERNOON = "viewed_afternoon_date"
         private const val KEY_VIEWED_EVENING = "viewed_evening_date"
         private const val KEY_CACHED_BRIEFING_DATE = "cached_briefing_date"

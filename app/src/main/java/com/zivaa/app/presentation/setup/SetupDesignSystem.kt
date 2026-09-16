@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.getCareCircleAvatarColor
 
 // --- Components ---
 
@@ -460,6 +461,7 @@ fun ZivaaFamilyMemberCard(
     relationAndLocation: String,
     isActive: Boolean,
     onActiveChange: (Boolean) -> Unit,
+    colorIndex: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -475,16 +477,20 @@ fun ZivaaFamilyMemberCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Avatar
+            val avatarColor = getCareCircleAvatarColor(name, colorIndex)
             Surface(
                 modifier = Modifier.size(56.dp),
                 shape = CircleShape,
-                color = ZivaaTheme.colors.clay
+                color = avatarColor
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = name.firstOrNull()?.toString()?.uppercase() ?: "",
-                        style = ZivaaTheme.typography.titleLarge,
-                        color = ZivaaTheme.colors.inkMute
+                        style = ZivaaTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        ),
+                        color = Color.White
                     )
                 }
             }
@@ -512,7 +518,8 @@ fun ZivaaFamilyMemberCard(
                 onCheckedChange = onActiveChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = ZivaaTheme.colors.bgElev,
-                    checkedTrackColor = ZivaaTheme.colors.sageInk,
+                    checkedTrackColor = ZivaaTheme.colors.sage,
+                    checkedBorderColor = Color.Transparent,
                     uncheckedThumbColor = ZivaaTheme.colors.bgElev,
                     uncheckedTrackColor = ZivaaTheme.colors.lineStrong,
                     uncheckedBorderColor = Color.Transparent

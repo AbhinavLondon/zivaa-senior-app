@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.plan.PlanSetupTheme
 import com.zivaa.app.presentation.plan.PlanSetupTones
@@ -186,19 +187,19 @@ fun PlanRevealScreen(
                         Surface(
                             modifier = Modifier.size(68.dp),
                             shape = CircleShape,
-                            color = LocalZivaaColors.current.leaf.copy(alpha = 0.15f)
+                            color = LocalZivaaColors.current.sage.copy(alpha = 0.12f)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Surface(
                                     modifier = Modifier.size(48.dp),
                                     shape = CircleShape,
-                                    color = LocalZivaaColors.current.leaf
+                                    color = LocalZivaaColors.current.sage
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = LocalZivaaColors.current.sageInk,
                                             modifier = Modifier.size(26.dp)
                                         )
                                     }
@@ -222,7 +223,7 @@ fun PlanRevealScreen(
                         Text(
                             text = buildAnnotatedString {
                                 append("Your daily rhythm is\n")
-                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                                withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = LocalZivaaColors.current.sage)) {
                                     append("ready.")
                                 }
                             },
@@ -245,7 +246,7 @@ fun PlanRevealScreen(
 
                         // Plan Summary Cards
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             // Focus & Goal
@@ -290,7 +291,7 @@ fun PlanRevealScreen(
                             val circleText = if (circleCount > 0) "$circleCount in Family Care Circle" else "Family updates optional"
                             val langText = state.preferredLanguage.ifBlank { "English" }
                             PlanSummaryCard(
-                                icon = Icons.Default.Psychology,
+                                icon = Icons.Rounded.AutoAwesome,
                                 toneColor = LocalZivaaColors.current.sage,
                                 title = "AI Health Coach",
                                 subtitle = "Ready in $langText · $circleText"
@@ -393,35 +394,59 @@ fun PlanSummaryCard(
     title: String,
     subtitle: String
 ) {
+    val colors = LocalZivaaColors.current
+    val formattedSubtitle = remember(subtitle, colors) {
+        if (subtitle.contains(" · ")) {
+            val parts = subtitle.split(" · ")
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.ink)) {
+                    append(parts[0])
+                }
+                withStyle(SpanStyle(fontWeight = FontWeight.Normal, color = colors.inkMute)) {
+                    append("  ·  ")
+                }
+                withStyle(SpanStyle(fontWeight = FontWeight.Medium, color = colors.inkSoft)) {
+                    append(parts.drop(1).joinToString("  ·  "))
+                }
+            }
+        } else {
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.ink)) {
+                    append(subtitle)
+                }
+            }
+        }
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = Color(0x08000000),
-                spotColor = Color(0x0F000000)
+                elevation = 3.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = colors.ink.copy(alpha = 0.04f),
+                spotColor = colors.ink.copy(alpha = 0.06f)
             ),
-        shape = RoundedCornerShape(16.dp),
-        color = PlanSetupTheme.BgElev,
-        border = BorderStroke(0.5.dp, PlanSetupTheme.Line)
+        shape = RoundedCornerShape(20.dp),
+        color = colors.bgElev,
+        border = BorderStroke(1.dp, colors.lineStrong.copy(alpha = 0.35f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                modifier = Modifier.size(42.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = toneColor.copy(alpha = 0.15f)
+                modifier = Modifier.size(46.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = toneColor.copy(alpha = 0.12f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = toneColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -429,14 +454,20 @@ fun PlanSummaryCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title.toEyebrowTitleCase(),
-                    style = ZivaaTheme.typography.eyebrow,
-                    color = PlanSetupTheme.Eyebrow
+                    style = ZivaaTheme.typography.meta.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.06.em
+                    ),
+                    color = colors.inkMute
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = subtitle,
-                    style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = PlanSetupTheme.Ink
+                    text = formattedSubtitle,
+                    style = ZivaaTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp,
+                        lineHeight = 22.sp
+                    )
                 )
             }
         }

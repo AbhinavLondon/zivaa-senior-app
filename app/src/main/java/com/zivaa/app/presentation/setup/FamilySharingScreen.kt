@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.zivaa.app.presentation.profile.components.AddCaregiverForm
 import com.zivaa.app.ui.theme.ZivaaTheme
 
 @Composable
@@ -22,11 +23,6 @@ fun FamilySharingScreen(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
-    // Local state for the new member being added
-    var newName by remember { mutableStateOf("") }
-    var newRelation by remember { mutableStateOf("") }
-    var newPhone by remember { mutableStateOf("") }
-
     ZivaaSetupBackground {
         Column(
             modifier = Modifier
@@ -39,10 +35,11 @@ fun FamilySharingScreen(
             ZivaaHeader(
                 label = "STEP 6 OF 6 · CARE CIRCLE",
                 title = buildAnnotatedString {
-                    append("Keep your family ")
-                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                        append("in the\nloop.")
+                    append("Keep your ")
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = ZivaaTheme.colors.sage)) {
+                        append("family")
                     }
+                    append(" in the\nloop.")
                 },
                 subtitle = "They'll get your morning update so they worry less. You choose who, and you can switch anyone off whenever you like."
             )
@@ -51,12 +48,14 @@ fun FamilySharingScreen(
 
             if (!state.isAddingFamilyMember) {
                 // List View State
-                state.familyMembers.forEach { member ->
+                state.familyMembers.forEachIndexed { index, member ->
+                    val locationSuffix = if (!member.city.isNullOrBlank()) " · ${member.city}" else ""
                     ZivaaFamilyMemberCard(
                         name = member.name,
-                        relationAndLocation = member.relation,
+                        relationAndLocation = "${member.relation}$locationSuffix",
                         isActive = member.isActive,
                         onActiveChange = { viewModel.toggleFamilyMemberActive(member) },
+                        colorIndex = index,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
@@ -66,100 +65,44 @@ fun FamilySharingScreen(
                 ZivaaDashedButton(
                     text = "Add a family member",
                     onClick = {
-                        newName = ""
-                        newRelation = ""
-                        newPhone = ""
                         viewModel.setIsAddingFamilyMember(true)
                     }
                 )
             } else {
-                // Add Member Form State
-                Text(
-                    text = "Who shall we add?",
-                    style = ZivaaTheme.typography.titleLarge,
-                    color = ZivaaTheme.colors.ink,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                ZivaaTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = "THEIR NAME",
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) // Placeholder "e.g. Aarav" not directly supported by our ZivaaTextField yet, using value
-
-                ZivaaTextField(
-                    value = newRelation,
-                    onValueChange = { newRelation = it },
-                    label = "HOW ARE THEY RELATED?",
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                ZivaaTextField(
-                    value = newPhone,
-                    onValueChange = { newPhone = it },
-                    label = "THEIR MOBILE NUMBER",
-                    modifier = Modifier.padding(bottom = 32.dp)
-                )
-
-                ZivaaButton(
-                    text = "Add to my circle",
-                    onClick = {
-                        if (newName.isNotBlank() && newPhone.isNotBlank()) {
-                            viewModel.addFamilyMember(
-                                FamilyMember(
-                                    name = newName,
-                                    phone = newPhone,
-                                    relation = newRelation
-                                )
+                // Add Member Form State - uses the shared AddCaregiverForm
+                AddCaregiverForm(
+                    patientName = state.name,
+                    title = "Who shall we add?",
+                    subtitle = "They'll get the morning report over WhatsApp, and a call if anything urgent comes up.",
+                    sectionHeader = null,
+                    saveButtonText = "Add to my circle",
+                    onSave = { name, relation, phone, city ->
+                        viewModel.addFamilyMember(
+                            FamilyMember(
+                                name = name,
+                                phone = phone,
+                                relation = relation,
+                                city = city,
+                                isActive = true
                             )
-                        } else {
-                            viewModel.setIsAddingFamilyMember(false)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    TextButton(onClick = { viewModel.setIsAddingFamilyMember(false) }) {
-                        Text(
-                            text = "Cancel",
-                            color = ZivaaTheme.colors.inkMute,
-                            style = ZivaaTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                         )
-                    }
-                }
+                    },
+                    onCancel = {
+                        viewModel.setIsAddingFamilyMember(false)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        ZivaaButton(
-            text = if (state.isAddingFamilyMember) "Save & continue" else "Continue",
-            onClick = {
-                if (state.isAddingFamilyMember) {
-                    if (newName.isNotBlank() && newPhone.isNotBlank()) {
-                        viewModel.addFamilyMember(
-                            FamilyMember(
-                                name = newName,
-                                phone = newPhone,
-                                relation = newRelation
-                            )
-                        )
-                    } else {
-                        viewModel.setIsAddingFamilyMember(false)
-                    }
-                } else {
-                    onNext()
-                }
-            }
-        )
-
         if (!state.isAddingFamilyMember) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ZivaaButton(
+                text = "Continue",
+                onClick = onNext
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
                 onClick = onNext,
@@ -174,3 +117,4 @@ fun FamilySharingScreen(
         }
     }
 }
+

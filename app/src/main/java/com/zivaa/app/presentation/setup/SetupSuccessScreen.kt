@@ -181,7 +181,7 @@ fun SetupSuccessScreen(
                 Text(
                     text = buildAnnotatedString {
                         append("Your Zivaa is\n")
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = ZivaaTheme.colors.sage)) {
                             append("ready.")
                         }
                     },

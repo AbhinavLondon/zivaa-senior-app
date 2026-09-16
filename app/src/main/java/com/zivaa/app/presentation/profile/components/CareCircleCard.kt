@@ -11,6 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,10 +23,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.profile.theme.ProfileTheme
 import com.zivaa.app.ui.theme.ZivaaTheme
+import com.zivaa.app.ui.theme.getCareCircleAvatarColor
 
 data class CareContact(
     val id: String? = null,
@@ -40,6 +44,7 @@ data class CareContact(
 fun CareCircleCard(
     contacts: List<CareContact>,
     onAddClick: () -> Unit = {},
+    onToggleAlerts: ((CareContact) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -54,24 +59,27 @@ fun CareCircleCard(
                 .background(ProfileTheme.colors.cardBackground, RoundedCornerShape(24.dp))
                 .padding(24.dp)
         ) {
-            contacts.forEach { contact ->
+            contacts.forEachIndexed { index, contact ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Avatar
+                    val avatarBgColor = if (contact.isPrimary) {
+                        ProfileTheme.colors.accentGreen
+                    } else {
+                        getCareCircleAvatarColor(contact.name, index)
+                    }
+
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (contact.isPrimary) ProfileTheme.colors.accentGreen
-                                else ZivaaTheme.colors.amber
-                            ),
+                            .background(avatarBgColor),
                         contentAlignment = Alignment.Center
                     ) {
                         if (contact.hasPattern) {
-                            val lineColor = ProfileTheme.colors.textSecondary.copy(alpha = 0.15f)
+                            val lineColor = Color.White.copy(alpha = 0.2f)
                             Canvas(modifier = Modifier.fillMaxSize()) {
                                 val step = 8.dp.toPx()
                                 var x = -size.height
@@ -90,7 +98,8 @@ fun CareCircleCard(
                             text = contact.initial,
                             fontFamily = com.zivaa.app.presentation.profile.theme.ManropeProfile,
                             fontSize = 20.sp,
-                            color = if (contact.isPrimary) Color.White else ProfileTheme.colors.textSecondary
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
                     
@@ -105,6 +114,22 @@ fun CareCircleCard(
                             text = contact.relation,
                             style = ProfileTheme.typography.cardSubtitle,
                             color = ProfileTheme.colors.textSecondary
+                        )
+                    }
+
+                    if (onToggleAlerts != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = contact.receivesAlerts,
+                            onCheckedChange = { onToggleAlerts(contact) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ZivaaTheme.colors.bgElev,
+                                checkedTrackColor = ZivaaTheme.colors.sage,
+                                checkedBorderColor = Color.Transparent,
+                                uncheckedThumbColor = ZivaaTheme.colors.bgElev,
+                                uncheckedTrackColor = ZivaaTheme.colors.lineStrong,
+                                uncheckedBorderColor = Color.Transparent
+                            )
                         )
                     }
                 }

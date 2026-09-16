@@ -25,10 +25,14 @@ import com.zivaa.app.ui.theme.ZivaaTheme
 import androidx.compose.material.icons.filled.AutoAwesome
 
 @Composable
-fun FloatingCoachButton(onClick: () -> Unit, expanded: Boolean = true) {
+fun FloatingCoachButton(
+    onClick: () -> Unit,
+    expanded: Boolean = true,
+    modifier: Modifier = Modifier
+) {
     androidx.compose.material3.ExtendedFloatingActionButton(
         onClick = onClick,
-        modifier = Modifier.background(
+        modifier = modifier.background(
             brush = Brush.linearGradient(
                 colors = listOf(ZivaaTheme.colors.sage, ZivaaTheme.colors.leaf)
             ),

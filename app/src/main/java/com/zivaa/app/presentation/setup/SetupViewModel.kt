@@ -14,6 +14,7 @@ data class FamilyMember(
     val name: String,
     val phone: String,
     val relation: String,
+    val city: String? = null,
     val isActive: Boolean = true
 )
 
@@ -373,7 +374,9 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                                 patientId = patientId,
                                 name = it.name,
                                 phone = it.phone,
-                                relation = it.relation
+                                relation = it.relation,
+                                city = it.city,
+                                receivesAlerts = it.isActive
                             )
                         }
                         try {

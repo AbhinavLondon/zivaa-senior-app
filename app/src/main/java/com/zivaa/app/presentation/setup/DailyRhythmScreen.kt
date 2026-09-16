@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.NightsStay
@@ -17,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
@@ -89,7 +91,7 @@ fun DailyRhythmScreen(
             // 2. Movement Level
             RhythmQuestionSection(
                 icon = Icons.AutoMirrored.Filled.DirectionsWalk,
-                iconColor = ZivaaTheme.colors.sage,
+                iconColor = ZivaaTheme.colors.leaf,
                 eyebrow = "Movement",
                 question = "How much movement feels right?",
                 hint = "Be honest, not ambitious. We build up slowly.",
@@ -137,7 +139,7 @@ fun DailyRhythmScreen(
             // 5. Evening Wind-Down
             RhythmQuestionSection(
                 icon = Icons.Default.NightsStay,
-                iconColor = ZivaaTheme.colors.inkSoft,
+                iconColor = ZivaaTheme.colors.sage,
                 eyebrow = "Evenings · Pick a couple (Optional)",
                 question = "How should the evening wind down?",
                 hint = "One or two is plenty. The night follows from here.",
@@ -179,47 +181,54 @@ private fun RhythmQuestionSection(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Surface(
-                modifier = Modifier.size(28.dp),
-                shape = CircleShape,
-                color = iconColor.copy(alpha = 0.14f)
+            // Icon Bubble (styled in the same way as Primary Focus Screen: 48dp, RoundedCornerShape(14.dp), tone background, 24dp white icon)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(iconColor),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
-            Text(
-                text = eyebrow.toEyebrowTitleCase(),
-                style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.eyebrow
-            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = eyebrow.toEyebrowTitleCase(),
+                    style = ZivaaTheme.typography.eyebrow,
+                    color = ZivaaTheme.colors.eyebrow,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+                Text(
+                    text = question,
+                    style = ZivaaTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = ZivaaTheme.colors.ink,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+                Text(
+                    text = hint,
+                    style = ZivaaTheme.typography.bodyMedium.copy(
+                        fontSize = 13.5.sp,
+                        lineHeight = 19.sp
+                    ),
+                    color = ZivaaTheme.colors.inkSoft
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = question,
-            style = ZivaaTheme.typography.cardTitle.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-            color = ZivaaTheme.colors.ink
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = hint,
-            style = ZivaaTheme.typography.bodyMedium,
-            color = ZivaaTheme.colors.inkSoft
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
 
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -280,33 +289,57 @@ private fun StepsGoalSliderSection(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            Text(
-                text = "DAILY STEPS GOAL",
-                style = ZivaaTheme.typography.eyebrow.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
-                color = ZivaaTheme.colors.inkMute
-            )
-            Spacer(modifier = Modifier.height(4.dp))
             Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = "%,d".format(stepsGoal),
-                    style = ZivaaTheme.typography.displayMedium.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ZivaaTheme.colors.sage
+                // Icon Bubble matching Primary Focus styling
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ZivaaTheme.colors.leaf),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
-                )
-                Text(
-                    text = "steps / day",
-                    style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = ZivaaTheme.colors.inkSoft,
-                    modifier = Modifier.padding(bottom = 3.dp)
-                )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Daily Steps Goal".toEyebrowTitleCase(),
+                        style = ZivaaTheme.typography.eyebrow,
+                        color = ZivaaTheme.colors.eyebrow,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "%,d".format(stepsGoal),
+                            style = ZivaaTheme.typography.displayMedium.copy(
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ZivaaTheme.colors.sage
+                            )
+                        )
+                        Text(
+                            text = "steps / day",
+                            style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = ZivaaTheme.colors.inkSoft,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Slider(
                 value = stepsGoal.toFloat().coerceIn(1000f, 15000f),
@@ -342,3 +375,4 @@ private fun StepsGoalSliderSection(
         }
     }
 }
+

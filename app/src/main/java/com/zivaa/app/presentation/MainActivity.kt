@@ -41,6 +41,12 @@ import com.zivaa.app.data.health.worker.HealthDataSyncWorker
 import com.zivaa.app.presentation.dashboard.DashboardScreen
 import com.zivaa.app.presentation.dashboard.DashboardViewModel
 import com.zivaa.app.presentation.dashboard.DashboardViewModelFactory
+import com.zivaa.app.presentation.dashboard.tour.TodayTourState
+import com.zivaa.app.presentation.dashboard.tour.TodayTourStep
+import com.zivaa.app.presentation.dashboard.tour.TodayTourOverlay
+import com.zivaa.app.presentation.dashboard.tour.rememberTodayTourState
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import com.zivaa.app.ui.medicine.OrderMedicineViewModel
 
 import com.zivaa.app.presentation.sleep.SleepScreen
@@ -320,6 +326,17 @@ class MainActivity : ComponentActivity() {
                             factory = com.zivaa.app.presentation.mood.MoodViewModelFactory(authManager)
                         )
 
+                        val todayTourState = rememberTodayTourState {
+                            prefsManager.setTodayTourCompleted(true, activeUserId)
+                        }
+
+                        androidx.compose.runtime.LaunchedEffect(currentScreen, showSetup) {
+                            if (!showSetup && currentScreen == "dashboard" && !prefsManager.isTodayTourCompleted(activeUserId) && prefsManager.isSetupComplete(activeUserId)) {
+                                kotlinx.coroutines.delay(650)
+                                todayTourState.startTour()
+                            }
+                        }
+
                         androidx.compose.runtime.LaunchedEffect(forceDashboardRefresh) {
                             if (forceDashboardRefresh) {
                                 viewModel.fetchVitalsAndSync(force = false)
@@ -354,7 +371,7 @@ class MainActivity : ComponentActivity() {
                             "dashboard" -> "home"
                             "care" -> "care"
                             "health_connect", "health_wallet", "lab_report", "lab_summary" -> "health"
-                            "wellness", "mood", "movement", "sleep", "heart_rate" -> "wellness"
+                            "wellness", "mood", "movement", "sleep", "heart_rate", "mobility_score_explainer" -> "wellness"
                             "profile", "settings", "primary_focus", "plan_setup", "plan" -> "ranjit"
                             else -> "home"
                         }
@@ -405,11 +422,12 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                            androidx.compose.material3.Scaffold(
+                            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                                androidx.compose.material3.Scaffold(
                                 modifier = Modifier.nestedScroll(nestedScrollConnection),
                                 containerColor = com.zivaa.app.ui.theme.ZivaaTheme.colors.bg,
                                 bottomBar = {
-                                    if (currentScreen != "coach_chat") {
+                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer") {
                                     androidx.compose.foundation.layout.Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -444,7 +462,14 @@ class MainActivity : ComponentActivity() {
                                                     shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
                                                     containerColor = com.zivaa.app.ui.theme.ZivaaTheme.colors.sage,
                                                     contentColor = androidx.compose.ui.graphics.Color.White,
-                                                    modifier = Modifier.size(56.dp)
+                                                    modifier = Modifier
+                                                        .size(56.dp)
+                                                        .onGloballyPositioned { coords ->
+                                                            todayTourState.updateBounds(
+                                                                TodayTourStep.QUICK_ACTIONS,
+                                                                coords.boundsInRoot()
+                                                            )
+                                                        }
                                                 ) {
                                                     androidx.compose.material3.Icon(
                                                         imageVector = androidx.compose.material.icons.Icons.Default.Add,
@@ -458,14 +483,20 @@ class MainActivity : ComponentActivity() {
                                 },
                                 floatingActionButton = {
                                     // Show the floating coach button on all screens except the chat itself or setup screens
-                                    if (currentScreen != "coach_chat") {
+                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer") {
                                         androidx.compose.foundation.layout.Column(
                                             horizontalAlignment = androidx.compose.ui.Alignment.End,
                                             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
                                         ) {
                                             com.zivaa.app.presentation.components.FloatingCoachButton(
                                                 onClick = { currentScreen = "coach_chat" },
-                                                expanded = isFabExpanded
+                                                expanded = isFabExpanded,
+                                                modifier = Modifier.onGloballyPositioned { coords ->
+                                                    todayTourState.updateBounds(
+                                                        TodayTourStep.COACH_BUTTON,
+                                                        coords.boundsInRoot()
+                                                    )
+                                                }
                                             )
                                         }
                                     }
@@ -505,11 +536,24 @@ class MainActivity : ComponentActivity() {
                                 )
                                 com.zivaa.app.presentation.movement.MovementScreen(
                                     viewModel = movementViewModel,
-                                    onNavigateBack = { currentScreen = "dashboard" }
+                                    onNavigateBack = { currentScreen = "dashboard" },
+                                    onNavigateToExplainer = { currentScreen = "mobility_score_explainer" }
+                                )
+                            }
+                            "mobility_score_explainer" -> {
+                                com.zivaa.app.presentation.movement.MobilityScoreExplainerScreen(
+                                    onNavigateBack = { currentScreen = "movement" }
                                 )
                             }
                             "sleep" -> SleepScreen(
                                 onNavigateBack = { currentScreen = "dashboard" }
+                            )
+                            "rest" -> com.zivaa.app.presentation.rest.RestScreen(
+                                onNavigateBack = { currentScreen = "dashboard" },
+                                onInfoClick = { currentScreen = "rest_explainer" }
+                            )
+                            "rest_explainer" -> com.zivaa.app.presentation.rest.RestExplainerScreen(
+                                onNavigateBack = { currentScreen = "rest" }
                             )
                             "health_connect" -> com.zivaa.app.presentation.health.HealthConnectScreen()
                             "settings" -> com.zivaa.app.presentation.settings.SettingsScreen(
@@ -523,7 +567,11 @@ class MainActivity : ComponentActivity() {
                                 com.zivaa.app.presentation.profile.ProfileScreen(
                                     viewModel = profileViewModel,
                                     onNavigateToCustomisePlan = { currentScreen = "primary_focus" },
-                                    onNavigateToHealthWallet = { currentScreen = "health_wallet" }
+                                    onNavigateToHealthWallet = { currentScreen = "health_wallet" },
+                                    onNavigateToTakeTour = {
+                                        prefsManager.setTodayTourCompleted(false, activeUserId)
+                                        currentScreen = "dashboard"
+                                    }
                                 )
                             }
                             "mood" -> {
@@ -919,11 +967,12 @@ class MainActivity : ComponentActivity() {
                             else -> DashboardScreen(
                                 viewModel = viewModel,
                                 moodViewModel = moodViewModel,
+                                tourState = todayTourState,
                                 onNavigateToPlan = { currentScreen = "plan" },
                                 onNavigateToHealthConnect = { currentScreen = "health_connect" },
                                 onNavigateToSettings = { currentScreen = "settings" },
                                 onNavigateToMovement = { currentScreen = "movement" },
-                                onNavigateToSleep = { currentScreen = "sleep" },
+                                onNavigateToSleep = { currentScreen = "rest" },
                                 onNavigateToProfile = { currentScreen = "profile" },
                                 onNavigateToMood = { currentScreen = "mood" },
                                 onNavigateToCheckIn = { currentScreen = "mood_check_in" },
@@ -1001,6 +1050,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             } // end Box
                         } // end Scaffold
+
+                        if (currentScreen == "dashboard") {
+                            TodayTourOverlay(tourState = todayTourState)
+                        }
+                    } // end outer Box
                     } // end else
                 } // end Surface
             } // end ZivaaTheme

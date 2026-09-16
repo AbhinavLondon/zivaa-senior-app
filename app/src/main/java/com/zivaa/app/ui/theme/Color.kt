@@ -59,7 +59,8 @@ data class ZivaaColors(
     val toneOk: Color = ZivaaLeaf,
     val toneWatch: Color = ZivaaAmber,
     val toneAct: Color = ZivaaRose,
-    val toneWarm: Color = ZivaaClay
+    val toneWarm: Color = ZivaaClay,
+    val isDark: Boolean = false
 )
 
 fun darkZivaaColors(): ZivaaColors {
@@ -112,8 +113,31 @@ fun darkZivaaColors(): ZivaaColors {
         toneOk = darkLeaf,
         toneWatch = darkAmber,
         toneAct = darkRose,
-        toneWarm = darkClay
+        toneWarm = darkClay,
+        isDark = true
     )
 }
 
 val LocalZivaaColors = androidx.compose.runtime.staticCompositionLocalOf { ZivaaColors() }
+
+val CareCircleAvatarPalette = listOf(
+    Color(0xFF234B3F), // 0: Zivaa Sage Green
+    Color(0xFFB6643D), // 1: Zivaa Terracotta Clay
+    Color(0xFF385A6C), // 2: Deep Slate Blue
+    Color(0xFFC98A3A), // 3: Zivaa Warm Amber
+    Color(0xFF5E435E), // 4: Deep Mulberry Plum
+    Color(0xFF5D7A4E), // 5: Zivaa Olive Leaf
+    Color(0xFFA4493D), // 6: Zivaa Rose
+    Color(0xFF2E6562)  // 7: Deep Forest Teal
+)
+
+fun getCareCircleAvatarColor(name: String, index: Int? = null): Color {
+    if (index != null && index >= 0) {
+        return CareCircleAvatarPalette[index % CareCircleAvatarPalette.size]
+    }
+    if (name.isBlank()) return CareCircleAvatarPalette[0]
+    val hash = name.trim().lowercase().fold(0) { acc, char -> acc * 31 + char.code }
+    val paletteIndex = (hash and 0x7FFFFFFF) % CareCircleAvatarPalette.size
+    return CareCircleAvatarPalette[paletteIndex]
+}
+

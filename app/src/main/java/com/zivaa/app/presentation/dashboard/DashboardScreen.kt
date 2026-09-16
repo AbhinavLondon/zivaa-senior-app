@@ -72,12 +72,17 @@ import com.zivaa.app.presentation.mood.components.FaceIcon
 import com.zivaa.app.presentation.mood.components.getHeroBackgroundColor
 import com.zivaa.app.presentation.mood.components.getHeroIconIndex
 import com.zivaa.app.presentation.mood.MoodViewModel
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import com.zivaa.app.presentation.dashboard.tour.TodayTourState
+import com.zivaa.app.presentation.dashboard.tour.TodayTourStep
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     moodViewModel: MoodViewModel,
+    tourState: TodayTourState? = null,
     onNavigateToPlan: () -> Unit = {},
     onNavigateToHealthConnect: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
@@ -178,6 +183,26 @@ fun DashboardScreen(
             }
         }
 
+        LaunchedEffect(tourState?.currentStep) {
+            val scrollMotionSpec = tween<Float>(440, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))
+            when (tourState?.currentStep) {
+                TodayTourStep.HERO_CARD -> {
+                    scrollState.animateScrollTo(0, animationSpec = scrollMotionSpec)
+                }
+                TodayTourStep.GOALS_CARD -> {
+                    val targetGoalsScroll = (scrollState.maxValue * 0.35f).toInt().coerceAtLeast(420)
+                    scrollState.animateScrollTo(targetGoalsScroll.coerceAtMost(scrollState.maxValue), animationSpec = scrollMotionSpec)
+                }
+                TodayTourStep.STATS_STRIP -> {
+                    scrollState.animateScrollTo(scrollState.maxValue, animationSpec = scrollMotionSpec)
+                }
+                TodayTourStep.COACH_BUTTON, TodayTourStep.QUICK_ACTIONS -> {
+                    scrollState.animateScrollTo(0, animationSpec = scrollMotionSpec)
+                }
+                null -> {}
+            }
+        }
+
         val lifecycleOwner = LocalLifecycleOwner.current
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
@@ -264,7 +289,13 @@ fun DashboardScreen(
                 }
 
                 // Hero State / Anomaly Warning Card
-                Box(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 22.dp, end = 22.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 8.dp, bottom = 4.dp, start = 22.dp, end = 22.dp)
+                        .onGloballyPositioned { coords ->
+                            tourState?.updateBounds(TodayTourStep.HERO_CARD, coords.boundsInRoot())
+                        }
+                ) {
                     HeroCard(
                         viewModel = viewModel,
                         activePeriod = viewModel.activeHeroPeriod,
@@ -326,7 +357,13 @@ fun DashboardScreen(
                 }
 
                 // Goals Checklist Panel
-                Box(modifier = Modifier.padding(top = 18.dp, start = 22.dp, end = 22.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 18.dp, start = 22.dp, end = 22.dp)
+                        .onGloballyPositioned { coords ->
+                            tourState?.updateBounds(TodayTourStep.GOALS_CARD, coords.boundsInRoot())
+                        }
+                ) {
                     GoalsCard(
                         viewModel = viewModel,
                         onNavigateToPlan = onNavigateToPlan,
@@ -345,7 +382,13 @@ fun DashboardScreen(
                 )
 
                 // Vitals Stats Strip
-                Box(modifier = Modifier.padding(horizontal = 22.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 22.dp)
+                        .onGloballyPositioned { coords ->
+                            tourState?.updateBounds(TodayTourStep.STATS_STRIP, coords.boundsInRoot())
+                        }
+                ) {
                     val moodState by moodViewModel.state.collectAsState()
                     val todayStr = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
                     val todayCheckins = moodState.checkins.filter { it.date == todayStr }
@@ -1433,37 +1476,11 @@ fun StatsStrip(
         label = "movementProgressBar"
     )
 
-    val celebrationTransition = rememberInfiniteTransition(label = "celebrationShimmer")
-    val shimmerOffset by celebrationTransition.animateFloat(
-        initialValue = -300f,
-        targetValue = 900f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "celebrationShimmerOffset"
-    )
-
-    val progressBarBrush = if (isGoalMet) {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFFFFD54F),
-                Color(0xFFFFF9C4),
-                Color.White,
-                Color(0xFFA5D6A7),
-                Color(0xFFFFD54F)
-            ),
-            start = Offset(shimmerOffset, 0f),
-            end = Offset(shimmerOffset + 350f, 0f)
-        )
-    } else {
-        Brush.horizontalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.85f),
-                Color.White
-            )
-        )
-    }
+    val isDark = colors.isDark
+    val cardTextColor = if (isDark) Color(0xFF14171A) else Color.White
+    val cardSubtextColor = if (isDark) Color(0xFF14171A).copy(alpha = 0.75f) else Color.White.copy(alpha = 0.80f)
+    val barColor = if (isDark) Color(0xFF14171A) else Color.White
+    val barTrackColor = if (isDark) Color.Black.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.25f)
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Top Full-Width: Movement
@@ -1497,13 +1514,13 @@ fun StatsStrip(
                         Icon(
                             imageVector = Icons.Default.DirectionsWalk,
                             contentDescription = "Movement",
-                            tint = Color.White.copy(alpha = 0.85f),
+                            tint = cardSubtextColor,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "MOVEMENT",
                             style = ZivaaTheme.typography.meta.copy(fontSize = 10.5.sp, letterSpacing = 0.08.em),
-                            color = Color.White.copy(alpha = 0.85f)
+                            color = cardSubtextColor
                         )
                     }
 
@@ -1512,8 +1529,8 @@ fun StatsStrip(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color.White.copy(alpha = 0.22f))
-                                .border(1.dp, Color.White.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
+                                .background(if (isDark) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f))
+                                .border(1.dp, if (isDark) Color.Black.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
                                 .padding(horizontal = 10.dp, vertical = 3.dp)
                         ) {
                             Row(
@@ -1523,7 +1540,7 @@ fun StatsStrip(
                                 Icon(
                                     imageVector = Icons.Default.Celebration,
                                     contentDescription = "Goal Met",
-                                    tint = Color(0xFFFFF59D),
+                                    tint = if (isDark) Color(0xFF2E6B48) else Color(0xFFFFF59D),
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
@@ -1533,7 +1550,7 @@ fun StatsStrip(
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.02.em
                                     ),
-                                    color = Color.White
+                                    color = cardTextColor
                                 )
                             }
                         }
@@ -1545,12 +1562,12 @@ fun StatsStrip(
                             Text(
                                 text = "Goal ${java.text.NumberFormat.getNumberInstance().format(targetGoal)}",
                                 style = ZivaaTheme.typography.eyebrow.copy(fontSize = 11.sp),
-                                color = Color.White.copy(alpha = 0.75f)
+                                color = cardSubtextColor
                             )
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = "View Movement",
-                                tint = Color.White.copy(alpha = 0.6f),
+                                tint = cardSubtextColor.copy(alpha = 0.6f),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1573,7 +1590,7 @@ fun StatsStrip(
                             lineHeight = 28.sp,
                             letterSpacing = (-0.02).em
                         ),
-                        color = Color.White
+                        color = cardTextColor
                     )
                     Text(
                         text = if (targetGoal > 0) "${(progressRatio * 100).toInt()}%" else "--",
@@ -1581,7 +1598,7 @@ fun StatsStrip(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = if (isGoalMet) Color(0xFFFFF9C4) else Color.White.copy(alpha = 0.85f)
+                        color = cardTextColor
                     )
                 }
 
@@ -1593,7 +1610,7 @@ fun StatsStrip(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color.Black.copy(alpha = 0.15f))
+                        .background(barTrackColor)
                 ) {
                     if (animatedProgress > 0f) {
                         Box(
@@ -1601,7 +1618,7 @@ fun StatsStrip(
                                 .fillMaxWidth(animatedProgress)
                                 .fillMaxHeight()
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(progressBarBrush)
+                                .background(barColor)
                         )
                     }
                 }
@@ -1619,7 +1636,7 @@ fun StatsStrip(
                             lineHeight = 16.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        color = Color.White
+                        color = cardTextColor
                     )
                 } else {
                     val remaining = (targetGoal - currentSteps).coerceAtLeast(0)
@@ -1631,12 +1648,12 @@ fun StatsStrip(
                         Text(
                             text = "${steps} / ${java.text.NumberFormat.getNumberInstance().format(targetGoal)} steps",
                             style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 12.sp),
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = cardSubtextColor
                         )
                         Text(
                             text = if (remaining > 0) "${java.text.NumberFormat.getNumberInstance().format(remaining)} steps left" else "Almost there!",
                             style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 12.sp),
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = cardSubtextColor
                         )
                     }
                 }

@@ -105,6 +105,40 @@ fun SettingsScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = "Guided Tour",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Replay Today Screen Tour",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Walk through the key features and highlights of your daily health dashboard again.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                OutlinedButton(
+                    onClick = {
+                        syncPrefsManager.setTodayTourCompleted(false)
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("Replay")
+                }
+            }
+
             Spacer(modifier = Modifier.height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 130.dp))
         }
     }

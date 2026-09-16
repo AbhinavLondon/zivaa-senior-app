@@ -12,11 +12,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalBar
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.SmokingRooms
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
@@ -122,18 +127,12 @@ fun HealthAndHabitsScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 1. Pre-existing Conditions (No Card, Clean Surface)
-            Text(
-                text = "Anything to plan around? (Optional)".toEyebrowTitleCase(),
-                style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.eyebrow,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-            Text(
-                text = "Timings, meals and safe movement adjust quietly around these.",
-                style = ZivaaTheme.typography.bodyMedium,
-                color = ZivaaTheme.colors.inkSoft,
-                modifier = Modifier.padding(bottom = 14.dp)
+            // 1. Pre-existing Conditions
+            HealthQuestionHeader(
+                icon = Icons.Default.MedicalServices,
+                iconBg = ZivaaTheme.colors.sage,
+                title = "Anything to plan around?",
+                subtitle = "Optional · Timings, meals and safe movement adjust quietly around these."
             )
 
             // Condition Pills
@@ -248,18 +247,12 @@ fun HealthAndHabitsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 2. Smoking Habit (Optional - No Default Selection)
-            Text(
-                text = "Smoking Habit (Optional)".toEyebrowTitleCase(),
-                style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.eyebrow,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-            Text(
-                text = "Confidential. Used to calibrate circulation and respiratory baselines.",
-                style = ZivaaTheme.typography.bodyMedium,
-                color = ZivaaTheme.colors.inkSoft,
-                modifier = Modifier.padding(bottom = 14.dp)
+            // 2. Smoking Habit
+            HealthQuestionHeader(
+                icon = Icons.Default.SmokingRooms,
+                iconBg = ZivaaTheme.colors.clay,
+                title = "Smoking Habit",
+                subtitle = "Optional · Confidential. Used to calibrate circulation and respiratory baselines."
             )
 
             FlowRow(
@@ -309,18 +302,12 @@ fun HealthAndHabitsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 3. Alcohol Intake (Optional - No Default Selection)
-            Text(
-                text = "Alcohol Intake (Optional)".toEyebrowTitleCase(),
-                style = ZivaaTheme.typography.eyebrow,
-                color = ZivaaTheme.colors.eyebrow,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-            Text(
-                text = "Confidential. Helps calibrate hydration and metabolic suggestions.",
-                style = ZivaaTheme.typography.bodyMedium,
-                color = ZivaaTheme.colors.inkSoft,
-                modifier = Modifier.padding(bottom = 14.dp)
+            // 3. Alcohol Intake
+            HealthQuestionHeader(
+                icon = Icons.Default.LocalBar,
+                iconBg = ZivaaTheme.colors.amber,
+                title = "Alcohol Intake",
+                subtitle = "Optional · Confidential. Helps calibrate hydration and metabolic suggestions."
             )
 
             FlowRow(
@@ -386,3 +373,59 @@ fun HealthAndHabitsScreen(
         }
     }
 }
+
+@Composable
+private fun HealthQuestionHeader(
+    icon: ImageVector,
+    iconBg: Color,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Icon Bubble (styled in the same way as Primary Focus Screen: 48dp, RoundedCornerShape(14.dp), tone background, 24dp white icon)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title.toEyebrowTitleCase(),
+                style = ZivaaTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                ),
+                color = ZivaaTheme.colors.ink,
+                modifier = Modifier.padding(bottom = 3.dp)
+            )
+            Text(
+                text = subtitle,
+                style = ZivaaTheme.typography.bodyMedium.copy(
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp
+                ),
+                color = ZivaaTheme.colors.inkSoft
+            )
+        }
+    }
+}
+
