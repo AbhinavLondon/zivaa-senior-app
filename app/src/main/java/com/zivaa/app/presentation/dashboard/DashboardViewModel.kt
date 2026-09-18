@@ -969,11 +969,24 @@ class DashboardViewModel(
                     .setInputData(workData)
                     .build()
                 val appContext = getApplication<Application>().applicationContext
-                androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
+                val workManager = androidx.work.WorkManager.getInstance(appContext)
+                workManager.enqueueUniqueWork(
                     "ManualHealthDataSync",
                     androidx.work.ExistingWorkPolicy.REPLACE,
                     oneTimeWork
                 )
+
+                // When background upload completes and Supabase computes vitals_daily, pull fresh vitals into UI
+                viewModelScope.launch {
+                    workManager.getWorkInfoByIdFlow(oneTimeWork.id).collect { workInfo ->
+                        if (workInfo != null && workInfo.state.isFinished) {
+                            if (workInfo.state == androidx.work.WorkInfo.State.SUCCEEDED) {
+                                refreshVitalsFromDB()
+                            }
+                            return@collect
+                        }
+                    }
+                }
                 
                 syncStatus = "Sync complete"
             } catch (e: Exception) {

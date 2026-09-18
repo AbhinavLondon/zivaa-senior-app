@@ -133,10 +133,12 @@ class NudgeDeepDiveViewModel(
 
                             // Convert the key to a human-readable title, similar to the pills
                             val formattedTitle = when (key.lowercase()) {
-                                "sleep_stage_1_hours" -> "Awake / Light Sleep"
-                                "sleep_stage_2_hours" -> "Light Sleep"
-                                "sleep_stage_3_hours", "sleep_stage_4_hours" -> "Deep Sleep"
-                                "sleep_stage_5_hours" -> "REM Sleep"
+                                "sleep_stage_1_hours", "sleep_stage_1_pct" -> "Awake"
+                                "sleep_stage_2_hours", "sleep_stage_2_pct" -> "Light Sleep"
+                                "sleep_stage_3_hours", "sleep_stage_3_pct" -> "Out of Bed"
+                                "sleep_stage_4_hours", "sleep_stage_4_pct" -> "Light / Core Sleep"
+                                "sleep_stage_5_hours", "sleep_stage_5_pct" -> "Deep Sleep"
+                                "sleep_stage_6_hours", "sleep_stage_6_pct" -> "REM Sleep"
                                 "sleep_hours" -> "Total Sleep"
                                 "oxygen_sat", "blood_oxygen", "spo2", "oxygen_sat_avg" -> "Oxygen Sat"
                                 "hr_resting", "resting_heart_rate", "avg_heart_rate" -> "Resting HR"
@@ -148,6 +150,7 @@ class NudgeDeepDiveViewModel(
                             
                             // Determine units
                             val unit = when {
+                                key.contains("pct") || key.contains("percent") -> "%"
                                 key.contains("hours") || key.contains("sleep") -> "hrs"
                                 key.contains("oxygen") || key.contains("spo2") || key.contains("sat") -> "%"
                                 key.contains("heart_rate") || key.contains("hr") -> "bpm"

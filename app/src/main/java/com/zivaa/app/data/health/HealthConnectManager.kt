@@ -9,6 +9,8 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import java.time.Instant
 import java.time.LocalDateTime
@@ -234,6 +236,55 @@ class HealthConnectManager(private val context: Context) {
 
 
 
+    suspend fun readStepsRecordsSafely(
+        start: Instant,
+        end: Instant,
+        minWindowSeconds: Long = 30
+    ): List<StepsRecord> {
+        val client = healthConnectClient ?: return emptyList()
+        if (!start.isBefore(end)) return emptyList()
+
+        return try {
+            val records = mutableListOf<StepsRecord>()
+            var pageToken: String? = null
+            do {
+                val request = ReadRecordsRequest(
+                    recordType = StepsRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    pageToken = pageToken,
+                    ascendingOrder = true
+                )
+                val result = client.readRecords(request)
+                records.addAll(result.records)
+                pageToken = result.pageToken
+            } while (pageToken != null)
+            records
+        } catch (e: IllegalArgumentException) {
+            // Android Health Connect SDK throws IllegalArgumentException when a corrupted zero-duration record exists
+            val durationSeconds = java.time.Duration.between(start, end).seconds
+            if (durationSeconds <= minWindowSeconds) {
+                // Isolated the corrupted zero-duration record window (<= 30 seconds)!
+                // Completely ignore this invalid entry so authentic records are never affected.
+                android.util.Log.w(
+                    "HealthConnectManager",
+                    "Ignoring corrupted zero-duration StepsRecord in window $start to $end (${e.message})"
+                )
+                emptyList()
+            } else {
+                // Bisect the time window into two halves
+                val mid = start.plusSeconds(durationSeconds / 2)
+                val left = readStepsRecordsSafely(start, mid, minWindowSeconds)
+                val right = readStepsRecordsSafely(mid, end, minWindowSeconds)
+                (left + right).distinctBy {
+                    it.metadata.id.ifEmpty { "${it.startTime}_${it.endTime}_${it.count}" }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Unexpected error reading steps between $start and $end", e)
+            emptyList()
+        }
+    }
+
     suspend fun fetchAllAvailableMetrics(days: Long = 90): List<Record> {
         val client = healthConnectClient ?: return emptyList()
         val endTime = Instant.now()
@@ -257,38 +308,40 @@ class HealthConnectManager(private val context: Context) {
                     pageToken = result.pageToken
                 } while (pageToken != null)
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.w("HealthConnectManager", "safeRead failed for ${recordClass.simpleName}: ${e.message}")
             }
         }
 
-        // Activity
-        safeRead(StepsRecord::class)
+        // 1. Critical Clinical Vitals (Prioritized for immediate triage and daily aggregations)
+        safeRead(HeartRateRecord::class)
+        safeRead(SleepSessionRecord::class)
+
+        // Read StepsRecord safely: isolates & ignores any corrupted zero-duration records, preserving 100% authentic records
+        val authenticSteps = readStepsRecordsSafely(startTime, endTime)
+        records.addAll(authenticSteps)
+
+        safeRead(OxygenSaturationRecord::class)
+        safeRead(BloodPressureRecord::class)
+        safeRead(RestingHeartRateRecord::class)
+        safeRead(BloodGlucoseRecord::class)
+        safeRead(BodyTemperatureRecord::class)
+        safeRead(BasalBodyTemperatureRecord::class)
+        safeRead(RespiratoryRateRecord::class)
+        safeRead(HeartRateVariabilityRmssdRecord::class)
+        safeRead(Vo2MaxRecord::class)
+        safeRead(SkinTemperatureRecord::class)
+
+        // 2. Activity & Movement (Note: TotalCaloriesBurnedRecord omitted to prevent 130,000 synthetic BMR minute records)
         safeRead(ActiveCaloriesBurnedRecord::class)
-        safeRead(TotalCaloriesBurnedRecord::class)
         safeRead(DistanceRecord::class)
         safeRead(ElevationGainedRecord::class)
         safeRead(FloorsClimbedRecord::class)
         safeRead(SpeedRecord::class)
         safeRead(ExerciseSessionRecord::class)
-
-        // Vitals
         safeRead(WheelchairPushesRecord::class)
         safeRead(StepsCadenceRecord::class)
-        safeRead(RestingHeartRateRecord::class)
-        safeRead(HeartRateVariabilityRmssdRecord::class)
-        safeRead(BloodPressureRecord::class)
-        safeRead(BloodGlucoseRecord::class)
-        safeRead(OxygenSaturationRecord::class)
-        safeRead(BodyTemperatureRecord::class)
-        safeRead(BasalBodyTemperatureRecord::class)
-        safeRead(RespiratoryRateRecord::class)
-        safeRead(Vo2MaxRecord::class)
-        safeRead(SkinTemperatureRecord::class)
 
-        // Vitals Requested
-        safeRead(HeartRateRecord::class)
-
-        // Body Measurements
+        // 3. Body Measurements
         safeRead(WeightRecord::class)
         safeRead(HeightRecord::class)
         safeRead(BodyFatRecord::class)
@@ -297,14 +350,11 @@ class HealthConnectManager(private val context: Context) {
         safeRead(BodyWaterMassRecord::class)
         safeRead(BasalMetabolicRateRecord::class)
 
-        // Nutrition & Hydration
+        // 4. Nutrition & Hydration
         safeRead(NutritionRecord::class)
         safeRead(HydrationRecord::class)
 
-        // Sleep
-        safeRead(SleepSessionRecord::class)
-
-        // Women's Health
+        // 5. Women's Health
         safeRead(MenstruationFlowRecord::class)
         safeRead(MenstruationPeriodRecord::class)
         safeRead(OvulationTestRecord::class)
@@ -315,30 +365,10 @@ class HealthConnectManager(private val context: Context) {
     }
 
     suspend fun fetchTodayStepsRecords(): List<StepsRecord> {
-        val client = healthConnectClient ?: return emptyList()
         val zone = ZoneId.systemDefault()
         val todayStart = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
         val todayEnd = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
-        val timeFilter = TimeRangeFilter.between(todayStart, todayEnd)
-
-        val records = mutableListOf<StepsRecord>()
-        try {
-            var pageToken: String? = null
-            do {
-                val request = ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = timeFilter,
-                    pageToken = pageToken,
-                    ascendingOrder = false
-                )
-                val result = client.readRecords(request)
-                records.addAll(result.records)
-                pageToken = result.pageToken
-            } while (pageToken != null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return records
+        return readStepsRecordsSafely(todayStart, todayEnd)
     }
 
     suspend fun getChangesToken(): String? {
@@ -395,7 +425,7 @@ class HealthConnectManager(private val context: Context) {
 
         // Extract source from metadata
         val meta = record.metadata
-        var source = meta.dataOrigin.packageName
+        var source = if (meta.dataOrigin.packageName.isNotBlank()) meta.dataOrigin.packageName else "com.sec.android.app.shealth"
 
         val deviceType = meta.device?.type
         if (deviceType == 1) { // TYPE_WATCH

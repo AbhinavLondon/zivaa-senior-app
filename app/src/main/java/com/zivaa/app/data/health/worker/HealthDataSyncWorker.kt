@@ -95,7 +95,12 @@ class HealthDataSyncWorker(
                     var hasMore: Boolean
                     var totalUpsertions = 0
                     do {
-                        val changesResponse = healthConnectManager.getChanges(token)
+                        val changesResponse = try {
+                            healthConnectManager.getChanges(token)
+                        } catch (e: Exception) {
+                            println("Error reading changes from token: ${e.message}")
+                            null
+                        }
                         if (changesResponse != null) {
                             val upsertions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.UpsertionChange>()
                             totalUpsertions += upsertions.size
@@ -103,7 +108,9 @@ class HealthDataSyncWorker(
                             token = changesResponse.nextChangesToken
                             hasMore = changesResponse.hasMore
                         } else {
-                            if (nextToken == null) return Result.retry()
+                            if (nextToken == null) {
+                                syncPrefsManager.clearChangesToken(patientId)
+                            }
                             break
                         }
                     } while (hasMore)
@@ -143,7 +150,7 @@ class HealthDataSyncWorker(
                 val stepsMissing = (lastStepsDate != nowStr) && isPast11AM
 
                 val lastHrTime = syncPrefsManager.getLastHeartRateSyncTime()
-                val hrMissing = lastHrTime > 0 && (nowMs - lastHrTime) > (4 * 60 * 60 * 1000L)
+                val hrMissing = (lastHrTime == 0L) || ((nowMs - lastHrTime) > (4 * 60 * 60 * 1000L))
 
                 val isForeground = syncType.equals("Foreground", ignoreCase = true)
                 val attemptsToday = syncPrefsManager.getFallbackAttemptsCount(nowStr)
@@ -173,6 +180,24 @@ class HealthDataSyncWorker(
                 }
             }
 
+            // Safety net: Ensure today's steps are never missing if Health Connect has recorded steps
+            val todayLocalDate = java.time.LocalDate.now()
+            val todayStart = todayLocalDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+            val hasTodayStepsInPayload = payload.any { record ->
+                record.metricType == "StepsRecord" && try {
+                    Instant.parse(record.recordedAt).isAfter(todayStart)
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            if (!hasTodayStepsInPayload) {
+                val todaySteps = healthConnectManager.fetchTodayStepsRecords()
+                if (todaySteps.isNotEmpty()) {
+                    payload.addAll(todaySteps.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
+                    syncPrefsManager.setLastStepsSyncDate(todayLocalDate.toString())
+                }
+            }
+
             // Sync to backend if we have records
             
             // Append phone sensor data
@@ -193,7 +218,18 @@ class HealthDataSyncWorker(
                 val uniquePayload = payload.distinctBy { 
                     it.patientId + "_" + it.metricType + "_" + it.recordedAt + "_" + it.source 
                 }
-                val chunks = uniquePayload.chunked(500)
+                val metricPriority = mapOf(
+                    "HeartRateRecord" to 1,
+                    "SleepSessionRecord" to 2,
+                    "StepsRecord" to 3,
+                    "OxygenSaturationRecord" to 4,
+                    "BloodPressureRecord" to 5,
+                    "RestingHeartRateRecord" to 6,
+                    "BloodGlucoseRecord" to 7,
+                    "BodyTemperatureRecord" to 8
+                )
+                val sortedPayload = uniquePayload.sortedBy { metricPriority[it.metricType] ?: Int.MAX_VALUE }
+                val chunks = sortedPayload.chunked(25)
                 var allSuccessful = true
                 for (chunk in chunks) {
                     val response = com.zivaa.app.data.remote.RetrofitClient.apiService.insertRawVitals(chunk)
