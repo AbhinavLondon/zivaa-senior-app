@@ -126,6 +126,11 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putString(KEY_LAST_SLEEP_SYNC, dateStr).apply()
     }
 
+    fun getLastStepsSyncDate(): String? = prefs.getString(KEY_LAST_STEPS_SYNC, null)
+    fun setLastStepsSyncDate(dateStr: String) {
+        prefs.edit().putString(KEY_LAST_STEPS_SYNC, dateStr).apply()
+    }
+
     fun getLastHeartRateSyncTime(): Long = prefs.getLong(KEY_LAST_HR_SYNC, 0L)
     fun setLastHeartRateSyncTime(timeMs: Long) {
         prefs.edit().putLong(KEY_LAST_HR_SYNC, timeMs).apply()
@@ -135,6 +140,25 @@ class SyncPrefsManager(context: Context) {
     fun setLastFallbackAttemptDate(dateStr: String) {
         prefs.edit().putString(KEY_LAST_FALLBACK_ATTEMPT, dateStr).apply()
     }
+
+    fun getFallbackAttemptsCount(dateStr: String): Int {
+        val lastDate = prefs.getString(KEY_LAST_FALLBACK_ATTEMPT_DATE, null)
+        if (lastDate != dateStr) {
+            return 0
+        }
+        return prefs.getInt(KEY_FALLBACK_ATTEMPTS_COUNT, 0)
+    }
+
+    fun recordFallbackAttempt(dateStr: String) {
+        val currentCount = getFallbackAttemptsCount(dateStr)
+        prefs.edit()
+            .putString(KEY_LAST_FALLBACK_ATTEMPT_DATE, dateStr)
+            .putInt(KEY_FALLBACK_ATTEMPTS_COUNT, currentCount + 1)
+            .putLong(KEY_LAST_FALLBACK_TIMESTAMP, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun getLastFallbackTimestamp(): Long = prefs.getLong(KEY_LAST_FALLBACK_TIMESTAMP, 0L)
 
     fun getStepsGoal(patientId: String? = null): Int? {
         val goal = prefs.getInt(getScopedKey(KEY_STEPS_GOAL, patientId), -1)
@@ -250,8 +274,12 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_MIDDAY_SUMMARY = "midday_summary_text"
         private const val KEY_EVENING_SUMMARY = "evening_summary_text"
         private const val KEY_LAST_SLEEP_SYNC = "last_sleep_sync"
+        private const val KEY_LAST_STEPS_SYNC = "last_steps_sync"
         private const val KEY_LAST_HR_SYNC = "last_hr_sync"
         private const val KEY_LAST_FALLBACK_ATTEMPT = "last_fallback_attempt"
+        private const val KEY_LAST_FALLBACK_ATTEMPT_DATE = "last_fallback_attempt_date"
+        private const val KEY_FALLBACK_ATTEMPTS_COUNT = "fallback_attempts_count"
+        private const val KEY_LAST_FALLBACK_TIMESTAMP = "last_fallback_timestamp"
         private const val KEY_STEPS_GOAL = "steps_goal"
         private const val KEY_METRIC_PRIORITIES = "metric_priorities"
         private const val KEY_CACHED_VITALS_DATE = "cached_vitals_date"

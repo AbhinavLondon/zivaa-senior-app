@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 41
-        versionName = "1.0.40"
+        versionCode = 42
+        versionName = "1.0.41"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.40 - Interactive Exercise Follow-Along routine player, rich daily care plan schedule, meal logging & macro breakdown enhancements, and sleep stage visualizer"
+                releaseNotes = "Zivaa v1.0.41 - Smart rate-limited Health Connect fallback sync with 2-strike cooldown and steps tracking"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

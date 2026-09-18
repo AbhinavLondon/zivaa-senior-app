@@ -44,6 +44,7 @@ class HealthDataSyncWorker(
 
         return try {
             val lastSyncedPatient = syncPrefsManager.getLastSyncedPatientId()
+            val syncType = inputData.getString("sync_type") ?: "Background"
             val forceBackfill = inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
             
             if (lastSyncedPatient != patientId) {
@@ -73,66 +74,101 @@ class HealthDataSyncWorker(
                 
                 payload.addAll(rawRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
 
-                // 2. Obtain a new ChangesToken for future runs
+                // 2. Initialize tracking dates so initial sync doesn't immediately trigger fallbacks
+                val nowStr = java.time.LocalDate.now().toString()
+                if (rawRecords.any { it::class.simpleName == "SleepSessionRecord" }) {
+                    syncPrefsManager.setLastSleepSyncDate(nowStr)
+                }
+                if (rawRecords.any { it::class.simpleName == "StepsRecord" }) {
+                    syncPrefsManager.setLastStepsSyncDate(nowStr)
+                }
+                if (rawRecords.any { it::class.simpleName == "HeartRateRecord" }) {
+                    syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
+                }
+
+                // 3. Obtain a new ChangesToken for future runs
                 nextToken = healthConnectManager.getChangesToken()
             } else {
-                // SUBSEQUENT RUNS: Use ChangesToken API as primary source.
+                // SUBSEQUENT RUNS: Use ChangesToken API with official Google pagination loop.
                 try {
-                    val changesResponse = healthConnectManager.getChanges(currentToken)
-                    if (changesResponse != null) {
-                        val upsertions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.UpsertionChange>()
-                        
-                        println("[SYNC METHOD] Normal ChangesToken returned ${upsertions.size} upsertions for patient $patientId.")
-                        
-                        payload.addAll(upsertions.flatMap { healthConnectManager.mapRecordToSupabase(it.record, patientId) })
-                        nextToken = changesResponse.nextChangesToken
-                    } else {
-                        return Result.retry()
-                    }
+                    var token: String = currentToken
+                    var hasMore: Boolean
+                    var totalUpsertions = 0
+                    do {
+                        val changesResponse = healthConnectManager.getChanges(token)
+                        if (changesResponse != null) {
+                            val upsertions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.UpsertionChange>()
+                            totalUpsertions += upsertions.size
+                            payload.addAll(upsertions.flatMap { healthConnectManager.mapRecordToSupabase(it.record, patientId) })
+                            token = changesResponse.nextChangesToken
+                            hasMore = changesResponse.hasMore
+                        } else {
+                            if (nextToken == null) return Result.retry()
+                            break
+                        }
+                    } while (hasMore)
+                    nextToken = token
+                    println("[SYNC METHOD] ChangesToken pagination complete: $totalUpsertions upsertions for patient $patientId.")
                 } catch (e: Exception) {
                     println("Changes token expired or error: ${e.message}. Clearing token.")
                     syncPrefsManager.clearChangesToken(patientId)
                     return Result.retry()
                 }
 
-                // --- ANOMALY DETECTION ---
+                // --- METRIC STATE TRACKING ---
                 val nowStr = java.time.LocalDate.now().toString()
-                
-                // 1. Update trackers if we found data via ChangesToken
+                val nowMs = System.currentTimeMillis()
+
                 val hasSleep = payload.any { it.metricType == "SleepSessionRecord" }
+                val hasSteps = payload.any { it.metricType == "StepsRecord" }
                 val hasHeartRate = payload.any { it.metricType == "HeartRateRecord" }
-                
+
                 if (hasSleep) {
                     syncPrefsManager.setLastSleepSyncDate(nowStr)
                 }
+                if (hasSteps) {
+                    syncPrefsManager.setLastStepsSyncDate(nowStr)
+                }
                 if (hasHeartRate) {
-                    syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
+                    syncPrefsManager.setLastHeartRateSyncTime(nowMs)
                 }
 
-                // 2. Check for Sleep Anomaly
+                // --- SMART 2-STRIKE FALLBACK CHECK ---
                 val lastSleepDate = syncPrefsManager.getLastSleepSyncDate()
                 val isPast10AM = java.time.LocalTime.now().isAfter(java.time.LocalTime.of(10, 0))
-                val lastFallbackAttempt = syncPrefsManager.getLastFallbackAttemptDate()
-                
                 val sleepMissing = (lastSleepDate != nowStr) && isPast10AM
-                val canAttemptFallback = (lastFallbackAttempt != nowStr)
-                
-                // 3. Check for Heart Rate Anomaly (missing for > 4 hours)
-                val lastHrTime = syncPrefsManager.getLastHeartRateSyncTime()
-                val hrMissing = lastHrTime > 0 && (System.currentTimeMillis() - lastHrTime) > (4 * 60 * 60 * 1000L)
 
-                if ((sleepMissing || hrMissing) && canAttemptFallback) {
-                    println("[SYNC METHOD] Anomaly Detected (Sleep Missing: $sleepMissing, HR Missing: $hrMissing). Triggering 3-day Fallback.")
-                    syncPrefsManager.setLastFallbackAttemptDate(nowStr) // Mark fallback attempt for today
-                    
-                    val fallbackRecords = healthConnectManager.fetchAllAvailableMetrics(3)
+                val lastStepsDate = syncPrefsManager.getLastStepsSyncDate()
+                val isPast11AM = java.time.LocalTime.now().isAfter(java.time.LocalTime.of(11, 0))
+                val stepsMissing = (lastStepsDate != nowStr) && isPast11AM
+
+                val lastHrTime = syncPrefsManager.getLastHeartRateSyncTime()
+                val hrMissing = lastHrTime > 0 && (nowMs - lastHrTime) > (4 * 60 * 60 * 1000L)
+
+                val isForeground = syncType.equals("Foreground", ignoreCase = true)
+                val attemptsToday = syncPrefsManager.getFallbackAttemptsCount(nowStr)
+                val lastAttemptTs = syncPrefsManager.getLastFallbackTimestamp()
+                val cooldownPassed = (nowMs - lastAttemptTs) > (3 * 60 * 60 * 1000L)
+
+                val shouldFallback = (sleepMissing || stepsMissing || hrMissing) &&
+                        (isForeground || (attemptsToday < 2 && cooldownPassed))
+
+                if (shouldFallback) {
+                    println("[SYNC METHOD] Fallback Triggered (Sleep: $sleepMissing, Steps: $stepsMissing, HR: $hrMissing, Attempt: ${attemptsToday + 1}/2, Foreground: $isForeground)")
+                    syncPrefsManager.recordFallbackAttempt(nowStr)
+                    syncPrefsManager.setLastFallbackAttemptDate(nowStr)
+
+                    val fallbackRecords = healthConnectManager.fetchAllAvailableMetrics(2)
                     payload.addAll(fallbackRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
-                    
+
                     if (fallbackRecords.any { it::class.simpleName == "SleepSessionRecord" }) {
-                         syncPrefsManager.setLastSleepSyncDate(nowStr)
+                        syncPrefsManager.setLastSleepSyncDate(nowStr)
+                    }
+                    if (fallbackRecords.any { it::class.simpleName == "StepsRecord" }) {
+                        syncPrefsManager.setLastStepsSyncDate(nowStr)
                     }
                     if (fallbackRecords.any { it::class.simpleName == "HeartRateRecord" }) {
-                         syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
+                        syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
                     }
                 }
             }
@@ -176,7 +212,6 @@ class HealthDataSyncWorker(
                         val totalRecords = uniquePayload.size
                         val metricTypes = uniquePayload.map { it.metricType }.distinct()
                         
-                        val syncType = inputData.getString("sync_type") ?: "Background"
                         com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
                             com.zivaa.app.data.remote.SyncCompletePayload(
                                 patient_id = patientId, 
