@@ -255,8 +255,9 @@ interface SupabaseApiService {
 
     @retrofit2.http.GET("rest/v1/zivaa_exercise_repository")
     suspend fun getExercises(
-        @retrofit2.http.Query("body_part") bodyPartQuery: String = "eq.*",
-        @retrofit2.http.Query("order") order: String = "exercise_name.asc"
+        @retrofit2.http.Query("body_part") bodyPartQuery: String? = null,
+        @retrofit2.http.Query("order") order: String = "exercise_name.asc",
+        @retrofit2.http.Query("limit") limit: Int = 200
     ): Response<List<SupabaseExerciseRecord>>
 
     @retrofit2.http.GET("rest/v1/metric_source_priority")

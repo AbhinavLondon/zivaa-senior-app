@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class AppSettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
+    fun hasExplicitDarkTheme(): Boolean = prefs.contains("dark_theme")
+
     private val _darkThemeFlow = MutableStateFlow(prefs.getBoolean("dark_theme", false))
     val darkThemeFlow: StateFlow<Boolean> = _darkThemeFlow.asStateFlow()
     

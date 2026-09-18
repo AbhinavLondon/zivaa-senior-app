@@ -28,6 +28,13 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.zivaa.app.ui.theme.ZivaaTheme
+
 @OptIn(ExperimentalGetImage::class)
 @Composable
 fun BarcodeScannerScreen(
@@ -137,6 +144,19 @@ fun BarcodeScannerScreen(
                 modifier = Modifier.fillMaxSize()
             )
             
+            // Center Viewfinder Reticle
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(260.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .border(2.5.dp, ZivaaTheme.colors.sage, RoundedCornerShape(24.dp))
+                )
+            }
+
             // UI Overlay
             Column(
                 modifier = Modifier
@@ -151,28 +171,55 @@ fun BarcodeScannerScreen(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
                 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(32.dp),
+                        .padding(bottom = 48.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "Position barcode in the center",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .padding(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            "Position barcode inside the frame",
+                            color = Color.White,
+                            style = ZivaaTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }
     } else {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Camera permission is required to scan barcodes.")
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ZivaaTheme.colors.bg),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Camera permission is required to scan barcodes.",
+                style = ZivaaTheme.typography.bodyMedium,
+                color = ZivaaTheme.colors.textStrong
+            )
         }
     }
 }

@@ -13,19 +13,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Nightlight
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zivaa.app.presentation.nutrition.components.DayItem
 import com.zivaa.app.presentation.nutrition.components.DaySelectorRow
 import com.zivaa.app.presentation.nutrition.components.FoodItem
@@ -188,38 +199,43 @@ fun NutritionScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.statusBars),
-            contentPadding = PaddingValues(bottom = 130.dp)
+            contentPadding = PaddingValues(
+                bottom = 40.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            )
         ) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 // Top Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = 22.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onNavigateBack,
+                    Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
-                            .background(colors.bgElev) // Might need border depending on exactly what screenshot has
+                            .background(colors.bgElev)
+                            .border(0.5.dp, colors.line, CircleShape)
+                            .clickable(onClick = onNavigateBack),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ChevronLeft,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = colors.textStrong
+                            tint = colors.ink,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                        text = "Food · What You Ate",
+                        text = "Food \u00B7 What You Ate",
                         style = typography.eyebrow,
                         color = colors.eyebrow
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // Day Selector
                 DaySelectorRow(
@@ -227,11 +243,11 @@ fun NutritionScreen(
                     selectedDate = selectedDate,
                     onDaySelected = { selectedDate = it }
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
             
             item {
-                Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 22.dp)) {
                     // Summary Card
                     NutritionSummaryCard(
                         currentCalories = currentCalories,
@@ -247,7 +263,7 @@ fun NutritionScreen(
                         carbsCurrent = carbsCurrent, carbsTotal = goalsState.targetCarbsG,
                         fatCurrent = fatCurrent, fatTotal = goalsState.targetFatG
                     )
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(36.dp))
                     
                     // Meals Header
                     Row(
@@ -262,25 +278,25 @@ fun NutritionScreen(
                         )
                         Text(
                             text = "$loggedMealsCount Of 4 Logged",
-                            style = typography.eyebrow,
-                            color = colors.eyebrow
+                            style = typography.meta.copy(fontSize = 11.sp),
+                            color = colors.textMeta
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     
                     // Breakfast
                     MealCard(
                         title = "Breakfast",
                         timeRange = "7:00 - 9:30 AM",
                         totalCalories = if (breakfastFoods.isEmpty()) null else breakfastFoods.sumOf { it.calories },
-                        icon = Icons.Outlined.WbSunny, // Just a placeholder for Sunrise
-                        iconTint = colors.clay,
-                        iconBgColor = colors.clay.copy(alpha = 0.1f),
+                        icon = Icons.Outlined.WbSunny,
+                        iconTint = colors.amber,
+                        iconBgColor = colors.amber.copy(alpha = 0.15f),
                         foods = breakfastFoods,
                         onAddClick = { showLogSheetForMeal = "Breakfast" },
                         onRemoveFood = { id -> viewModel.deleteMeal(id, selectedDate) }
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     
                     // Lunch
                     MealCard(
@@ -289,12 +305,12 @@ fun NutritionScreen(
                         totalCalories = if (lunchFoods.isEmpty()) null else lunchFoods.sumOf { it.calories },
                         icon = Icons.Default.WbSunny,
                         iconTint = colors.clay,
-                        iconBgColor = colors.clay.copy(alpha = 0.1f),
+                        iconBgColor = colors.clay.copy(alpha = 0.15f),
                         foods = lunchFoods,
                         onAddClick = { showLogSheetForMeal = "Lunch" },
                         onRemoveFood = { id -> viewModel.deleteMeal(id, selectedDate) }
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     
                     // Snacks
                     MealCard(
@@ -303,12 +319,12 @@ fun NutritionScreen(
                         totalCalories = if (snackFoods.isEmpty()) null else snackFoods.sumOf { it.calories },
                         icon = Icons.Default.Coffee,
                         iconTint = colors.leaf,
-                        iconBgColor = colors.leaf.copy(alpha = 0.1f),
+                        iconBgColor = colors.leaf.copy(alpha = 0.15f),
                         foods = snackFoods,
                         onAddClick = { showLogSheetForMeal = "Snacks" },
                         onRemoveFood = { id -> viewModel.deleteMeal(id, selectedDate) }
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     
                     // Dinner
                     MealCard(
@@ -316,15 +332,15 @@ fun NutritionScreen(
                         timeRange = "7:30 - 9:00 PM",
                         totalCalories = if (dinnerFoods.isEmpty()) null else dinnerFoods.sumOf { it.calories },
                         icon = Icons.Default.Nightlight,
-                        iconTint = colors.textStrong,
-                        iconBgColor = colors.textStrong.copy(alpha = 0.1f),
+                        iconTint = colors.sage,
+                        iconBgColor = colors.sage.copy(alpha = 0.15f),
                         foods = dinnerFoods,
                         emptyMessage = if (dinnerFoods.isEmpty()) "Not eaten yet. We'll ask again around eight." else null,
                         onAddClick = { showLogSheetForMeal = "Dinner" },
                         onRemoveFood = { id -> viewModel.deleteMeal(id, selectedDate) }
                     )
                     
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(36.dp))
                     Text(
                         text = "A photo is enough. We'll work out the rest, and you can always correct us.",
                         style = typography.bodySmall,
@@ -395,15 +411,24 @@ fun NutritionScreen(
             Dialog(onDismissRequest = {}) {
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                        .background(colors.bg),
+                        .size(130.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
+                        .background(colors.bgElev)
+                        .border(1.dp, colors.borderHairline, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = colors.clay)
+                        CircularProgressIndicator(
+                            color = colors.sage,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Analyzing meal...", style = typography.bodySmall, color = colors.textStrong)
+                        Text(
+                            "Analyzing meal...",
+                            style = typography.bodyMedium,
+                            color = colors.textStrong
+                        )
                     }
                 }
             }
@@ -485,28 +510,71 @@ fun NutritionScreen(
         if (showSearchDialog) {
             AlertDialog(
                 onDismissRequest = { showSearchDialog = false },
-                title = { Text("Search for Food", style = typography.titleLarge) },
+                containerColor = colors.bgElev,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                title = {
+                    Text(
+                        "Search for Food",
+                        style = typography.titleLarge.copy(fontSize = 22.sp),
+                        color = colors.textStrong
+                    )
+                },
                 text = {
-                    TextField(
+                    OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("What did you eat?") }
+                        placeholder = {
+                            Text(
+                                "What did you eat?",
+                                style = typography.bodyMedium,
+                                color = colors.textMeta
+                            )
+                        },
+                        singleLine = true,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colors.sage,
+                            unfocusedBorderColor = colors.borderStrong,
+                            focusedTextColor = colors.textStrong,
+                            unfocusedTextColor = colors.textStrong,
+                            cursorColor = colors.sage,
+                            focusedContainerColor = colors.bg,
+                            unfocusedContainerColor = colors.bg
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = {
-                        if (searchQuery.isNotBlank()) {
-                            viewModel.analyzeMealText(searchQuery)
-                        }
-                        showSearchDialog = false
-                        searchQuery = ""
-                    }) {
-                        Text("Search")
+                    Button(
+                        onClick = {
+                            if (searchQuery.isNotBlank()) {
+                                viewModel.analyzeMealText(searchQuery)
+                            }
+                            showSearchDialog = false
+                            searchQuery = ""
+                        },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.sage,
+                            contentColor = colors.sageInk
+                        )
+                    ) {
+                        Text(
+                            "Search",
+                            style = typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showSearchDialog = false }) {
-                        Text("Cancel")
+                    androidx.compose.material3.TextButton(
+                        onClick = { showSearchDialog = false },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp)
+                    ) {
+                        Text(
+                            "Cancel",
+                            style = typography.bodyMedium,
+                            color = colors.textMeta
+                        )
                     }
                 }
             )

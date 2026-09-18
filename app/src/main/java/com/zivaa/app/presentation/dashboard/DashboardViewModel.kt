@@ -303,6 +303,96 @@ class DashboardViewModel(
         syncTaskStatus("night", index, newStatus)
     }
 
+    fun markTaskCompletedById(taskId: String, completed: Boolean? = null) {
+        var foundPeriod: String? = null
+        var foundIndex: Int = -1
+        var newStatus: Boolean = true
+
+        val updateList = { list: List<com.zivaa.app.data.remote.DailyPlanTask> ->
+            val idx = list.indexOfFirst { it.id == taskId }
+            if (idx >= 0) {
+                newStatus = completed ?: !list[idx].completed
+                foundIndex = idx
+                list.mapIndexed { i, t -> if (i == idx) t.copy(completed = newStatus) else t }
+            } else {
+                list
+            }
+        }
+
+        val newMorning = updateList(morningTasks)
+        if (foundIndex >= 0) {
+            morningTasks = newMorning
+            foundPeriod = "morning"
+        } else {
+            val newAfternoon = updateList(afternoonTasks)
+            if (foundIndex >= 0) {
+                afternoonTasks = newAfternoon
+                foundPeriod = "afternoon"
+            } else {
+                val newEvening = updateList(eveningTasks)
+                if (foundIndex >= 0) {
+                    eveningTasks = newEvening
+                    foundPeriod = "evening"
+                } else {
+                    val newNight = updateList(nightTasks)
+                    if (foundIndex >= 0) {
+                        nightTasks = newNight
+                        foundPeriod = "night"
+                    }
+                }
+            }
+        }
+
+        updateAllWeeklyPlansCurrentSchedule()
+        if (foundPeriod != null && foundIndex >= 0) {
+            syncTaskStatus(foundPeriod!!, foundIndex, newStatus)
+        }
+    }
+
+    fun dismissTask(taskId: String?, taskTitle: String, category: String?, reason: String = "not_relevant") {
+        morningTasks = morningTasks.filterNot { (taskId != null && it.id == taskId) || it.task.equals(taskTitle, ignoreCase = true) }
+        afternoonTasks = afternoonTasks.filterNot { (taskId != null && it.id == taskId) || it.task.equals(taskTitle, ignoreCase = true) }
+        eveningTasks = eveningTasks.filterNot { (taskId != null && it.id == taskId) || it.task.equals(taskTitle, ignoreCase = true) }
+        nightTasks = nightTasks.filterNot { (taskId != null && it.id == taskId) || it.task.equals(taskTitle, ignoreCase = true) }
+        updateAllWeeklyPlansCurrentSchedule()
+
+        viewModelScope.launch {
+            try {
+                val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
+                com.zivaa.app.data.remote.ZivaaBackendClient.apiService.dismissPlanAction(
+                    com.zivaa.app.data.remote.DismissActionRequest(
+                        patient_id = patientId,
+                        action_id = taskId,
+                        task_title = taskTitle,
+                        category = category,
+                        reason = reason
+                    )
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardVM", "Error dismissing task", e)
+            }
+        }
+    }
+
+    fun pauseHabit(actionId: String) {
+        morningTasks = morningTasks.filterNot { it.anchor_id == actionId || it.id == actionId }
+        afternoonTasks = afternoonTasks.filterNot { it.anchor_id == actionId || it.id == actionId }
+        eveningTasks = eveningTasks.filterNot { it.anchor_id == actionId || it.id == actionId }
+        nightTasks = nightTasks.filterNot { it.anchor_id == actionId || it.id == actionId }
+        updateAllWeeklyPlansCurrentSchedule()
+
+        viewModelScope.launch {
+            try {
+                com.zivaa.app.data.remote.ZivaaBackendClient.apiService.updateCarePlanActionStatus(
+                    actionId = actionId,
+                    request = com.zivaa.app.data.remote.UpdateCarePlanStatusRequest(status = "Paused")
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardVM", "Error pausing habit", e)
+            }
+        }
+    }
+
     fun fetchDailyPlan(vitalsMap: Map<String, Double>? = null) {
         viewModelScope.launch {
             try {
@@ -371,43 +461,63 @@ class DashboardViewModel(
                         com.zivaa.app.data.remote.DailyPlanSchedule(
                             morning = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Say hello to Zivaa, your AI health coach",
                                     time = "Morning",
                                     category = "coach",
                                     details = "Tap to chat with Zivaa about your day and health goals.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "coach",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "coach", badge_text = "WELCOME", reason = "Get started with your AI coach"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "COACH_CHAT", cta_label = "Ask Zivaa", prefilled_prompt = "Good morning Zivaa!")
                                 ),
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Drink a fresh glass of water",
                                     time = "8:00 AM",
                                     category = "hydration",
                                     details = "Start your day refreshed with a full glass of water.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "HABIT", reason = "Hydration kickstart"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "CHECKBOX_ONLY", cta_label = "Done")
                                 )
                             ),
                             afternoon = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Log your breakfast or lunch",
                                     time = "1:00 PM",
                                     category = "nutrition",
                                     details = "Take a photo or describe your meal to track your nutrition.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "DAILY", reason = "Track nutritional balance"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "LOG_MEAL", target_body_part = "nutrition", cta_label = "Snap Meal")
                                 ),
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "10-minute gentle walk or stretch",
                                     time = "3:30 PM",
                                     category = "movement",
                                     details = "A brief stroll or gentle stretch to keep your circulation flowing.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "ACTIVITY", reason = "Break up prolonged sitting"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "FOLLOW_EXERCISE", routine_title = "Gentle Circulation Routine", cta_label = "Start Routine")
                                 )
                             ),
                             evening = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Check your blood pressure or vitals",
                                     time = "7:00 PM",
                                     category = "vitals",
                                     details = "Keep track of your vitals or connect your Health Connect data.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "clinical",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "clinical_rule", badge_text = "VITALS", reason = "Evening cardiovascular baseline check"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "LOG_VITALS", target_body_part = "blood_pressure", cta_label = "Log Vitals")
                                 )
                             ),
                             night = emptyList()
@@ -416,43 +526,63 @@ class DashboardViewModel(
                         com.zivaa.app.data.remote.DailyPlanSchedule(
                             morning = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Morning glass of water",
                                     time = "8:00 AM",
                                     category = "hydration",
                                     details = "Hydrate early to jumpstart your day.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "HABIT", reason = "Daily hydration habit"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "CHECKBOX_ONLY", cta_label = "Done")
                                 ),
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Ask Zivaa for your morning briefing",
                                     time = "9:00 AM",
                                     category = "coach",
                                     details = "Check in with your AI coach on your daily focus.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "coach",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "coach", badge_text = "CHECK-IN", reason = "Daily briefing with Zivaa"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "COACH_CHAT", cta_label = "Ask Zivaa", prefilled_prompt = "What should I focus on today?")
                                 )
                             ),
                             afternoon = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Log your lunch",
                                     time = "1:00 PM",
                                     category = "nutrition",
                                     details = "Snap a photo of what you ate today.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "MEAL", reason = "Lunch nutrition log"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "LOG_MEAL", target_body_part = "nutrition", cta_label = "Snap Meal")
                                 ),
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "15-minute afternoon walk",
                                     time = "4:00 PM",
                                     category = "movement",
                                     details = "A gentle stroll to stay active and energized.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "lifestyle",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "lifestyle", badge_text = "WALK", reason = "Afternoon energy boost"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "FOLLOW_EXERCISE", routine_title = "Afternoon Stroll & Mobility", cta_label = "Start Routine")
                                 )
                             ),
                             evening = listOf(
                                 DailyPlanTask(
+                                    id = java.util.UUID.randomUUID().toString(),
                                     task = "Evening vitals check & unwind",
                                     time = "8:00 PM",
                                     category = "vitals",
                                     details = "Review your vitals and relax before bed.",
-                                    completed = false
+                                    completed = false,
+                                    tier = "clinical",
+                                    provenance = com.zivaa.app.data.remote.TaskProvenance(source = "clinical_rule", badge_text = "VITALS", reason = "End-of-day health check"),
+                                    action = com.zivaa.app.data.remote.TaskAction(action_type = "LOG_VITALS", target_body_part = "blood_pressure", cta_label = "Log Vitals")
                                 )
                             ),
                             night = emptyList()
@@ -551,21 +681,21 @@ class DashboardViewModel(
                                     val hours = latest.sleepHours.toInt()
                                     val minutes = ((latest.sleepHours - hours) * 60).toInt()
                                     sleepHours = "${hours}h ${minutes}m"
-                                } else if (sleepHours == "7h 40m") {
-                                    sleepHours = "0h 0m"
+                                } else {
+                                    sleepHours = "--"
                                 }
                                 
                                 if (latest.minHeartRate != null && latest.maxHeartRate != null && latest.maxHeartRate > 0) {
                                     heartRate = "${latest.minHeartRate.toInt()}-${latest.maxHeartRate.toInt()}"
                                 } else if (latest.avgHeartRate != null && latest.avgHeartRate > 0) {
                                     heartRate = latest.avgHeartRate.toInt().toString()
-                                } else if (heartRate == "72") {
-                                    heartRate = "0"
+                                } else {
+                                    heartRate = "--"
                                 }
                                 
                                 if (latest.oxygenSatAvg != null && latest.oxygenSatAvg > 0) {
                                     oxygenLevel = "${latest.oxygenSatAvg.toInt()}%"
-                                } else if (oxygenLevel == "--") {
+                                } else {
                                     oxygenLevel = "--"
                                 }
 

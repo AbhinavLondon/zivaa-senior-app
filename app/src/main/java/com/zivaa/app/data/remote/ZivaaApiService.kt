@@ -148,7 +148,46 @@ interface ZivaaApiService {
     suspend fun getCoachSessionMessages(
         @Path("session_id") sessionId: String
     ): Response<List<CoachChatLog>>
+
+    @POST("health/daily-plan/action/dismiss")
+    suspend fun dismissPlanAction(
+        @retrofit2.http.Body request: DismissActionRequest
+    ): Response<Map<String, Any>>
+
+    @POST("health/care-plan/actions/{action_id}/status")
+    suspend fun updateCarePlanActionStatus(
+        @retrofit2.http.Path("action_id") actionId: String,
+        @retrofit2.http.Body request: UpdateCarePlanStatusRequest
+    ): Response<Map<String, Any>>
 }
+
+data class DismissActionRequest(
+    val patient_id: String,
+    val action_id: String? = null,
+    val task_title: String? = null,
+    val category: String? = null,
+    val reason: String = "not_relevant"
+)
+
+data class UpdateCarePlanStatusRequest(
+    val status: String
+)
+
+data class TaskProvenance(
+    val source: String? = null,
+    val badge_text: String? = null,
+    val reason: String? = null
+)
+
+data class TaskAction(
+    val action_type: String? = null,
+    val cta_label: String? = null,
+    val routine_title: String? = null,
+    val target_body_part: String? = null,
+    val exercise_ids: List<String>? = null,
+    val prefilled_prompt: String? = null,
+    val instructions: String? = null
+)
 
 data class DailyPlanPayload(
     val vitals: Map<String, Double>? = null,
@@ -158,11 +197,19 @@ data class DailyPlanPayload(
 )
 
 data class DailyPlanTask(
+    val id: String? = null,
     val task: String,
     val time: String? = null,
+    val period: String? = null,
     val category: String? = null,
+    val tier: String? = null,
+    val anchor_type: String? = null,
+    val anchor_id: String? = null,
     val details: String? = null,
-    val completed: Boolean = false
+    val completed: Boolean = false,
+    val status: String = "pending",
+    val provenance: TaskProvenance? = null,
+    val action: TaskAction? = null
 )
 
 data class DailyPlanSchedule(

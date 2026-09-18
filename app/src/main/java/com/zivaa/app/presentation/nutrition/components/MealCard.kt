@@ -34,6 +34,8 @@ import com.zivaa.app.ui.theme.InstrumentSerif
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 
+import androidx.compose.ui.text.font.FontWeight
+
 data class FoodItem(
     val id: String,
     val name: String,
@@ -64,9 +66,10 @@ fun MealCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(colors.bgElev)
-            .padding(24.dp)
+            .border(1.dp, colors.borderHairline, RoundedCornerShape(22.dp))
+            .padding(20.dp)
     ) {
         Column {
             // Header
@@ -77,7 +80,7 @@ fun MealCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(iconBgColor),
                     contentAlignment = Alignment.Center
                 ) {
@@ -88,7 +91,7 @@ fun MealCard(
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -96,76 +99,86 @@ fun MealCard(
                         fontSize = 24.sp,
                         color = colors.textStrong
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = timeRange.toEyebrowTitleCase(),
-                        style = typography.eyebrow,
-                        color = colors.eyebrow
+                        style = typography.meta.copy(
+                            fontSize = 11.sp,
+                            letterSpacing = androidx.compose.ui.unit.TextUnit(0.05f, androidx.compose.ui.unit.TextUnitType.Em)
+                        ),
+                        color = colors.textMeta
                     )
                 }
                 if (totalCalories != null) {
                     Text(
                         text = "$totalCalories kcal",
-                        style = typography.meta,
+                        style = typography.meta.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp
+                        ),
                         color = colors.textStrong
                     )
                 } else {
                     Text(
                         text = "-",
                         style = typography.meta,
-                        color = colors.textStrong
+                        color = colors.textMeta
                     )
                 }
             }
             
-            if (emptyMessage != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = emptyMessage,
-                    style = typography.bodyMedium,
-                    color = colors.textBody
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                // Filled button style for empty state
+            if (foods.isEmpty()) {
+                if (emptyMessage != null) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = emptyMessage,
+                        style = typography.bodySmall,
+                        color = colors.textBody
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                // Clean button style for empty state
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(999.dp))
                         .background(colors.bg)
-                        .border(1.dp, colors.borderStrong, RoundedCornerShape(24.dp))
-                        .clickable { onAddClick() }
-                        .padding(vertical = 12.dp),
+                        .border(1.dp, colors.borderHairline, RoundedCornerShape(999.dp))
+                        .clickable { onAddClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "+ Add to ${title.lowercase()}",
-                        style = typography.bodyMedium,
+                        style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = colors.sage
                     )
                 }
             } else {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = colors.borderHairline)
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = colors.borderHairline, thickness = 0.75.dp)
+                Spacer(modifier = Modifier.height(6.dp))
                 
                 foods.forEach { food ->
                     FoodItemRow(food = food, onRemove = { onRemoveFood(food.id) })
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 // Outlined button style for filled state
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .border(1.dp, colors.clay.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
-                        .clickable { onAddClick() }
-                        .padding(vertical = 12.dp),
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(colors.bg)
+                        .border(1.dp, colors.borderHairline, RoundedCornerShape(999.dp))
+                        .clickable { onAddClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "+ Add something else",
-                        style = typography.bodyMedium,
-                        color = colors.clay
+                        style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.textStrong
                     )
                 }
             }
@@ -184,51 +197,51 @@ fun FoodItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = food.name,
-                style = typography.bodyMedium,
+                style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = colors.textStrong
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "${food.protein}g P",
                     style = typography.meta.copy(fontSize = 11.sp),
                     color = colors.sage
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${food.carbs}g C",
                     style = typography.meta.copy(fontSize = 11.sp),
-                    color = colors.clay
+                    color = colors.amber
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${food.fat}g F",
                     style = typography.meta.copy(fontSize = 11.sp),
-                    color = colors.textMeta
+                    color = colors.clay
                 )
             }
         }
         Text(
             text = "${food.calories} kcal",
-            style = typography.meta,
-            color = colors.textMeta
+            style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.textStrong
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         IconButton(
             onClick = onRemove,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(26.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Remove",
-                tint = colors.textMeta,
-                modifier = Modifier.size(16.dp)
+                tint = colors.textMeta.copy(alpha = 0.6f),
+                modifier = Modifier.size(15.dp)
             )
         }
     }

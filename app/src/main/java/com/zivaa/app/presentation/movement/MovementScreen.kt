@@ -970,7 +970,7 @@ private fun MobilityFactorTile(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(progress.coerceIn(0.06f, 1f))
+                        .fillMaxWidth(if (progress <= 0f) 0f else progress.coerceIn(0.06f, 1f))
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(999.dp))
                         .background(accentColor)

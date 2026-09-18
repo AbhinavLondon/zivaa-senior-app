@@ -6,13 +6,32 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.*
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import kotlinx.coroutines.delay
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.launch
@@ -21,6 +40,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +50,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import android.Manifest
 import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.LocationManager
@@ -60,6 +84,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -99,7 +124,8 @@ fun DashboardScreen(
     onNavigateToLongevity: () -> Unit = {},
     onNavigateToMindfulness: () -> Unit = {},
     onNavigateToCoachChat: () -> Unit = {},
-    onNavigateToNutrition: () -> Unit = {}
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToExerciseFollowAlong: ((routineTitle: String, exerciseIds: List<String>, bodyPart: String?, taskId: String?) -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     val isDarkTheme = isSystemInDarkTheme()
@@ -369,7 +395,8 @@ fun DashboardScreen(
                         onNavigateToPlan = onNavigateToPlan,
                         onNavigateToCoachChat = onNavigateToCoachChat,
                         onNavigateToNutrition = onNavigateToNutrition,
-                        onNavigateToHealthConnect = onNavigateToHealthConnect
+                        onNavigateToHealthConnect = onNavigateToHealthConnect,
+                        onNavigateToExerciseFollowAlong = onNavigateToExerciseFollowAlong
                     )
                 }
 
@@ -1047,7 +1074,8 @@ fun GoalsCard(
     onNavigateToPlan: () -> Unit,
     onNavigateToCoachChat: () -> Unit = {},
     onNavigateToNutrition: () -> Unit = {},
-    onNavigateToHealthConnect: () -> Unit = {}
+    onNavigateToHealthConnect: () -> Unit = {},
+    onNavigateToExerciseFollowAlong: ((routineTitle: String, exerciseIds: List<String>, bodyPart: String?, taskId: String?) -> Unit)? = null
 ) {
     val colors = ZivaaTheme.colors
     val allGoals = remember(
@@ -1076,6 +1104,29 @@ fun GoalsCard(
         list
     }
 
+    val currentHour = remember { java.time.LocalTime.now().hour }
+    val initialDaypart = remember(currentHour) {
+        when {
+            currentHour in 5..11 -> "morning"
+            currentHour in 12..16 -> "afternoon"
+            currentHour in 17..20 -> "evening"
+            else -> "night"
+        }
+    }
+    var selectedDaypart by remember { mutableStateOf(initialDaypart) }
+
+    val dayparts = listOf("morning", "afternoon", "evening", "night")
+
+    val daypartGoals = remember(allGoals, selectedDaypart) {
+        allGoals.filter { it.first == selectedDaypart }
+    }
+    val pendingDaypartGoals = remember(daypartGoals) {
+        daypartGoals.filter { !it.third.completed }
+    }
+    val completedDaypartGoals = remember(daypartGoals) {
+        daypartGoals.filter { it.third.completed }
+    }
+
     val totalGoals = allGoals.size
     val completedGoals = allGoals.count { it.third.completed }
     val progress = if (totalGoals > 0) completedGoals.toFloat() / totalGoals else 0f
@@ -1093,10 +1144,9 @@ fun GoalsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(colors.sage.copy(alpha = 0.1f)) // sage mix with bg
-            .border(0.5.dp, colors.sage.copy(alpha = 0.3f), RoundedCornerShape(22.dp)) // sage mix with line
+            .background(colors.sage.copy(alpha = 0.1f))
+            .border(0.5.dp, colors.sage.copy(alpha = 0.3f), RoundedCornerShape(22.dp))
     ) {
-        // Drop shadow for the inner effect soft
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -1107,7 +1157,6 @@ fun GoalsCard(
                     spotColor = ZivaaTheme.colors.sage.copy(alpha = 0.06f)
                 )
         )
-        // Inner highlight
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -1116,9 +1165,9 @@ fun GoalsCard(
                     shape = RoundedCornerShape(22.dp)
                 )
         )
-        
+
         Column(modifier = Modifier.padding(20.dp)) {
-            // Eyebrow and Streak / Welcome Badge
+            // Eyebrow and Streak
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1135,12 +1184,12 @@ fun GoalsCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = if (viewModel.isNewUser) "Starter Plan" else "Your Plan",
+                        text = if (viewModel.isNewUser) "Starter Plan" else "Daily Plan",
                         style = ZivaaTheme.typography.meta,
                         color = ZivaaTheme.colors.eyebrow
                     )
                 }
-                
+
                 if (viewModel.isNewUser || viewModel.currentStreak <= 1) {
                     Box(
                         modifier = Modifier
@@ -1191,7 +1240,7 @@ fun GoalsCard(
                     }
                 }
             }
-            
+
             // Progress Ring and Dynamic Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1206,7 +1255,7 @@ fun GoalsCard(
                     totalCount = totalGoals
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    val titleText = remember(viewModel.isNewUser, completedGoals, totalGoals, displayName) {
+                    val titleText = remember(viewModel.isNewUser, completedGoals, totalGoals, displayName, selectedDaypart) {
                         buildAnnotatedString {
                             if (viewModel.isNewUser) {
                                 append("Welcome, $displayName — your ")
@@ -1231,11 +1280,11 @@ fun GoalsCard(
                                 }
                                 append("!")
                             } else {
-                                val hour = java.time.LocalTime.now().hour
-                                val periodWord = when {
-                                    hour < 12 -> "morning focus"
-                                    hour < 17 -> "afternoon focus"
-                                    else -> "evening focus"
+                                val dpWord = when (selectedDaypart) {
+                                    "morning" -> "morning focus"
+                                    "afternoon" -> "afternoon focus"
+                                    "evening" -> "evening focus"
+                                    else -> "night routine"
                                 }
                                 append("Your ")
                                 withStyle(
@@ -1244,7 +1293,7 @@ fun GoalsCard(
                                         color = colors.sage
                                     )
                                 ) {
-                                    append(periodWord)
+                                    append(dpWord)
                                 }
                                 append(" is set.")
                             }
@@ -1253,13 +1302,13 @@ fun GoalsCard(
 
                     Text(
                         text = titleText,
-                        style = ZivaaTheme.typography.cardTitle.copy(fontStyle = FontStyle.Normal, fontSize = 23.sp, lineHeight = (23 * 1.14).sp, letterSpacing = (-0.01).em),
+                        style = ZivaaTheme.typography.cardTitle.copy(fontStyle = FontStyle.Normal, fontSize = 21.sp, lineHeight = (21 * 1.15).sp, letterSpacing = (-0.01).em),
                         color = ZivaaTheme.colors.ink
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = progressCaption,
-                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, lineHeight = (13.5 * 1.45).sp),
+                        style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = (13 * 1.4).sp),
                         color = ZivaaTheme.colors.inkSoft
                     )
                 }
@@ -1291,151 +1340,364 @@ fun GoalsCard(
                     }
                 }
             } else {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = ZivaaTheme.colors.line, thickness = 0.5.dp)
-                
-                allGoals.forEach { (period, originalIndex, task) ->
-                    val goalTaskText = task.task
-                    val metaText = task.time ?: period.replaceFirstChar { it.uppercase() }
-                    
-                    val (iconVector, bgTone, textTone) = getGoalIconAndColors(goalTaskText)
+                // Daypart Segmented Selector Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    dayparts.forEach { dp ->
+                        val isSelected = dp == selectedDaypart
+                        val dpLabel = dp.replaceFirstChar { it.uppercase() }
+                        val dpAll = allGoals.filter { it.first == dp }
+                        val dpPending = dpAll.count { !it.third.completed }
+                        val dpDone = dpAll.isNotEmpty() && dpPending == 0
 
-                    val isCoachTask = task.category.equals("coach", ignoreCase = true) || goalTaskText.contains("Zivaa", ignoreCase = true) || goalTaskText.contains("coach", ignoreCase = true)
-                    val isNutritionTask = task.category.equals("nutrition", ignoreCase = true) || goalTaskText.contains("meal", ignoreCase = true) || goalTaskText.contains("lunch", ignoreCase = true) || goalTaskText.contains("food", ignoreCase = true) || goalTaskText.contains("breakfast", ignoreCase = true)
-                    val isVitalsTask = task.category.equals("vitals", ignoreCase = true) || goalTaskText.contains("vitals", ignoreCase = true) || goalTaskText.contains("blood pressure", ignoreCase = true)
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (!task.completed) {
-                                    when {
-                                        isCoachTask -> onNavigateToCoachChat()
-                                        isNutritionTask -> onNavigateToNutrition()
-                                        isVitalsTask -> onNavigateToHealthConnect()
-                                        else -> {
-                                            when (period) {
-                                                "morning" -> viewModel.toggleMorningTask(originalIndex)
-                                                "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
-                                                "evening" -> viewModel.toggleEveningTask(originalIndex)
-                                                "night" -> viewModel.toggleNightTask(originalIndex)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    when (period) {
-                                        "morning" -> viewModel.toggleMorningTask(originalIndex)
-                                        "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
-                                        "evening" -> viewModel.toggleEveningTask(originalIndex)
-                                        "night" -> viewModel.toggleNightTask(originalIndex)
-                                    }
-                                }
-                            }
-                            .padding(vertical = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Bubble Container
-                        ZivaaIconBubble(
-                            icon = iconVector,
-                            contentDescription = goalTaskText,
-                            size = 38.dp,
-                            iconSize = 20.dp,
-                            backgroundColor = bgTone,
-                            iconTint = textTone,
-                            modifier = Modifier.alpha(if (task.completed) 0.5f else 1f)
-                        )
-                        
-                        // Label Content
-                        Column(
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 12.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(if (isSelected) colors.sage else colors.surface.copy(alpha = 0.6f))
+                                .border(
+                                    width = if (isSelected) 0.dp else 0.5.dp,
+                                    color = if (isSelected) Color.Transparent else colors.line,
+                                    shape = RoundedCornerShape(999.dp)
+                                )
+                                .clickable { selectedDaypart = dp }
+                                .padding(vertical = 7.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = goalTaskText,
-                                style = ZivaaTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
-                                ),
-                                color = if (task.completed) ZivaaTheme.colors.inkSoft.copy(alpha = 0.5f) else ZivaaTheme.colors.ink,
-                                modifier = Modifier.alpha(if (task.completed) 0.5f else 1f)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = metaText.toEyebrowTitleCase(),
-                                style = ZivaaTheme.typography.meta.copy(fontSize = 12.sp, letterSpacing = 0.05.em),
-                                color = ZivaaTheme.colors.eyebrow
-                            )
-                        }
-                        
-                        // Custom Rounded Checkbox
-                        RoundCheckbox(
-                            checked = task.completed,
-                            onCheckedChange = {
-                                when (period) {
-                                    "morning" -> viewModel.toggleMorningTask(originalIndex)
-                                    "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
-                                    "evening" -> viewModel.toggleEveningTask(originalIndex)
-                                    "night" -> viewModel.toggleNightTask(originalIndex)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = dpLabel,
+                                    style = ZivaaTheme.typography.meta.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isSelected) colors.sageInk else colors.inkSoft
+                                )
+                                if (dpDone) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Done",
+                                        tint = if (isSelected) colors.sageInk else colors.sage,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                } else if (dpPending > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(if (isSelected) colors.sageInk else colors.amber)
+                                    )
                                 }
                             }
-                        )
+                        }
                     }
-                    
-                    HorizontalDivider(color = ZivaaTheme.colors.line, thickness = 0.5.dp)
                 }
 
-                if (completedGoals == totalGoals && totalGoals > 0) {
-                    Row(
+                HorizontalDivider(color = ZivaaTheme.colors.line, thickness = 0.5.dp)
+
+                // All Focus Tasks for Selected Daypart (shows all actions)
+                val focusTasks = pendingDaypartGoals
+
+                if (focusTasks.isNotEmpty()) {
+                    focusTasks.forEach { (period, originalIndex, task) ->
+                        key(task.id ?: "${period}_$originalIndex") {
+                            CelebratoryDailyPlanTaskRow(
+                                task = task,
+                                onComplete = {
+                                    if (!task.id.isNullOrBlank()) {
+                                        viewModel.markTaskCompletedById(task.id)
+                                    } else {
+                                        when (period) {
+                                            "morning" -> viewModel.toggleMorningTask(originalIndex)
+                                            "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
+                                            "evening" -> viewModel.toggleEveningTask(originalIndex)
+                                            "night" -> viewModel.toggleNightTask(originalIndex)
+                                        }
+                                    }
+                                },
+                                onDismiss = {
+                                    viewModel.dismissTask(task.id, task.task, "Not needed today")
+                                },
+                                onPauseHabit = { anchor ->
+                                    viewModel.pauseHabit(anchor)
+                                },
+                                onNavigateToExerciseFollowAlong = onNavigateToExerciseFollowAlong,
+                                onNavigateToHealthConnect = onNavigateToHealthConnect,
+                                onNavigateToNutrition = onNavigateToNutrition,
+                                onNavigateToCoachChat = onNavigateToCoachChat
+                            )
+                        }
+                    }
+                } else if (completedDaypartGoals.isNotEmpty()) {
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(ZivaaTheme.colors.surfaceHero)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(vertical = 12.dp)
+                            .animateContentSize(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (colors.isDark) colors.surfaceCard else Color(0xFFFBF9F5),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            brush = Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFFE8B86D).copy(alpha = 0.55f),
+                                    colors.sage.copy(alpha = 0.4f),
+                                    Color(0xFFE8B86D).copy(alpha = 0.25f)
+                                )
+                            )
+                        ),
+                        shadowElevation = 1.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "Celebrate",
-                            tint = colors.leaf.copy(alpha = 0.5f),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        val namePart = if (viewModel.patientFirstName.isNotBlank()) ", ${viewModel.patientFirstName}" else ""
-                        Text(
-                            text = if (totalGoals == 5) "All five, done. A wonderful day$namePart." else "All $totalGoals, done. A wonderful day$namePart.",
-                            style = ZivaaTheme.typography.bodyLarge.copy(fontFamily = com.zivaa.app.ui.theme.InstrumentSerif),
-                            color = ZivaaTheme.colors.sageInk
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFFE8B86D).copy(alpha = 0.18f))
+                                    .border(1.dp, Color(0xFFE8B86D).copy(alpha = 0.45f), RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Celebration,
+                                    contentDescription = "Celebration",
+                                    tint = Color(0xFF9A7422),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "All ${selectedDaypart.replaceFirstChar { it.uppercase() }} Actions Complete!",
+                                        style = ZivaaTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.5.sp
+                                        ),
+                                        color = colors.textStrong
+                                    )
+                                    Text(text = "✨", fontSize = 13.sp)
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Wonderful work. Consistency today shapes tomorrow's vitality.",
+                                    style = ZivaaTheme.typography.bodySmall.copy(
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp
+                                    ),
+                                    color = colors.inkSoft
+                                )
+                            }
+                        }
                     }
-                } else if (totalGoals > 0) {
+                } else {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp)
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(ZivaaTheme.colors.sage)
-                            .clickable { onNavigateToPlan() },
+                            .padding(vertical = 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        Text(
+                            text = "No scheduled actions for ${selectedDaypart.replaceFirstChar { it.uppercase() }}.",
+                            style = ZivaaTheme.typography.bodyMedium,
+                            color = colors.inkMute
+                        )
+                    }
+                }
+
+                // Auto-tucked completed tasks strip
+                if (completedDaypartGoals.isNotEmpty()) {
+                    var isCompletedExpanded by remember { mutableStateOf(false) }
+                    val completedCount = completedDaypartGoals.size
+                    var prevCompletedCount by remember { mutableIntStateOf(completedCount) }
+                    val iconBounce = remember { Animatable(1f) }
+                    val trayHighlight = remember { Animatable(0f) }
+
+                    LaunchedEffect(completedCount) {
+                        if (completedCount > prevCompletedCount) {
+                            launch {
+                                iconBounce.animateTo(1.22f, tween(110, easing = FastOutSlowInEasing))
+                                iconBounce.animateTo(1.0f, spring(dampingRatio = 0.55f, stiffness = 400f))
+                            }
+                            launch {
+                                trayHighlight.snapTo(1f)
+                                trayHighlight.animateTo(0f, tween(480, easing = LinearEasing))
+                            }
+                        }
+                        prevCompletedCount = completedCount
+                    }
+
+                    Column(modifier = Modifier.padding(top = 8.dp)) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (trayHighlight.value > 0f) {
+                                        colors.sage.copy(alpha = 0.08f * trayHighlight.value)
+                                    } else {
+                                        colors.surface.copy(alpha = 0.6f)
+                                    }
+                                )
+                                .border(
+                                    width = 0.5.dp,
+                                    color = if (trayHighlight.value > 0f) colors.sage.copy(alpha = 0.35f * trayHighlight.value) else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { isCompletedExpanded = !isCompletedExpanded }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "See today's full plan",
-                                style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = ZivaaTheme.colors.sageInk
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Completed",
+                                    tint = colors.sage,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .graphicsLayer {
+                                            scaleX = iconBounce.value
+                                            scaleY = iconBounce.value
+                                        }
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    AnimatedContent(
+                                        targetState = completedCount,
+                                        transitionSpec = {
+                                            if (targetState > initialState) {
+                                                (slideInVertically { height -> height } + fadeIn())
+                                                    .togetherWith(slideOutVertically { height -> -height } + fadeOut())
+                                            } else {
+                                                (slideInVertically { height -> -height } + fadeIn())
+                                                    .togetherWith(slideOutVertically { height -> height } + fadeOut())
+                                            }
+                                        },
+                                        label = "completedCountAnim"
+                                    ) { count ->
+                                        Text(
+                                            text = "$count",
+                                            style = ZivaaTheme.typography.meta.copy(
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            color = colors.sage
+                                        )
+                                    }
+                                    Text(
+                                        text = "completed in ${selectedDaypart.replaceFirstChar { it.uppercase() }}",
+                                        style = ZivaaTheme.typography.meta.copy(fontSize = 11.5.sp, fontWeight = FontWeight.Medium),
+                                        color = colors.inkMute
+                                    )
+                                }
+                            }
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "Go",
-                                tint = ZivaaTheme.colors.sageInk,
-                                modifier = Modifier.size(18.dp)
+                                imageVector = if (isCompletedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "Toggle",
+                                tint = colors.inkMute,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
+                        AnimatedVisibility(
+                            visible = isCompletedExpanded,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                                completedDaypartGoals.forEach { (period, originalIndex, cTask) ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (!cTask.id.isNullOrBlank()) {
+                                                    viewModel.markTaskCompletedById(cTask.id, false)
+                                                } else {
+                                                    when (period) {
+                                                        "morning" -> viewModel.toggleMorningTask(originalIndex)
+                                                        "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
+                                                        "evening" -> viewModel.toggleEveningTask(originalIndex)
+                                                        "night" -> viewModel.toggleNightTask(originalIndex)
+                                                    }
+                                                }
+                                            }
+                                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = cTask.task,
+                                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                                textDecoration = TextDecoration.LineThrough,
+                                                fontSize = 12.5.sp
+                                            ),
+                                            color = colors.inkMute,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        CelebratoryRoundCheckbox(
+                                            checked = true,
+                                            triggerCelebration = false,
+                                            onCheckedChange = {
+                                                if (!cTask.id.isNullOrBlank()) {
+                                                    viewModel.markTaskCompletedById(cTask.id, false)
+                                                } else {
+                                                    when (period) {
+                                                        "morning" -> viewModel.toggleMorningTask(originalIndex)
+                                                        "afternoon" -> viewModel.toggleAfternoonTask(originalIndex)
+                                                        "evening" -> viewModel.toggleEveningTask(originalIndex)
+                                                        "night" -> viewModel.toggleNightTask(originalIndex)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Compact Footer: See full day plan
+                if (totalGoals > 0) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToPlan() }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "See today's full plan",
+                            style = ZivaaTheme.typography.meta.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                            color = colors.sage
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "Full plan",
+                            tint = colors.sage,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                 }
             }
@@ -2119,34 +2381,683 @@ fun CircularProgressRing(
 }
 
 @Composable
+fun PremiumProvenanceBadge(
+    badge: String,
+    modifier: Modifier = Modifier
+) {
+    val upper = badge.uppercase().trim()
+    val isDark = isSystemInDarkTheme()
+
+    // Elegant title-case display instead of shouty all-caps (e.g. "Coach Agreed", "Habit")
+    val formattedText = badge.split(" ", "_", "-")
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+
+    val (bg, fg, border) = when {
+        upper.contains("COACH") || upper.contains("AGREED") -> Triple(
+            if (isDark) Color(0xFF13281E) else Color(0xFFF2F8F4),
+            if (isDark) Color(0xFFA3D9B1) else Color(0xFF2E6B48),
+            if (isDark) Color(0xFF1E3F2F) else Color(0xFFD4E8DC)
+        )
+        upper.contains("NEW") -> Triple(
+            if (isDark) Color(0xFF2B1F11) else Color(0xFFFFF9F0),
+            if (isDark) Color(0xFFFFCC80) else Color(0xFFB45309),
+            if (isDark) Color(0xFF452E15) else Color(0xFFFDE68A)
+        )
+        upper.contains("HABIT") -> Triple(
+            if (isDark) Color(0xFF201633) else Color(0xFFF6F4FB),
+            if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9),
+            if (isDark) Color(0xFF352254) else Color(0xFFDDD6FE)
+        )
+        upper.contains("VITAL") -> Triple(
+            if (isDark) Color(0xFF2B1317) else Color(0xFFFEF2F2),
+            if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B),
+            if (isDark) Color(0xFF481E23) else Color(0xFFFEE2E2)
+        )
+        upper.contains("ACTIVITY") || upper.contains("WALK") || upper.contains("EXERCISE") -> Triple(
+            if (isDark) Color(0xFF0E222A) else Color(0xFFF0FDFA),
+            if (isDark) Color(0xFF99F6E4) else Color(0xFF0F766E),
+            if (isDark) Color(0xFF1A3D49) else Color(0xFFCCFBF1)
+        )
+        else -> Triple(
+            if (isDark) Color(0xFF1F2428) else Color(0xFFF3F4F6),
+            if (isDark) Color(0xFF9CA3AF) else Color(0xFF4B5563),
+            if (isDark) Color(0xFF333B42) else Color(0xFFE5E7EB)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(0.5.dp, border, RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = formattedText,
+            style = ZivaaTheme.typography.meta.copy(
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.1.sp
+            ),
+            color = fg
+        )
+    }
+}
+
+private fun performTactileFeedback(context: Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (vibrator != null && vibrator.hasVibrator()) {
+                // 35ms crisp tactile pulse
+                vibrator.vibrate(VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            vibrator?.vibrate(35)
+        }
+    } catch (_: Exception) {}
+}
+
+@Composable
+fun CelebratoryRoundCheckbox(
+    checked: Boolean,
+    onCheckedChange: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    triggerCelebration: Boolean = true
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val pressScale = remember { Animatable(1f) }
+    val checkScale = remember { Animatable(if (checked) 1f else 0f) }
+    val ringProgress = remember { Animatable(0f) }
+
+    val checkedColor = ZivaaTheme.colors.sage
+    val uncheckedBorderColor = ZivaaTheme.colors.lineStrong
+    val goldColor = Color(0xFFE8B86D)
+
+    val animatedBg by animateColorAsState(
+        targetValue = if (checked) checkedColor else Color.Transparent,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "checkboxBg"
+    )
+    val animatedBorderColor by animateColorAsState(
+        targetValue = if (checked) checkedColor else uncheckedBorderColor,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "checkboxBorder"
+    )
+
+    LaunchedEffect(checked) {
+        if (checked && checkScale.value < 1f) {
+            checkScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.68f,
+                    stiffness = 280f
+                )
+            )
+        } else if (!checked && checkScale.value > 0f) {
+            checkScale.snapTo(0f)
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .size(44.dp)
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (!enabled) return@clickable
+                performTactileFeedback(context)
+                try {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                } catch (_: Exception) {}
+
+                if (triggerCelebration && !checked) {
+                    coroutineScope.launch {
+                        // 1. Gentle tactile compression and cushioned rebound
+                        launch {
+                            pressScale.animateTo(0.92f, tween(90, easing = FastOutSlowInEasing))
+                            pressScale.animateTo(1.0f, spring(dampingRatio = 0.65f, stiffness = 260f))
+                        }
+                        // 2. Whisper-thin golden halo ripple
+                        launch {
+                            ringProgress.snapTo(0f)
+                            ringProgress.animateTo(1f, tween(520, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)))
+                        }
+                    }
+                }
+                onCheckedChange()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Gossamer Golden Halo Ripple (Single smooth luminous ring)
+        if (ringProgress.value > 0f && ringProgress.value < 1f) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val centerOffset = Offset(size.width / 2f, size.height / 2f)
+                val rp = ringProgress.value
+                val baseRadius = 13.dp.toPx()
+                val radius = baseRadius + (rp * 10.dp.toPx())
+                val alpha = ((1f - rp) * 0.45f).coerceIn(0f, 1f)
+                val strokeWidth = (1.5f - 0.8f * rp).dp.toPx()
+
+                drawCircle(
+                    color = goldColor.copy(alpha = alpha),
+                    radius = radius,
+                    center = centerOffset,
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        }
+
+        // Tactile Checkbox Disc (26dp)
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .graphicsLayer {
+                    scaleX = pressScale.value
+                    scaleY = pressScale.value
+                }
+                .clip(RoundedCornerShape(999.dp))
+                .background(animatedBg)
+                .border(
+                    width = if (checked) 0.5.dp else 1.5.dp,
+                    color = animatedBorderColor,
+                    shape = RoundedCornerShape(999.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (checked || checkScale.value > 0f) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Checked",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(13.5.dp)
+                        .graphicsLayer {
+                            scaleX = checkScale.value
+                            scaleY = checkScale.value
+                            alpha = checkScale.value
+                        }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun RoundCheckbox(
     checked: Boolean,
     onCheckedChange: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val checkedColor = ZivaaTheme.colors.sage
-    val uncheckedColor = ZivaaTheme.colors.lineStrong
-    
-    Box(
-        modifier = modifier
-            .size(28.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (checked) checkedColor else Color.Transparent)
-            .border(
-                width = if (checked) 0.5.dp else 1.5.dp,
-                color = if (checked) checkedColor else uncheckedColor,
-                shape = RoundedCornerShape(999.dp)
-            )
-            .clickable { onCheckedChange() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (checked) {
+    CelebratoryRoundCheckbox(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        triggerCelebration = false
+    )
+}
+
+@Composable
+fun PremiumTaskOverflowMenu(
+    task: DailyPlanTask,
+    isCompleting: Boolean,
+    onDismiss: () -> Unit,
+    onPauseHabit: ((String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val colors = ZivaaTheme.colors
+    val context = LocalContext.current
+    val isDark = colors.isDark
+
+    Box(modifier = modifier) {
+        // Refined Trigger Button (Subtle tactile disc)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    if (menuExpanded) colors.sage.copy(alpha = if (isDark) 0.25f else 0.14f)
+                    else colors.ink.copy(alpha = if (isDark) 0.08f else 0.04f)
+                )
+                .border(
+                    width = 0.5.dp,
+                    color = if (menuExpanded) colors.sage.copy(alpha = 0.5f)
+                    else colors.line.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(999.dp)
+                )
+                .clickable(
+                    enabled = !isCompleting,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    performTactileFeedback(context)
+                    menuExpanded = true
+                },
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Checked",
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
+                imageVector = Icons.Default.MoreHoriz,
+                contentDescription = "Task Options",
+                tint = if (menuExpanded) colors.sage else colors.inkMute,
+                modifier = Modifier.size(16.dp)
             )
+        }
+
+        // Luxury Floating Popover Dropdown
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            offset = DpOffset(x = (-10).dp, y = 6.dp),
+            modifier = Modifier
+                .widthIn(min = 265.dp, max = 295.dp)
+                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (isDark) colors.surfaceCard else Color(0xFFFCFAF7))
+                .border(
+                    BorderStroke(
+                        0.5.dp,
+                        if (isDark) colors.line.copy(alpha = 0.45f) else Color(0x221D211E)
+                    ),
+                    RoundedCornerShape(20.dp)
+                )
+        ) {
+            // Contextual Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 9.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "MANAGE ACTION",
+                        style = ZivaaTheme.typography.meta.copy(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.08.em
+                        ),
+                        color = colors.inkMute
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(colors.sage)
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = colors.line.copy(alpha = 0.35f),
+                thickness = 0.5.dp
+            )
+
+            // Option 1: Dismiss for Today
+            DropdownMenuItem(
+                text = {
+                    Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                        Text(
+                            text = "Dismiss for Today",
+                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.5.sp
+                            ),
+                            color = colors.ink
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Hide until tomorrow; keeps streak safe",
+                            style = ZivaaTheme.typography.bodySmall.copy(
+                                fontSize = 11.5.sp,
+                                lineHeight = 15.sp
+                            ),
+                            color = colors.inkMute
+                        )
+                    }
+                },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.ink.copy(alpha = if (isDark) 0.12f else 0.05f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = null,
+                            tint = colors.inkSoft,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                },
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                onClick = {
+                    performTactileFeedback(context)
+                    menuExpanded = false
+                    onDismiss()
+                }
+            )
+
+            // Option 2: Pause Habit (only if applicable)
+            if (task.anchor_type == "care_plan_action" || task.tier == "HABIT" || task.action?.action_type != null) {
+                HorizontalDivider(
+                    color = colors.line.copy(alpha = 0.25f),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 14.dp)
+                )
+
+                DropdownMenuItem(
+                    text = {
+                        Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                            Text(
+                                text = "Pause Habit...",
+                                style = ZivaaTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.5.sp
+                                ),
+                                color = colors.ink
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Take a scheduled break from this goal",
+                                style = ZivaaTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    lineHeight = 15.sp
+                                ),
+                                color = colors.inkMute
+                            )
+                        }
+                    },
+                    leadingIcon = {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFE8B86D).copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PauseCircleOutline,
+                                contentDescription = null,
+                                tint = Color(0xFF9A7422),
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    onClick = {
+                        performTactileFeedback(context)
+                        menuExpanded = false
+                        val anchor = task.anchor_id ?: task.id
+                        if (!anchor.isNullOrBlank() && onPauseHabit != null) {
+                            onPauseHabit(anchor)
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CelebratoryDailyPlanTaskRow(
+    task: DailyPlanTask,
+    onComplete: () -> Unit,
+    onDismiss: () -> Unit,
+    onPauseHabit: ((String) -> Unit)?,
+    onNavigateToExerciseFollowAlong: ((String, List<String>, String?, String?) -> Unit)?,
+    onNavigateToHealthConnect: () -> Unit,
+    onNavigateToNutrition: () -> Unit,
+    onNavigateToCoachChat: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ZivaaTheme.colors
+    var isCompleting by remember { mutableStateOf(false) }
+    var isRowVisible by remember { mutableStateOf(true) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val goalTaskText = task.task
+    val (iconVector, bgTone, textTone) = getGoalIconAndColors(goalTaskText)
+    val action = task.action
+
+    val rowAlpha by animateFloatAsState(
+        targetValue = if (isCompleting) 0.50f else 1.0f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "rowAlpha"
+    )
+    val cardBg by animateColorAsState(
+        targetValue = if (isCompleting) colors.sage.copy(alpha = if (colors.isDark) 0.12f else 0.04f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 300),
+        label = "cardBg"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isCompleting) colors.inkMute else colors.ink,
+        animationSpec = tween(durationMillis = 300),
+        label = "titleColor"
+    )
+
+    AnimatedVisibility(
+        visible = isRowVisible,
+        enter = fadeIn(tween(200)) + expandVertically(),
+        exit = fadeOut(animationSpec = tween(durationMillis = 320, easing = LinearEasing)) +
+               shrinkVertically(
+                   animationSpec = tween(
+                       durationMillis = 380,
+                       easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
+                   ),
+                   shrinkTowards = Alignment.Top
+               )
+    ) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(cardBg)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp)
+                    .graphicsLayer { alpha = rowAlpha },
+                verticalAlignment = Alignment.Top
+            ) {
+                // Icon Bubble
+                ZivaaIconBubble(
+                    icon = iconVector,
+                    contentDescription = goalTaskText,
+                    size = 40.dp,
+                    iconSize = 22.dp,
+                    backgroundColor = bgTone,
+                    iconTint = textTone
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Task Details & Provenance
+                Column(modifier = Modifier.weight(1f)) {
+                    // Eyebrow: Time + Premium Provenance Badge
+                    val badgeText = task.provenance?.badge_text
+                    val hasTime = !task.time.isNullOrBlank()
+                    val hasBadge = !badgeText.isNullOrBlank()
+
+                    if (hasTime || hasBadge) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        ) {
+                            if (hasTime) {
+                                Text(
+                                    text = task.time!!,
+                                    style = ZivaaTheme.typography.meta.copy(
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    color = colors.inkMute
+                                )
+                            }
+                            if (hasTime && hasBadge) {
+                                Text(
+                                    text = "·",
+                                    style = ZivaaTheme.typography.meta.copy(fontWeight = FontWeight.Normal),
+                                    color = colors.inkMute.copy(alpha = 0.4f)
+                                )
+                            }
+                            if (hasBadge) {
+                                PremiumProvenanceBadge(badge = badgeText!!)
+                            }
+                        }
+                    }
+
+                    // Main Task Title with gentle strike-through
+                    Text(
+                        text = goalTaskText,
+                        style = ZivaaTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp,
+                            textDecoration = if (isCompleting) TextDecoration.LineThrough else TextDecoration.None
+                        ),
+                        color = titleColor
+                    )
+
+                    // Subtitle / Details
+                    val instructions = action?.instructions
+                    val metaSubtitle = when {
+                        !instructions.isNullOrBlank() && instructions != goalTaskText -> instructions
+                        !task.details.isNullOrBlank() && task.details != goalTaskText -> task.details
+                        else -> null
+                    }
+                    if (metaSubtitle != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = metaSubtitle,
+                            style = ZivaaTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            ),
+                            color = colors.inkSoft,
+                            maxLines = 2
+                        )
+                    }
+
+                    // Prominent Call to Action Button
+                    if (action != null && !action.action_type.isNullOrBlank() && action.action_type.uppercase() != "CHECKBOX_ONLY") {
+                        val ctaType = action.action_type.uppercase()
+                        val (ctaBg, ctaIcon, defaultLabel) = when (ctaType) {
+                            "FOLLOW_EXERCISE" -> Triple(colors.sage, Icons.Default.PlayArrow, "Start Routine")
+                            "LOG_VITALS" -> Triple(Color(0xFFD9534F), Icons.Default.Favorite, "Record Vitals")
+                            "LOG_MEAL" -> Triple(Color(0xFFE67E22), Icons.Default.Restaurant, "Snap Meal")
+                            "COACH_CHAT" -> Triple(Color(0xFF2E7D32), Icons.Default.ChatBubble, "Ask Zivaa")
+                            else -> Triple(colors.sage, Icons.Default.PlayArrow, "Open Action")
+                        }
+
+                        Surface(
+                            onClick = {
+                                if (isCompleting) return@Surface
+                                when (ctaType) {
+                                    "FOLLOW_EXERCISE" -> onNavigateToExerciseFollowAlong?.invoke(
+                                        action.routine_title ?: task.task,
+                                        action.exercise_ids ?: emptyList(),
+                                        action.target_body_part,
+                                        task.id
+                                    )
+                                    "LOG_VITALS" -> onNavigateToHealthConnect()
+                                    "LOG_MEAL" -> onNavigateToNutrition()
+                                    "COACH_CHAT" -> onNavigateToCoachChat()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = ctaBg,
+                            shadowElevation = 2.dp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = ctaIcon,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = action.cta_label ?: defaultLabel,
+                                    style = ZivaaTheme.typography.bodyMedium.copy(
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = Color.White
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Premium Overflow Menu (Dismiss / Pause Habit)
+                PremiumTaskOverflowMenu(
+                    task = task,
+                    isCompleting = isCompleting,
+                    onDismiss = onDismiss,
+                    onPauseHabit = onPauseHabit
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Tactile Checkbox
+                CelebratoryRoundCheckbox(
+                    checked = isCompleting || task.completed,
+                    enabled = !isCompleting,
+                    onCheckedChange = {
+                        if (!isCompleting) {
+                            isCompleting = true
+                            coroutineScope.launch {
+                                // 1. Savor the win: checkmark pops & line-through sweeps across (480ms)
+                                delay(480)
+                                // 2. Liquid height collapse: smoothly shrinks and fades out over 380ms
+                                isRowVisible = false
+                                delay(400) // Wait for full shrink duration so height reaches 0dp
+                                // 3. Commit state change to ViewModel after card has completely collapsed
+                                onComplete()
+                            }
+                        }
+                    }
+                )
+            }
+
+            HorizontalDivider(color = ZivaaTheme.colors.line.copy(alpha = 0.4f), thickness = 0.5.dp)
         }
     }
 }

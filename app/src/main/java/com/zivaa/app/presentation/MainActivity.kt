@@ -105,6 +105,10 @@ class MainActivity : ComponentActivity() {
     private var currentBiomarkerFilter by mutableStateOf<String?>(null)
     private var selectedBodyPart by mutableStateOf("neck")
     private var selectedExercise by mutableStateOf<com.zivaa.app.data.remote.SupabaseExerciseRecord?>(null)
+    private var followAlongRoutineTitle by mutableStateOf("Daily Movement Routine")
+    private var followAlongExerciseIds by mutableStateOf<List<String>>(emptyList())
+    private var followAlongTargetBodyPart by mutableStateOf<String?>(null)
+    private var followAlongTaskId by mutableStateOf<String?>(null)
     private lateinit var authManager: com.zivaa.app.data.remote.AuthManager
     private var isFabExpanded by mutableStateOf(true)
     private var showHealthAssistSheet by mutableStateOf(false)
@@ -248,7 +252,9 @@ class MainActivity : ComponentActivity() {
             var showSetup by androidx.compose.runtime.remember { 
                 androidx.compose.runtime.mutableStateOf(!prefsManager.isSetupComplete() || !authManager.hasValidSession()) 
             }
-            val darkThemeEnabled by appSettingsManager.darkThemeFlow.collectAsState(initial = false)
+            val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val darkThemeSetting by appSettingsManager.darkThemeFlow.collectAsState(initial = false)
+            val darkThemeEnabled = if (appSettingsManager.hasExplicitDarkTheme()) darkThemeSetting else isSystemDark
 
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 if (!showSetup) {
@@ -371,7 +377,7 @@ class MainActivity : ComponentActivity() {
                             "dashboard" -> "home"
                             "care" -> "care"
                             "health_connect", "health_wallet", "lab_report", "lab_summary" -> "health"
-                            "wellness", "mood", "movement", "sleep", "heart_rate", "mobility_score_explainer" -> "wellness"
+                            "wellness", "mood", "movement", "sleep", "heart_rate", "mobility_score_explainer", "exercise_follow_along" -> "wellness"
                             "profile", "settings", "primary_focus", "plan_setup", "plan" -> "ranjit"
                             else -> "home"
                         }
@@ -427,7 +433,7 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.nestedScroll(nestedScrollConnection),
                                 containerColor = com.zivaa.app.ui.theme.ZivaaTheme.colors.bg,
                                 bottomBar = {
-                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer") {
+                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer" && currentScreen != "exercise_follow_along") {
                                     androidx.compose.foundation.layout.Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -483,7 +489,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 floatingActionButton = {
                                     // Show the floating coach button on all screens except the chat itself or setup screens
-                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer") {
+                                    if (currentScreen != "coach_chat" && currentScreen != "mobility_score_explainer" && currentScreen != "exercise_follow_along") {
                                         androidx.compose.foundation.layout.Column(
                                             horizontalAlignment = androidx.compose.ui.Alignment.End,
                                             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
@@ -913,6 +919,31 @@ class MainActivity : ComponentActivity() {
                                     currentScreen = "exercise_list" // Fallback if null
                                 }
                             }
+                            "exercise_follow_along" -> {
+                                val followAlongViewModel: com.zivaa.app.presentation.wellness.chooseareas.ExerciseFollowAlongViewModel = viewModel(
+                                    key = "follow_along_${followAlongRoutineTitle}_${followAlongExerciseIds.joinToString(",")}",
+                                    factory = com.zivaa.app.presentation.wellness.chooseareas.ExerciseFollowAlongViewModelFactory(
+                                        apiService = com.zivaa.app.data.remote.RetrofitClient.apiService,
+                                        routineTitle = followAlongRoutineTitle,
+                                        exerciseIds = followAlongExerciseIds,
+                                        targetBodyPart = followAlongTargetBodyPart
+                                    )
+                                )
+                                com.zivaa.app.presentation.wellness.chooseareas.ExerciseFollowAlongScreen(
+                                    viewModel = followAlongViewModel,
+                                    onNavigateBack = {
+                                        currentScreen = "dashboard"
+                                        forceDashboardRefresh = true
+                                    },
+                                    onRoutineCompleted = {
+                                        followAlongTaskId?.let { tId ->
+                                            viewModel.markTaskCompletedById(tId)
+                                        }
+                                        currentScreen = "dashboard"
+                                        forceDashboardRefresh = true
+                                    }
+                                )
+                            }
                             "mindfulness_landing" -> {
                                 val patientName = viewModel.patientFirstName.ifEmpty {
                                     val cached = authManager.getPatientProfile()
@@ -984,7 +1015,14 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToLongevity = { currentScreen = "longevity" },
                                 onNavigateToMindfulness = { currentScreen = "mindfulness_landing" },
                                 onNavigateToCoachChat = { currentScreen = "coach_chat" },
-                                onNavigateToNutrition = { currentScreen = "nutrition_log_food" }
+                                onNavigateToNutrition = { currentScreen = "nutrition_log_food" },
+                                onNavigateToExerciseFollowAlong = { routineTitle, exerciseIds, bodyPart, taskId ->
+                                    followAlongRoutineTitle = routineTitle
+                                    followAlongExerciseIds = exerciseIds
+                                    followAlongTargetBodyPart = bodyPart
+                                    followAlongTaskId = taskId
+                                    currentScreen = "exercise_follow_along"
+                                }
                             )
                         } // end when
                         

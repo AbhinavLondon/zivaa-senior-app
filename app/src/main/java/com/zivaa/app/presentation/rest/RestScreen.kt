@@ -79,13 +79,13 @@ fun RestScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF13151A), // Dark BG
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = ZivaaTheme.colors.bg, // Dark BG
+                    titleContentColor = ZivaaTheme.colors.ink,
+                    navigationIconContentColor = ZivaaTheme.colors.ink
                 )
             )
         },
-        containerColor = Color(0xFF13151A) // Dark BG from screenshot
+        containerColor = ZivaaTheme.colors.bg // Dark BG from screenshot
     ) { paddingValues ->
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -115,13 +115,19 @@ fun RestScreen(
                 state = lazyListState
             ) {
                 item {
-                    // Top Hero Card (Dark Gray Box)
+                    // Top Hero Card
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF1B1D23))
+                            .padding(horizontal = 22.dp)
+                            .shadow(
+                                elevation = if (ZivaaTheme.colors.isDark) 20.dp else 12.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                ambientColor = if (ZivaaTheme.colors.isDark) ZivaaTheme.colors.sage.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color(0x08000000),
+                                spotColor = if (ZivaaTheme.colors.isDark) ZivaaTheme.colors.sage.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color(0x10000000)
+                            )
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(ZivaaTheme.colors.surfaceCard)
                             .padding(24.dp)
                     ) {
                         Column {
@@ -132,11 +138,11 @@ fun RestScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Rest score",
-                                        style = ZivaaTheme.typography.titleLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-                                        color = Color.White
-                                    )
+                                      Text(
+                                          text = "Rest score",
+                                          style = ZivaaTheme.typography.titleLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+                                          color = ZivaaTheme.colors.ink
+                                      )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     IconButton(
                                         onClick = onInfoClick,
@@ -153,7 +159,7 @@ fun RestScreen(
                                 Text(
                                     text = "Score / 100",
                                     style = ZivaaTheme.typography.eyebrow.copy(fontSize = 11.sp),
-                                    color = Color(0xFFA0A6B2)
+                                    color = ZivaaTheme.colors.textBody
                                 )
                             }
                             
@@ -167,7 +173,7 @@ fun RestScreen(
                             Text(
                                 text = "Rest score factors",
                                 style = ZivaaTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-                                color = Color.White
+                                color = ZivaaTheme.colors.ink
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -177,10 +183,12 @@ fun RestScreen(
                             
                             // Values
                             val durPts = (b?.get("duration_pts") as? Number)?.toInt() ?: 0
-                            val durVal = (b?.get("sleep_hours") as? Number)?.toDouble()?.let { String.format(Locale.US, "%.1fh", it) } ?: "--h"
+                            val durValNum = (b?.get("sleep_hours") as? Number)?.toDouble()
+                            val durVal = durValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
                             val qualPts = (b?.get("quality_pts") as? Number)?.toInt() ?: 0
-                            val effVal = (b?.get("sleep_efficiency_pct") as? Number)?.toInt()?.let { "${it}%" } ?: "--%"
+                            val effValNum = (b?.get("sleep_efficiency_pct") as? Number)?.toInt()
+                            val effVal = effValNum?.let { "${it}%" } ?: "No data"
                             
                             val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
                             val deepVal = deepValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
@@ -189,7 +197,8 @@ fun RestScreen(
                             val remVal = remValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
                             val rhrPts = (b?.get("vitals_pts") as? Number)?.toInt() ?: 0
-                            val rhrVal = (b?.get("resting_heart_rate") as? Number)?.toInt()?.let { "$it bpm" } ?: "-- bpm"
+                            val rhrValNum = (b?.get("resting_heart_rate") as? Number)?.toInt()
+                            val rhrVal = rhrValNum?.let { "$it bpm" } ?: "No data"
                             
                             val tempPts = (b?.get("penalty_pts") as? Number)?.toInt() ?: 0
                             val tempVal = (b?.get("skin_temp_delta") as? Number)?.toDouble()?.let { String.format(Locale.US, "%+.1f°C", it) } ?: "--"
@@ -198,22 +207,22 @@ fun RestScreen(
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Sleep time",
-                                    scoreText = "$durPts/40",
+                                    scoreText = if (durValNum == null) "" else "$durPts/40",
                                     primaryValue = durVal,
                                     unitText = "",
-                                    progress = (durPts / 40f).coerceIn(0f, 1f),
-                                    statusText = if (durPts >= 35) "Optimal" else "Attention",
-                                    accentColor = if (durPts >= 35) Color(0xFF4EAE7B) else Color(0xFFE5A643)
+                                    progress = if (durValNum == null) 0f else (durPts / 40f).coerceIn(0f, 1f),
+                                    statusText = if (durValNum == null) "No data" else if (durPts >= 35) "Optimal" else "Attention",
+                                    accentColor = if (durValNum == null) Color(0xFF6B7280) else if (durPts >= 35) Color(0xFF4EAE7B) else Color(0xFFE5A643)
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Efficiency",
-                                    scoreText = "$qualPts/30",
+                                    scoreText = if (effValNum == null) "" else "$qualPts/30",
                                     primaryValue = effVal,
                                     unitText = "",
-                                    progress = (qualPts / 30f).coerceIn(0f, 1f),
-                                    statusText = if (qualPts >= 20) "Steady" else "Attention",
-                                    accentColor = if (qualPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = if (effValNum == null) 0f else (qualPts / 30f).coerceIn(0f, 1f),
+                                    statusText = if (effValNum == null) "No data" else if (qualPts >= 20) "Steady" else "Attention",
+                                    accentColor = if (effValNum == null) Color(0xFF6B7280) else if (qualPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -244,12 +253,12 @@ fun RestScreen(
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Resting HR",
-                                    scoreText = "$rhrPts/30",
+                                    scoreText = if (rhrValNum == null) "" else "$rhrPts/30",
                                     primaryValue = rhrVal,
                                     unitText = "",
-                                    progress = (rhrPts / 30f).coerceIn(0f, 1f),
-                                    statusText = if (rhrPts == 30) "Optimal" else "Attention",
-                                    accentColor = if (rhrPts == 30) Color(0xFF4EAE7B) else Color(0xFFE58B43)
+                                    progress = if (rhrValNum == null) 0f else (rhrPts / 30f).coerceIn(0f, 1f),
+                                    statusText = if (rhrValNum == null) "No data" else if (rhrPts == 30) "Optimal" else "Attention",
+                                    accentColor = if (rhrValNum == null) Color(0xFF6B7280) else if (rhrPts == 30) Color(0xFF4EAE7B) else Color(0xFFE58B43)
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
@@ -289,7 +298,7 @@ fun RestScreen(
                 // Sticky filters at the top
                 stickyHeader {
                     Surface(
-                        color = Color(0xFF13151A),
+                        color = ZivaaTheme.colors.bg,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -420,6 +429,10 @@ fun RestArcDialer(
     tierTitle: String,
     tierColor: Color
 ) {
+    val isDark = ZivaaTheme.colors.isDark
+    val lineStrongColor = ZivaaTheme.colors.lineStrong
+    val inkColor = ZivaaTheme.colors.ink
+
     val animatedScoreFraction by androidx.compose.animation.core.animateFloatAsState(
         targetValue = (score.toFloat() / 100f).coerceIn(0f, 1f),
         animationSpec = androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)),
@@ -449,7 +462,7 @@ fun RestArcDialer(
             val sweepTotal = 270f
 
             drawArc(
-                color = Color(0xFF2E3238),
+                color = if (isDark) Color(0xFF2E3238) else lineStrongColor,
                 startAngle = startAngle,
                 sweepAngle = sweepTotal,
                 useCenter = false,
@@ -476,7 +489,7 @@ fun RestArcDialer(
 
                 drawCircle(color = tierColor.copy(alpha = 0.35f), radius = knobRadiusPx + 3.dp.toPx(), center = knobCenter)
                 drawCircle(color = tierColor, radius = knobRadiusPx, center = knobCenter)
-                drawCircle(color = Color.White.copy(alpha = 0.85f), radius = 2.5.dp.toPx(), center = knobCenter)
+                drawCircle(color = inkColor.copy(alpha = 0.85f), radius = 2.5.dp.toPx(), center = knobCenter)
             }
         }
 
@@ -488,7 +501,7 @@ fun RestArcDialer(
             Text(
                 text = "$score",
                 style = ZivaaTheme.typography.displayLarge.copy(fontSize = 46.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.5).sp),
-                color = Color.White
+                color = inkColor
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -511,12 +524,21 @@ fun RestFactorTile(
     statusText: String,
     accentColor: Color
 ) {
+    val isDark = ZivaaTheme.colors.isDark
+    val tileBg = if (isDark) Color(0xFF1C2025) else Color(0xFFF7F4EE)
+    val tileBorder = if (isDark) Color(0xFF2E333D) else Color(0xFFE6E1D7)
+    val titleColor = if (isDark) Color(0xFFD4D8E2) else Color(0xFF42474E)
+    val scoreTextColor = if (isDark) ZivaaTheme.colors.inkMute.copy(alpha = 0.7f) else Color(0xFF7A7E85)
+    val valueColor = if (isDark) Color.White else Color(0xFF14181B)
+    val unitColor = if (isDark) Color(0xFFA0A6B2) else Color(0xFF6E727A)
+    val trackColor = if (isDark) Color(0xFF282B33) else Color(0xFFE5E0D6)
+
     Box(
         modifier = modifier
             .height(132.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF1B1D23))
-            .border(1.dp, Color(0xFF383C46).copy(alpha = 0.8f), RoundedCornerShape(18.dp))
+            .background(tileBg)
+            .border(1.dp, tileBorder, RoundedCornerShape(18.dp))
             .padding(14.dp)
     ) {
         Column(
@@ -531,7 +553,7 @@ fun RestFactorTile(
                 Text(
                     text = title,
                     style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
-                    color = Color(0xFFD4D8E2),
+                    color = titleColor,
                     maxLines = 1,
                     modifier = Modifier.weight(1f, fill = false)
                 )
@@ -539,7 +561,7 @@ fun RestFactorTile(
                 Text(
                     text = scoreText,
                     style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFFA0A6B2),
+                    color = scoreTextColor,
                     maxLines = 1
                 )
             }
@@ -548,14 +570,14 @@ fun RestFactorTile(
                 Text(
                     text = primaryValue,
                     style = ZivaaTheme.typography.titleLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-                    color = Color.White
+                    color = valueColor
                 )
                 if (unitText.isNotBlank()) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = unitText,
                         style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 12.5.sp),
-                        color = Color(0xFFA0A6B2),
+                        color = unitColor,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
@@ -566,11 +588,11 @@ fun RestFactorTile(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFF282B33))
+                    .background(trackColor)
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(progress.coerceIn(0.06f, 1f))
+                        .fillMaxWidth(if (progress <= 0f) 0f else progress.coerceIn(0.06f, 1f))
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(999.dp))
                         .background(accentColor)
@@ -702,7 +724,7 @@ fun RestChartAxisRow(
                                 fontSize = 11.sp,
                                 fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal
                             ),
-                            color = if (isToday) ZivaaTheme.colors.sage else Color(0xFFA0A6B2),
+                            color = if (isToday) ZivaaTheme.colors.sage else ZivaaTheme.colors.textBody,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f)
                         )
@@ -718,7 +740,7 @@ fun RestChartAxisRow(
                     Text(
                         text = if (startLabel.isNotBlank()) startLabel else (labels.firstOrNull() ?: ""),
                         style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
-                        color = Color(0xFFA0A6B2)
+                        color = ZivaaTheme.colors.textBody
                     )
                     Text(
                         text = "Today",
@@ -736,12 +758,12 @@ fun RestChartAxisRow(
                     Text(
                         text = if (startLabel.isNotBlank()) startLabel else (labels.firstOrNull() ?: ""),
                         style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
-                        color = Color(0xFFA0A6B2)
+                        color = ZivaaTheme.colors.textBody
                     )
                     Text(
                         text = "6 weeks ago",
                         style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 11.5.sp),
-                        color = Color(0xFFA0A6B2).copy(alpha = 0.7f)
+                        color = ZivaaTheme.colors.textBody.copy(alpha = 0.7f)
                     )
                     Text(
                         text = "Today",
@@ -768,7 +790,7 @@ fun rememberRestMarker(
     val label = textComponent(
         background = labelBackground,
         padding = dimensionsOf(horizontal = 10.dp, vertical = 5.dp),
-        color = Color.White,
+        color = ZivaaTheme.colors.ink,
         textSize = 11.5.sp,
         margins = dimensionsOf(bottom = 6.dp)
     )
@@ -890,12 +912,12 @@ fun RestChartCard(
         ThresholdLine(
             thresholdValue = averageValue,
             lineComponent = lineComponent(
-                color = Color.White.copy(alpha = 0.35f),
+                color = ZivaaTheme.colors.ink.copy(alpha = 0.35f),
                 thickness = 1.dp,
                 shape = DashedShape(shape = Shapes.rectShape, dashLengthDp = 4f, gapLengthDp = 4f)
             ),
             labelComponent = textComponent(
-                color = Color(0xFFA0A6B2),
+                color = ZivaaTheme.colors.textBody,
                 textSize = 9.5.sp,
                 margins = dimensionsOf(bottom = 4.dp)
             ),
@@ -981,7 +1003,7 @@ fun RestChartCard(
                         Text(
                             text = "No recorded readings for this period",
                             style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                            color = Color(0xFFA0A6B2).copy(alpha = 0.6f)
+                            color = ZivaaTheme.colors.textBody.copy(alpha = 0.6f)
                         )
                     }
                 } else {
@@ -1188,7 +1210,7 @@ fun RestSleepStagesChartCard(
                                 lineSpec(
                                     lineColor = lightLineColor,
                                     lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(Color(0xFF2D3039), Color(0xFF22252C))
+                                        colors = arrayOf(lightLineColor.copy(alpha = 0.3f), lightLineColor.copy(alpha = 0.05f))
                                     ),
                                     lineThickness = 2.5.dp,
                                     point = shapeComponent(shape = Shapes.pillShape, color = lightLineColor),
@@ -1197,7 +1219,7 @@ fun RestSleepStagesChartCard(
                                 lineSpec(
                                     lineColor = remLineColor,
                                     lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(Color(0xFF1E3555), Color(0xFF15263D))
+                                        colors = arrayOf(remLineColor.copy(alpha = 0.3f), remLineColor.copy(alpha = 0.05f))
                                     ),
                                     lineThickness = 2.5.dp,
                                     point = shapeComponent(shape = Shapes.pillShape, color = remLineColor),
@@ -1206,7 +1228,7 @@ fun RestSleepStagesChartCard(
                                 lineSpec(
                                     lineColor = deepLineColor,
                                     lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(Color(0xFF1B4533), Color(0xFF133225))
+                                        colors = arrayOf(deepLineColor.copy(alpha = 0.3f), deepLineColor.copy(alpha = 0.05f))
                                     ),
                                     lineThickness = 2.5.dp,
                                     point = shapeComponent(shape = Shapes.pillShape, color = deepLineColor),

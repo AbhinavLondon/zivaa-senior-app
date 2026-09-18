@@ -22,10 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+import androidx.compose.ui.text.font.FontWeight
 
 data class DayItem(
     val date: LocalDate,
@@ -41,8 +44,8 @@ fun DaySelectorRow(
 ) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 24.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 22.dp)
     ) {
         items(days, key = { it.date.toEpochDay() }) { day ->
             DayCard(
@@ -65,9 +68,9 @@ private fun DayCard(
     
     val bgColor = if (isSelected) colors.sage else colors.bgElev
     val contentColor = if (isSelected) colors.sageInk else colors.textStrong
-    val secondaryColor = if (isSelected) colors.sageInk else colors.textBody
+    val secondaryColor = if (isSelected) colors.sageInk.copy(alpha = 0.85f) else colors.textMeta
     val dotColor = if (isSelected) colors.sageInk else colors.amber
-    val borderColor = if (isSelected) colors.sage else colors.borderStrong
+    val borderColor = if (isSelected) colors.sage else colors.borderHairline
     
     val dayOfWeek = day.date.format(DateTimeFormatter.ofPattern("EEE")).uppercase()
     val dayOfMonth = day.date.dayOfMonth.toString()
@@ -76,9 +79,9 @@ private fun DayCard(
         modifier = Modifier
             .width(56.dp)
             .height(84.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(28.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(22.dp))
             .clickable { onClick() }
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -86,13 +89,13 @@ private fun DayCard(
     ) {
         Text(
             text = dayOfWeek,
-            style = typography.meta,
+            style = typography.meta.copy(fontSize = 10.sp, letterSpacing = androidx.compose.ui.unit.TextUnit(0.06f, androidx.compose.ui.unit.TextUnitType.Em)),
             color = secondaryColor
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = dayOfMonth,
-            style = typography.leadParagraph,
+            style = typography.leadParagraph.copy(fontWeight = FontWeight.Bold),
             color = contentColor
         )
         Spacer(modifier = Modifier.height(6.dp))

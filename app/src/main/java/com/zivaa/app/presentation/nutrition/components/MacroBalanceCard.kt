@@ -23,6 +23,9 @@ import com.zivaa.app.ui.theme.InstrumentSerif
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.font.FontWeight
+
 @Composable
 fun MacroBalanceCard(
     proteinCurrent: Int, proteinTotal: Int,
@@ -36,9 +39,10 @@ fun MacroBalanceCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(colors.bgElev)
-            .padding(24.dp)
+            .border(1.dp, colors.borderHairline, RoundedCornerShape(22.dp))
+            .padding(22.dp)
     ) {
         Column {
             Row(
@@ -53,11 +57,11 @@ fun MacroBalanceCard(
                 )
                 Text(
                     text = "Against your usual day",
-                    style = typography.bodyMedium,
-                    color = colors.textBody
+                    style = typography.bodySmall,
+                    color = colors.textMeta
                 )
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -99,9 +103,9 @@ private fun MacroRing(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressRing(
             progress = progress,
-            trackColor = colors.muted,
+            trackColor = colors.lineStrong,
             progressColor = color,
-            strokeWidth = 6.dp,
+            strokeWidth = 6.5.dp,
             modifier = Modifier.size(72.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -113,16 +117,18 @@ private fun MacroRing(
                 )
                 Text(
                     text = "OF ${total}G",
-                    style = typography.meta.copy(fontSize = 9.sp),
+                    style = typography.meta.copy(
+                        fontSize = 9.sp,
+                        letterSpacing = androidx.compose.ui.unit.TextUnit(0.05f, androidx.compose.ui.unit.TextUnitType.Em)
+                    ),
                     color = colors.textMeta
                 )
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = label,
-            fontFamily = InstrumentSerif,
-            fontSize = 18.sp,
+            style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             color = colors.textStrong
         )
     }

@@ -27,6 +27,8 @@ import com.zivaa.app.ui.theme.InstrumentSerif
 import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 
+import androidx.compose.foundation.border
+
 @Composable
 fun NutritionSummaryCard(
     currentCalories: Int,
@@ -44,18 +46,19 @@ fun NutritionSummaryCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(colors.bgElev)
-            .padding(24.dp)
+            .border(1.dp, colors.borderHairline, RoundedCornerShape(22.dp))
+            .padding(22.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Left: Progress Ring
             CircularProgressRing(
                 progress = progress,
-                trackColor = colors.muted,
+                trackColor = colors.lineStrong,
                 progressColor = colors.sage,
                 strokeWidth = 10.dp,
                 modifier = Modifier.size(110.dp)
@@ -64,12 +67,15 @@ fun NutritionSummaryCard(
                     Text(
                         text = currentCalories.toString(),
                         fontFamily = InstrumentSerif,
-                        fontSize = 32.sp,
+                        fontSize = 34.sp,
                         color = colors.textStrong
                     )
                     Text(
                         text = "OF $totalCalories KCAL",
-                        style = typography.meta,
+                        style = typography.meta.copy(
+                            fontSize = 9.5.sp,
+                            letterSpacing = androidx.compose.ui.unit.TextUnit(0.05f, androidx.compose.ui.unit.TextUnitType.Em)
+                        ),
                         color = colors.textMeta
                     )
                 }
@@ -80,34 +86,38 @@ fun NutritionSummaryCard(
                 Text(
                     text = title,
                     fontFamily = InstrumentSerif,
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     color = colors.textStrong
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = description,
-                    style = typography.bodyMedium,
+                    style = typography.bodySmall,
                     color = colors.textBody
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 
                 // Pill
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.sage.copy(alpha = 0.1f))
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(colors.sage.copy(alpha = 0.12f))
+                        .border(0.5.dp, colors.sage.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.eyebrow)) {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.sage)) {
                                 append("$remaining ")
                             }
-                            withStyle(SpanStyle(color = colors.eyebrow, fontWeight = FontWeight.SemiBold)) {
+                            withStyle(SpanStyle(color = colors.sage, fontWeight = FontWeight.SemiBold)) {
                                 append("Kcal Left")
                             }
                         },
-                        style = typography.eyebrow
+                        style = typography.meta.copy(
+                            fontSize = 11.sp,
+                            letterSpacing = androidx.compose.ui.unit.TextUnit(0.04f, androidx.compose.ui.unit.TextUnitType.Em)
+                        )
                     )
                 }
             }

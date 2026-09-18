@@ -41,6 +41,9 @@ import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.font.FontWeight
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogMealBottomSheet(
@@ -56,29 +59,30 @@ fun LogMealBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = colors.bgElev,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = colors.lineStrong) },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 28.dp)
         ) {
             Text(
                 text = "Add To ${mealName.toEyebrowTitleCase()}",
                 style = typography.eyebrow,
                 color = colors.eyebrow
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "How shall we log it?",
                 fontFamily = InstrumentSerif,
                 fontSize = 32.sp,
                 color = colors.textStrong
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             // Options
             LogOptionItem(
@@ -89,7 +93,7 @@ fun LogMealBottomSheet(
                 iconTintColor = colors.amber,
                 onClick = { onOptionSelected("photo") }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             LogOptionItem(
                 icon = Icons.Default.Image,
                 title = "Upload a photo",
@@ -98,16 +102,16 @@ fun LogMealBottomSheet(
                 iconTintColor = colors.clay,
                 onClick = { onOptionSelected("upload") }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             LogOptionItem(
                 icon = Icons.Default.QrCodeScanner,
                 title = "Scan a barcode",
                 subtitle = "For packets, biscuits, milk cartons",
-                iconBgColor = colors.inkSoft.copy(alpha = 0.15f),
-                iconTintColor = colors.inkSoft,
+                iconBgColor = colors.rose.copy(alpha = 0.15f),
+                iconTintColor = colors.rose,
                 onClick = { onOptionSelected("barcode") }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             LogOptionItem(
                 icon = Icons.Default.Search,
                 title = "Search for food",
@@ -116,7 +120,7 @@ fun LogMealBottomSheet(
                 iconTintColor = colors.leaf,
                 onClick = { onOptionSelected("search") }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             LogOptionItem(
                 icon = androidx.compose.material.icons.Icons.Default.Mic,
                 title = "Voice",
@@ -126,7 +130,7 @@ fun LogMealBottomSheet(
                 onClick = { onOptionSelected("voice") }
             )
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,8 +140,8 @@ fun LogMealBottomSheet(
             ) {
                 Text(
                     text = "Not now",
-                    style = typography.bodyMedium,
-                    color = colors.textStrong
+                    style = typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = colors.textMeta
                 )
             }
         }
@@ -159,16 +163,17 @@ private fun LogOptionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(colors.bg)
+            .border(1.dp, colors.borderHairline, RoundedCornerShape(18.dp))
             .clickable { onClick() }
-            .padding(16.dp),
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
@@ -176,17 +181,17 @@ private fun LogOptionItem(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTintColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontFamily = InstrumentSerif,
-                fontSize = 20.sp,
+                style = typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = colors.textStrong
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = typography.bodySmall,

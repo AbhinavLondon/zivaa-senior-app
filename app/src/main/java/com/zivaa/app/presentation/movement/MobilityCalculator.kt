@@ -406,7 +406,8 @@ object MobilityCalculator {
             cadenceSpm >= 70 -> 15
             cadenceSpm >= 50 -> 10
             cadenceSpm >= 30 -> 5
-            else -> 2
+            cadenceSpm > 0 -> 2
+            else -> 0
         }
 
         // 3. Active Moving Time (20% Weight / 0 to 20 pts)
@@ -430,7 +431,8 @@ object MobilityCalculator {
             activeHoursCount >= tier3 -> 15
             activeHoursCount >= tier2 -> 10
             activeHoursCount >= tier1 -> 5
-            else -> 2
+            activeHoursCount > 0 -> 2
+            else -> 0
         }
 
         val regularityScore = if (isCompletedDay || elapsedDaytimeHours >= 12) {
@@ -443,7 +445,8 @@ object MobilityCalculator {
                 ratio >= 0.50f -> 15
                 ratio >= 0.33f -> 10
                 ratio >= 0.15f -> 5
-                else -> 2
+                ratio > 0f -> 2
+                else -> 0
             }
             maxOf(bankedPoints, ratioPoints)
         }
