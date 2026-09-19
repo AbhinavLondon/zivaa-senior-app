@@ -50,6 +50,16 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putString("last_synced_patient_id", patientId).apply()
     }
 
+    fun getLastSuccessfulSyncTimestamp(patientId: String? = null): Long {
+        val key = getScopedKey(KEY_LAST_SUCCESSFUL_SYNC_TIMESTAMP, patientId)
+        return prefs.getLong(key, 0L)
+    }
+
+    fun setLastSuccessfulSyncTimestamp(timestampMs: Long, patientId: String? = null) {
+        val key = getScopedKey(KEY_LAST_SUCCESSFUL_SYNC_TIMESTAMP, patientId)
+        prefs.edit().putLong(key, timestampMs).apply()
+    }
+
     fun isPhoneSensorEnabled(): Boolean {
         return prefs.getBoolean(KEY_PHONE_SENSOR_ENABLED, true)
     }
@@ -318,5 +328,6 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_CACHED_SLEEP_HOURS = "cached_sleep_hours"
         private const val KEY_CACHED_HEART_RATE = "cached_heart_rate"
         private const val KEY_CACHED_OXYGEN_LEVEL = "cached_oxygen_level"
+        private const val KEY_LAST_SUCCESSFUL_SYNC_TIMESTAMP = "last_successful_sync_timestamp"
     }
 }

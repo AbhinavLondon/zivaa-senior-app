@@ -23,20 +23,47 @@ data class MetricRecord(
     val values: Map<String, Double>
 ) {
     companion object {
-        fun fromHealthConnectRecord(record: Record): MetricRecord? {
-            val timestamp = try {
-                // Try to get time from records that have startTime (interval records)
-                val startTimeField = record.javaClass.getMethod("getStartTime")
-                startTimeField.invoke(record).toString()
-            } catch (e: Exception) {
-                try {
-                    // Try to get time from records that have time (instant records)
-                    val timeField = record.javaClass.getMethod("getTime")
-                    timeField.invoke(record).toString()
-                } catch (e2: Exception) {
-                    Instant.now().toString()
-                }
+        fun extractRecordTimestamp(record: Record): String {
+            return when (record) {
+                is StepsRecord -> record.startTime.toString()
+                is ActiveCaloriesBurnedRecord -> record.startTime.toString()
+                is TotalCaloriesBurnedRecord -> record.startTime.toString()
+                is DistanceRecord -> record.startTime.toString()
+                is ElevationGainedRecord -> record.startTime.toString()
+                is FloorsClimbedRecord -> record.startTime.toString()
+                is SpeedRecord -> record.startTime.toString()
+                is ExerciseSessionRecord -> record.startTime.toString()
+                is HeartRateRecord -> record.startTime.toString()
+                is RestingHeartRateRecord -> record.time.toString()
+                is HeartRateVariabilityRmssdRecord -> record.time.toString()
+                is BloodPressureRecord -> record.time.toString()
+                is BloodGlucoseRecord -> record.time.toString()
+                is OxygenSaturationRecord -> record.time.toString()
+                is BodyTemperatureRecord -> record.time.toString()
+                is BasalBodyTemperatureRecord -> record.time.toString()
+                is RespiratoryRateRecord -> record.time.toString()
+                is Vo2MaxRecord -> record.time.toString()
+                is WeightRecord -> record.time.toString()
+                is HeightRecord -> record.time.toString()
+                is BodyFatRecord -> record.time.toString()
+                is BoneMassRecord -> record.time.toString()
+                is LeanBodyMassRecord -> record.time.toString()
+                is BodyWaterMassRecord -> record.time.toString()
+                is BasalMetabolicRateRecord -> record.time.toString()
+                is HydrationRecord -> record.startTime.toString()
+                is NutritionRecord -> record.startTime.toString()
+                is SleepSessionRecord -> record.startTime.toString()
+                is MenstruationFlowRecord -> record.time.toString()
+                is MenstruationPeriodRecord -> record.startTime.toString()
+                is OvulationTestRecord -> record.time.toString()
+                is CervicalMucusRecord -> record.time.toString()
+                is SexualActivityRecord -> record.time.toString()
+                else -> Instant.now().toString()
             }
+        }
+
+        fun fromHealthConnectRecord(record: Record): MetricRecord? {
+            val timestamp = extractRecordTimestamp(record)
 
             return when (record) {
                 // Activity

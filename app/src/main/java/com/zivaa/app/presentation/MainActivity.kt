@@ -1,6 +1,8 @@
 package com.zivaa.app.presentation
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -88,6 +90,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var authManager: com.zivaa.app.data.remote.AuthManager
     private var isFabExpanded by mutableStateOf(true)
     private var showHealthAssistSheet by mutableStateOf(false)
+    private var showHealthConnectRationaleDialog by mutableStateOf(false)
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
@@ -109,6 +112,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: android.content.Intent?) {
+        val action = intent?.action
+        if (action == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" ||
+            action == "androidx.health.permissions.request.ACTION_SHOW_PERMISSIONS_RATIONALE" ||
+            action == "android.intent.action.VIEW_PERMISSION_USAGE") {
+            showHealthConnectRationaleDialog = true
+        }
         intent?.extras?.let { extras ->
             val type = extras.getString("type")
             if (type == "coach_message") {
@@ -299,6 +308,53 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    if (showHealthConnectRationaleDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showHealthConnectRationaleDialog = false },
+                            title = {
+                                androidx.compose.material3.Text(
+                                    "Health Connect & Data Privacy",
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                            },
+                            text = {
+                                androidx.compose.foundation.layout.Column(
+                                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                                ) {
+                                    androidx.compose.material3.Text(
+                                        "Zivaa connects with Android Health Connect to sync vital health telemetry (including Heart Rate, Resting HR, Sleep Sessions, Steps, Blood Pressure, and Blood Oxygen) recorded by your wearable device or companion apps.",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    androidx.compose.material3.Text(
+                                        "How your data is used:\n• To track longevity vitals and detect early clinical warning signs.\n• To generate daily clinical briefings and morning summaries.\n• To empower designated family caregivers with proactive peace of mind.",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    androidx.compose.material3.Text(
+                                        "Privacy & Security:\nYour biometric records are stored in HIPAA & DPDP Act 2023 compliant encrypted databases. Your health data is never sold or shared with advertisers or third-party brokers.",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = {
+                                        val privacyIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://zivaa.app/privacy"))
+                                        startActivity(privacyIntent)
+                                    }
+                                ) {
+                                    androidx.compose.material3.Text("Privacy Policy")
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { showHealthConnectRationaleDialog = false }
+                                ) {
+                                    androidx.compose.material3.Text("Close")
+                                }
+                            }
+                        )
+                    }
+
                     if (showSetup) {
                         com.zivaa.app.presentation.setup.SetupNavHost(
                             onSetupComplete = {

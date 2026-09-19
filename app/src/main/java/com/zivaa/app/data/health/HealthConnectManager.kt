@@ -45,37 +45,48 @@ class HealthConnectManager(private val context: Context) {
         return when (status) {
             HealthConnectClient.SDK_AVAILABLE -> HealthConnectSupport.AVAILABLE
             else -> {
-                // SDK not available — try to open Play Store for install
-                try {
-                    val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
-                        data = Uri.parse("market://details?id=com.google.android.apps.healthdata")
-                        setPackage("com.android.vending")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // On Android 14+ (API 34+), Health Connect is a system module.
+                // If it is unavailable, it cannot be downloaded from the Play Store.
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    HealthConnectSupport.UNSUPPORTED
+                } else {
+                    // On Android 13 and below, redirect to Play Store for the standalone APK
+                    try {
+                        val playStoreIntent = Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse("market://details?id=com.google.android.apps.healthdata")
+                            setPackage("com.android.vending")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(playStoreIntent)
+                    } catch (e: Exception) {
+                        val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(webIntent)
                     }
-                    context.startActivity(playStoreIntent)
-                } catch (e: Exception) {
-                    val webIntent = Intent(Intent.ACTION_VIEW).apply {
-                        data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(webIntent)
+                    HealthConnectSupport.INSTALL_REQUIRED
                 }
-                HealthConnectSupport.INSTALL_REQUIRED
             }
         }
     }
 
-    val permissions = setOf(
+    // Core clinical vitals and activity permissions tailored for senior health & longevity
+    val coreClinicalPermissions = setOf(
         HealthPermission.getReadPermission(BloodPressureRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(BodyTemperatureRecord::class),
         HealthPermission.getReadPermission(BasalBodyTemperatureRecord::class),
+        HealthPermission.getReadPermission(SkinTemperatureRecord::class),
         HealthPermission.getReadPermission(BloodGlucoseRecord::class),
         HealthPermission.getReadPermission(OxygenSaturationRecord::class),
         HealthPermission.getReadPermission(RespiratoryRateRecord::class),
-        HealthPermission.getReadPermission(SpeedRecord::class),
+        HealthPermission.getReadPermission(Vo2MaxRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(SpeedRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(ElevationGainedRecord::class),
@@ -83,11 +94,6 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(StepsCadenceRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(WheelchairPushesRecord::class),
-        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-        HealthPermission.getReadPermission(SkinTemperatureRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(Vo2MaxRecord::class),
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getReadPermission(HeightRecord::class),
         HealthPermission.getReadPermission(BodyFatRecord::class),
@@ -96,15 +102,14 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(BodyWaterMassRecord::class),
         HealthPermission.getReadPermission(BasalMetabolicRateRecord::class),
         HealthPermission.getReadPermission(NutritionRecord::class),
-        HealthPermission.getReadPermission(HydrationRecord::class),
-        HealthPermission.getReadPermission(MenstruationFlowRecord::class),
-        HealthPermission.getReadPermission(MenstruationPeriodRecord::class),
-        HealthPermission.getReadPermission(OvulationTestRecord::class),
-        HealthPermission.getReadPermission(CervicalMucusRecord::class),
-        HealthPermission.getReadPermission(SexualActivityRecord::class),
-        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
-        HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+        HealthPermission.getReadPermission(HydrationRecord::class)
     )
+
+    val backgroundPermission = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+    val historyPermission = HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+
+    // Default permissions requested during setup (core clinical without bundling background/history)
+    val permissions = coreClinicalPermissions
 
     val essentialPermissions = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -431,13 +436,6 @@ class HealthConnectManager(private val context: Context) {
         safeRead(NutritionRecord::class)
         safeRead(HydrationRecord::class)
 
-        // 5. Women's Health
-        safeRead(MenstruationFlowRecord::class)
-        safeRead(MenstruationPeriodRecord::class)
-        safeRead(OvulationTestRecord::class)
-        safeRead(CervicalMucusRecord::class)
-        safeRead(SexualActivityRecord::class)
-
         return records
     }
 
@@ -471,7 +469,6 @@ class HealthConnectManager(private val context: Context) {
             StepsCadenceRecord::class,
             SleepSessionRecord::class,
             ExerciseSessionRecord::class,
-            WheelchairPushesRecord::class,
             HeartRateVariabilityRmssdRecord::class,
             SkinTemperatureRecord::class,
             StepsRecord::class,
@@ -484,12 +481,7 @@ class HealthConnectManager(private val context: Context) {
             BodyWaterMassRecord::class,
             BasalMetabolicRateRecord::class,
             NutritionRecord::class,
-            HydrationRecord::class,
-            MenstruationFlowRecord::class,
-            MenstruationPeriodRecord::class,
-            OvulationTestRecord::class,
-            CervicalMucusRecord::class,
-            SexualActivityRecord::class
+            HydrationRecord::class
         )
         val requestedTypes = allTypes.filter { HealthPermission.getReadPermission(it) in granted }.toSet()
         if (requestedTypes.isEmpty()) return null
@@ -561,6 +553,12 @@ class HealthConnectManager(private val context: Context) {
             is androidx.health.connect.client.records.HeartRateRecord -> {
                 recordedAt = record.endTime.toString()
                 values["zone_offset"] = record.endZoneOffset?.toString() ?: ""
+                val bpms = record.samples.map { it.beatsPerMinute }
+                val avgBpm = if (bpms.isNotEmpty()) bpms.average() else 0.0
+                values["bpm"] = avgBpm
+                values["avg_bpm"] = avgBpm
+                values["min_bpm"] = bpms.minOrNull() ?: 0L
+                values["max_bpm"] = bpms.maxOrNull() ?: 0L
                 values["samples"] = record.samples.map { 
                     mapOf("time" to it.time.toString(), "bpm" to it.beatsPerMinute)
                 }

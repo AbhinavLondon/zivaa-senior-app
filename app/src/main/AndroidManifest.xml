@@ -95,16 +95,6 @@
     <uses-permission android:name="android.permission.health.READ_HYDRATION" />
     <uses-permission android:name="androidx.health.permission.HydrationRecord.READ" />
 
-    <!-- Women's Health & Cycle Tracking -->
-    <uses-permission android:name="android.permission.health.READ_MENSTRUATION" />
-    <uses-permission android:name="androidx.health.permission.MenstruationPeriodRecord.READ" />
-    <uses-permission android:name="androidx.health.permission.MenstruationFlowRecord.READ" />
-    <uses-permission android:name="android.permission.health.READ_OVULATION_TEST" />
-    <uses-permission android:name="androidx.health.permission.OvulationTestRecord.READ" />
-    <uses-permission android:name="android.permission.health.READ_SEXUAL_ACTIVITY" />
-    <uses-permission android:name="androidx.health.permission.SexualActivityRecord.READ" />
-    <uses-permission android:name="android.permission.health.READ_CERVICAL_MUCUS" />
-    <uses-permission android:name="androidx.health.permission.CervicalMucusRecord.READ" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
