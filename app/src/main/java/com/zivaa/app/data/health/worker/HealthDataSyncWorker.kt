@@ -121,37 +121,44 @@ class HealthDataSyncWorker(
                     }
                 } else {
                     // FIRST RUN / FULL BASELINE BACKFILL:
-                    // 1. Fetch & UPLOAD Priority Window (last 7 days) FIRST for instant dashboard hydration
+                    val savedCheckpoint = if (forceBackfill) 0L else syncPrefsManager.getHistoricalLookbackProgress(patientId)
                     val priorityStart = now.minus(7, ChronoUnit.DAYS)
-                    val priorityRecords = healthConnectManager.fetchAllAvailableMetrics(priorityStart, now)
-                    android.util.Log.i(TAG, "Fetched ${priorityRecords.size} records for 7-day priority window.")
-                    if (priorityRecords.isNotEmpty()) {
-                        val priorityPayload = priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
-                        val prioritySuccess = uploadRecordsToSupabase(priorityPayload)
-                        if (!prioritySuccess) return Result.retry()
-                        totalRecordsUploaded += priorityPayload.size
 
-                        // Immediate orchestration ping so dashboard displays fresh data without waiting for deep history
-                        try {
-                            com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
-                                com.zivaa.app.data.remote.SyncCompletePayload(
-                                    patient_id = patientId,
-                                    timezone = java.util.TimeZone.getDefault().id,
-                                    sync_type = "PriorityHydration",
-                                    records_synced = priorityPayload.size,
-                                    metric_types = priorityPayload.map { it.metricType }.distinct()
+                    if (savedCheckpoint == 0L) {
+                        // 1. Fetch & UPLOAD Priority Window (last 7 days) FIRST for instant dashboard hydration
+                        val priorityRecords = healthConnectManager.fetchAllAvailableMetrics(priorityStart, now)
+                        android.util.Log.i(TAG, "Fetched ${priorityRecords.size} records for 7-day priority window.")
+                        if (priorityRecords.isNotEmpty()) {
+                            val priorityPayload = priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
+                            val prioritySuccess = uploadRecordsToSupabase(priorityPayload)
+                            if (!prioritySuccess) return Result.retry()
+                            totalRecordsUploaded += priorityPayload.size
+
+                            // Immediate orchestration ping so dashboard displays fresh data without waiting for deep history
+                            try {
+                                com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
+                                    com.zivaa.app.data.remote.SyncCompletePayload(
+                                        patient_id = patientId, 
+                                        timezone = java.util.TimeZone.getDefault().id, 
+                                        sync_type = "PriorityHydration",
+                                        records_synced = priorityPayload.size,
+                                        metric_types = priorityPayload.map { it.metricType }.distinct()
+                                    )
                                 )
-                            )
-                        } catch (e: Exception) {
-                            android.util.Log.w(TAG, "Priority sync complete notice failed: ${e.message}")
+                            } catch (e: Exception) {
+                                android.util.Log.w(TAG, "Priority sync complete notice failed: ${e.message}")
+                            }
                         }
+                        syncPrefsManager.setHistoricalLookbackProgress(priorityStart.toEpochMilli(), patientId)
+                    } else {
+                        android.util.Log.i(TAG, "Resuming deep history backfill from checkpoint: ${Instant.ofEpochMilli(savedCheckpoint)}")
                     }
 
                     // 2. Stream remaining deep history in rolling 7-day windows
                     // Health Connect enforces 30-day lookback limit unless READ_HEALTH_DATA_HISTORY is granted
                     val maxLookbackDays = if (healthConnectManager.hasHistoryReadPermission()) 90L else 30L
                     val maxLookbackInstant = now.minus(maxLookbackDays, ChronoUnit.DAYS)
-                    var windowEnd = priorityStart
+                    var windowEnd = if (savedCheckpoint > 0L) Instant.ofEpochMilli(savedCheckpoint) else priorityStart
 
                     while (windowEnd.isAfter(maxLookbackInstant)) {
                         if (isStopped) return Result.retry()
@@ -164,6 +171,7 @@ class HealthDataSyncWorker(
                             totalRecordsUploaded += chunkPayload.size
                         }
                         windowEnd = windowStart
+                        syncPrefsManager.setHistoricalLookbackProgress(windowEnd.toEpochMilli(), patientId)
                     }
 
                     val nowStr = java.time.LocalDate.now().toString()
@@ -171,6 +179,7 @@ class HealthDataSyncWorker(
                     syncPrefsManager.setLastStepsSyncDate(nowStr)
                     syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
                     syncPrefsManager.setBaselineBackfillComplete(true, patientId)
+                    syncPrefsManager.clearHistoricalLookbackProgress(patientId)
                 }
 
                 // 3. Obtain a fresh ChangesToken for future incremental runs

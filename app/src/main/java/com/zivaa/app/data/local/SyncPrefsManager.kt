@@ -32,7 +32,8 @@ class SyncPrefsManager(context: Context) {
     fun clearChangesToken(patientId: String? = null) {
         val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
         val permKey = getScopedKey(KEY_TOKEN_PERMISSIONS, patientId)
-        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).remove(permKey).apply()
+        val progressKey = getScopedKey(KEY_HISTORICAL_LOOKBACK_PROGRESS, patientId)
+        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).remove(permKey).remove(progressKey).apply()
     }
 
     fun getTokenPermissions(patientId: String? = null): Set<String> {
@@ -287,6 +288,21 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putBoolean(key, complete).apply()
     }
 
+    fun getHistoricalLookbackProgress(patientId: String? = null): Long {
+        val key = getScopedKey(KEY_HISTORICAL_LOOKBACK_PROGRESS, patientId)
+        return prefs.getLong(key, 0L)
+    }
+
+    fun setHistoricalLookbackProgress(timestampMs: Long, patientId: String? = null) {
+        val key = getScopedKey(KEY_HISTORICAL_LOOKBACK_PROGRESS, patientId)
+        prefs.edit().putLong(key, timestampMs).apply()
+    }
+
+    fun clearHistoricalLookbackProgress(patientId: String? = null) {
+        val key = getScopedKey(KEY_HISTORICAL_LOOKBACK_PROGRESS, patientId)
+        prefs.edit().remove(key).apply()
+    }
+
     fun hasPromptedHistoryPermission(): Boolean {
         return prefs.getBoolean(KEY_PROMPTED_HISTORY_PERMISSION, false)
     }
@@ -329,5 +345,6 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_CACHED_HEART_RATE = "cached_heart_rate"
         private const val KEY_CACHED_OXYGEN_LEVEL = "cached_oxygen_level"
         private const val KEY_LAST_SUCCESSFUL_SYNC_TIMESTAMP = "last_successful_sync_timestamp"
+        private const val KEY_HISTORICAL_LOOKBACK_PROGRESS = "historical_lookback_progress"
     }
 }
