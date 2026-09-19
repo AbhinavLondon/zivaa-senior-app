@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 45
-        versionName = "1.0.44"
+        versionCode = 46
+        versionName = "1.0.45"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.44 - Android Health Connect privacy rationale dialog & permission usage compliance, consolidated telemetry sync worker, and type-safe metric timestamp extraction"
+                releaseNotes = "Zivaa v1.0.45 - Bundled Health Connect background telemetry access & historical record permissions during onboarding setup"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

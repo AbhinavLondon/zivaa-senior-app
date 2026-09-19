@@ -108,8 +108,11 @@ class HealthConnectManager(private val context: Context) {
     val backgroundPermission = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
     val historyPermission = HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
 
-    // Default permissions requested during setup (core clinical without bundling background/history)
-    val permissions = coreClinicalPermissions
+    // Default permissions requested during setup (bundles core vitals, background access, and 30+ day past history)
+    val permissions = coreClinicalPermissions + setOf(
+        backgroundPermission,
+        historyPermission
+    )
 
     val essentialPermissions = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
