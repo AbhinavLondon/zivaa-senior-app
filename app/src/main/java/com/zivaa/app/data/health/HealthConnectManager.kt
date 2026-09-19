@@ -70,35 +70,108 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
         HealthPermission.getReadPermission(BodyTemperatureRecord::class),
+        HealthPermission.getReadPermission(BasalBodyTemperatureRecord::class),
         HealthPermission.getReadPermission(BloodGlucoseRecord::class),
         HealthPermission.getReadPermission(OxygenSaturationRecord::class),
         HealthPermission.getReadPermission(RespiratoryRateRecord::class),
         HealthPermission.getReadPermission(SpeedRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(ElevationGainedRecord::class),
+        HealthPermission.getReadPermission(FloorsClimbedRecord::class),
         HealthPermission.getReadPermission(StepsCadenceRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        HealthPermission.getReadPermission(WheelchairPushesRecord::class),
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(SkinTemperatureRecord::class),
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(Vo2MaxRecord::class),
-        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getReadPermission(BoneMassRecord::class),
+        HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+        HealthPermission.getReadPermission(BodyWaterMassRecord::class),
+        HealthPermission.getReadPermission(BasalMetabolicRateRecord::class),
+        HealthPermission.getReadPermission(NutritionRecord::class),
+        HealthPermission.getReadPermission(HydrationRecord::class),
+        HealthPermission.getReadPermission(MenstruationFlowRecord::class),
+        HealthPermission.getReadPermission(MenstruationPeriodRecord::class),
+        HealthPermission.getReadPermission(OvulationTestRecord::class),
+        HealthPermission.getReadPermission(CervicalMucusRecord::class),
+        HealthPermission.getReadPermission(SexualActivityRecord::class),
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
     )
 
+    val essentialPermissions = setOf(
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(BloodPressureRecord::class),
+        HealthPermission.getReadPermission(OxygenSaturationRecord::class)
+    )
+
+    suspend fun getGrantedPermissions(): Set<String> {
+        val client = healthConnectClient ?: return emptySet()
+        return try {
+            client.permissionController.getGrantedPermissions()
+        } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error querying granted permissions from Health Connect: ${e.message}", e)
+            emptySet()
+        }
+    }
+
+    suspend fun hasEssentialPermissions(): Boolean {
+        val granted = getGrantedPermissions()
+        return granted.containsAll(essentialPermissions)
+    }
+
+    suspend fun hasAnyPermissions(): Boolean {
+        val granted = getGrantedPermissions()
+        return granted.intersect(permissions).isNotEmpty()
+    }
+
+    suspend fun hasBackgroundReadPermission(): Boolean {
+        val granted = getGrantedPermissions()
+        return granted.contains(HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
+    }
+
+    suspend fun hasHistoryReadPermission(): Boolean {
+        val granted = getGrantedPermissions()
+        return granted.contains(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
+    }
+
     suspend fun hasAllPermissions(): Boolean {
-        val client = healthConnectClient ?: return false
-        val granted = client.permissionController.getGrantedPermissions()
+        val granted = getGrantedPermissions()
         return granted.containsAll(permissions)
     }
 
     fun isBackgroundReadAvailable(): Boolean {
-        return true
+        val client = healthConnectClient ?: return false
+        return try {
+            client.features.getFeatureStatus(
+                androidx.health.connect.client.HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND
+            ) == androidx.health.connect.client.HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        } catch (e: Exception) {
+            android.util.Log.w("HealthConnectManager", "Error checking background read feature status: ${e.message}", e)
+            false
+        }
     }
 
     fun isHistoryReadAvailable(): Boolean {
-        return true
+        val client = healthConnectClient ?: return false
+        return try {
+            client.features.getFeatureStatus(
+                androidx.health.connect.client.HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY
+            ) == androidx.health.connect.client.HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        } catch (e: Exception) {
+            android.util.Log.w("HealthConnectManager", "Error checking history read feature status: ${e.message}", e)
+            true
+        }
     }
 
     suspend fun checkBrandSyncStatus(brandPackage: String): com.zivaa.app.presentation.setup.wearable.BrandSyncReport {
@@ -286,9 +359,13 @@ class HealthConnectManager(private val context: Context) {
     }
 
     suspend fun fetchAllAvailableMetrics(days: Long = 90): List<Record> {
-        val client = healthConnectClient ?: return emptyList()
         val endTime = Instant.now()
         val startTime = endTime.minus(days, ChronoUnit.DAYS)
+        return fetchAllAvailableMetrics(startTime, endTime)
+    }
+
+    suspend fun fetchAllAvailableMetrics(startTime: Instant, endTime: Instant): List<Record> {
+        val client = healthConnectClient ?: return emptyList()
         val timeFilter = TimeRangeFilter.between(startTime, endTime)
 
         val records = mutableListOf<Record>()
@@ -381,20 +458,38 @@ class HealthConnectManager(private val context: Context) {
             HeartRateRecord::class,
             RestingHeartRateRecord::class,
             BodyTemperatureRecord::class,
+            BasalBodyTemperatureRecord::class,
             BloodGlucoseRecord::class,
             OxygenSaturationRecord::class,
             RespiratoryRateRecord::class,
             SpeedRecord::class,
             DistanceRecord::class,
+            ActiveCaloriesBurnedRecord::class,
             TotalCaloriesBurnedRecord::class,
             ElevationGainedRecord::class,
+            FloorsClimbedRecord::class,
             StepsCadenceRecord::class,
             SleepSessionRecord::class,
             ExerciseSessionRecord::class,
+            WheelchairPushesRecord::class,
             HeartRateVariabilityRmssdRecord::class,
             SkinTemperatureRecord::class,
             StepsRecord::class,
-            Vo2MaxRecord::class
+            Vo2MaxRecord::class,
+            WeightRecord::class,
+            HeightRecord::class,
+            BodyFatRecord::class,
+            BoneMassRecord::class,
+            LeanBodyMassRecord::class,
+            BodyWaterMassRecord::class,
+            BasalMetabolicRateRecord::class,
+            NutritionRecord::class,
+            HydrationRecord::class,
+            MenstruationFlowRecord::class,
+            MenstruationPeriodRecord::class,
+            OvulationTestRecord::class,
+            CervicalMucusRecord::class,
+            SexualActivityRecord::class
         )
         val requestedTypes = allTypes.filter { HealthPermission.getReadPermission(it) in granted }.toSet()
         if (requestedTypes.isEmpty()) return null
@@ -403,7 +498,7 @@ class HealthConnectManager(private val context: Context) {
         return try {
             client.getChangesToken(request)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("HealthConnectManager", "Failed to get changes token for types $requestedTypes: ${e.message}", e)
             null
         }
     }
@@ -413,7 +508,7 @@ class HealthConnectManager(private val context: Context) {
         return try {
             client.getChanges(token)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("HealthConnectManager", "Failed to get changes for token [${token.take(12)}...]: ${e.message}", e)
             null
         }
     }
@@ -423,8 +518,15 @@ class HealthConnectManager(private val context: Context) {
         var recordedAt = Instant.now().toString()
         val values = mutableMapOf<String, Any>()
 
-        // Extract source from metadata
+        // Extract source & record IDs from metadata
         val meta = record.metadata
+        if (meta.id.isNotBlank()) {
+            values["health_connect_id"] = meta.id
+        }
+        if (!meta.clientRecordId.isNullOrBlank()) {
+            values["client_record_id"] = meta.clientRecordId!!
+        }
+
         var source = if (meta.dataOrigin.packageName.isNotBlank()) meta.dataOrigin.packageName else "com.sec.android.app.shealth"
 
         val deviceType = meta.device?.type
@@ -591,7 +693,12 @@ class HealthConnectManager(private val context: Context) {
             recordType = HeartRateRecord::class,
             timeRangeFilter = TimeRangeFilter.between(peakStart, sessionEnd)
         )
-        val peakResult = try { client.readRecords(peakRequest) } catch(e: Exception) { null }
+        val peakResult = try { 
+            client.readRecords(peakRequest) 
+        } catch(e: Exception) { 
+            android.util.Log.w("HealthConnectManager", "Failed to read peak HR records for HRR calculation: ${e.message}", e)
+            null 
+        }
         var peakBpm = 0L
         peakResult?.records?.forEach { record ->
             record.samples.forEach { sample ->
@@ -607,7 +714,12 @@ class HealthConnectManager(private val context: Context) {
             recordType = HeartRateRecord::class,
             timeRangeFilter = TimeRangeFilter.between(sessionEnd, recoveryEnd)
         )
-        val recoveryResult = try { client.readRecords(recoveryRequest) } catch(e: Exception) { null }
+        val recoveryResult = try { 
+            client.readRecords(recoveryRequest) 
+        } catch(e: Exception) { 
+            android.util.Log.w("HealthConnectManager", "Failed to read recovery HR records for HRR calculation: ${e.message}", e)
+            null 
+        }
         
         // We want the HR closest to 2 minutes after (target = sessionEnd + 120s)
         var recoveryBpm: Long? = null

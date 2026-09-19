@@ -965,7 +965,11 @@ class DashboardViewModel(
                     .putBoolean("force_backfill", force)
                     .putString("sync_type", "Foreground")
                     .build()
+                val syncConstraints = androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .build()
                 val oneTimeWork = androidx.work.OneTimeWorkRequestBuilder<com.zivaa.app.data.health.worker.HealthDataSyncWorker>()
+                    .setConstraints(syncConstraints)
                     .setInputData(workData)
                     .build()
                 val appContext = getApplication<Application>().applicationContext

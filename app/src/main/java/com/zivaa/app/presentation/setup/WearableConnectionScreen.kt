@@ -59,7 +59,7 @@ fun WearableConnectionScreen(
     
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
     val requestPermissionsLauncher = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(healthConnectManager.permissions)) {
+        if (granted.intersect(healthConnectManager.permissions).isNotEmpty()) {
             onNext() // Permissions granted, proceed
         } else {
             Toast.makeText(context, "Health Connect permissions are required to sync your data.", Toast.LENGTH_SHORT).show()

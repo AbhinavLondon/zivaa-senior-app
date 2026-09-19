@@ -67,31 +67,7 @@ class MainActivity : ComponentActivity() {
 
     private val healthConnectManager by lazy { HealthConnectManager(applicationContext) }
 
-    private val permissions = setOf(
-        HealthPermission.getReadPermission(BloodPressureRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-        HealthPermission.getReadPermission(BodyTemperatureRecord::class),
-        HealthPermission.getReadPermission(BloodGlucoseRecord::class),
-        HealthPermission.getReadPermission(OxygenSaturationRecord::class),
-        HealthPermission.getReadPermission(RespiratoryRateRecord::class),
-        HealthPermission.getReadPermission(SpeedRecord::class),
-        HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(ElevationGainedRecord::class),
-        HealthPermission.getReadPermission(StepsCadenceRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-        HealthPermission.getReadPermission(SkinTemperatureRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(Vo2MaxRecord::class),
-        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-        HealthPermission.getReadPermission(BasalMetabolicRateRecord::class),
-        HealthPermission.getReadPermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(FloorsClimbedRecord::class),
-        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
-    )
+    private val permissions by lazy { healthConnectManager.permissions }
 
     private var currentScreen by mutableStateOf("dashboard")
     private var forceDashboardRefresh by mutableStateOf(false)
@@ -210,7 +186,9 @@ class MainActivity : ComponentActivity() {
 
         val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
         val requestPermissions = registerForActivityResult(requestPermissionActivityContract) { granted ->
-            // Permissions request completed
+            if (granted.isNotEmpty()) {
+                forceDashboardRefresh = true
+            }
         }
 
         val requestNotificationPermission = registerForActivityResult(
@@ -228,10 +206,19 @@ class MainActivity : ComponentActivity() {
         }
 
         // Automatically schedule background health data sync on app start
+        val syncConstraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
         val syncWorkData = androidx.work.Data.Builder()
             .putString("sync_type", "Background")
             .build()
         val workRequest = PeriodicWorkRequestBuilder<HealthDataSyncWorker>(1, TimeUnit.HOURS)
+            .setConstraints(syncConstraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                androidx.work.WorkRequest.MIN_BACKOFF_MILLIS,
+                TimeUnit.MILLISECONDS
+            )
             .setInputData(syncWorkData)
             .build()
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
@@ -243,8 +230,8 @@ class MainActivity : ComponentActivity() {
         // (Immediate foreground sync is handled once permissions are checked in UI LaunchedEffect)
         val prefsManager = com.zivaa.app.data.local.SyncPrefsManager(applicationContext)
         val appSettingsManager = com.zivaa.app.data.local.AppSettingsManager(applicationContext)
-        authManager = com.zivaa.app.data.remote.AuthManager(applicationContext)
-        com.zivaa.app.data.remote.RetrofitClient.authManager = authManager
+        authManager = com.zivaa.app.data.remote.AuthManager.getInstance(applicationContext)
+        com.zivaa.app.data.remote.RetrofitClient.initialize(applicationContext)
 
         handleIntent(intent)
 
@@ -355,7 +342,16 @@ class MainActivity : ComponentActivity() {
                                 val client = androidx.health.connect.client.HealthConnectClient.getOrCreate(applicationContext)
                                 try {
                                     val grantedPermissions = client.permissionController.getGrantedPermissions()
-                                    if (!grantedPermissions.containsAll(permissions)) {
+                                    val hasHistoryPerm = grantedPermissions.contains(HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY)
+                                    val shouldPromptHistory = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                                        && healthConnectManager.isHistoryReadAvailable()
+                                        && !hasHistoryPerm
+                                        && !prefsManager.hasPromptedHistoryPermission()
+
+                                    if (grantedPermissions.intersect(permissions).isEmpty() || shouldPromptHistory) {
+                                        if (shouldPromptHistory) {
+                                            prefsManager.setPromptedHistoryPermission(true)
+                                        }
                                         requestPermissions.launch(permissions)
                                     } else {
                                         viewModel.fetchVitalsAndSync(force = false)
@@ -510,11 +506,11 @@ class MainActivity : ComponentActivity() {
                                 contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
                             ) { paddingValues ->
                             androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize().consumeWindowInsets(paddingValues)) {
-                                when (currentScreen) {
-                            "coach_chat" -> {
                                 val coachChatViewModel: com.zivaa.app.presentation.coach.CoachChatViewModel = viewModel(
                                     factory = com.zivaa.app.presentation.coach.CoachChatViewModelFactory(authManager)
                                 )
+                                when (currentScreen) {
+                            "coach_chat" -> {
                                 com.zivaa.app.presentation.coach.CoachChatScreen(
                                     viewModel = coachChatViewModel,
                                     onNavigateBack = { currentScreen = "dashboard" },
@@ -704,8 +700,77 @@ class MainActivity : ComponentActivity() {
                                     viewModel = nudgeViewModel,
                                     onNavigateBack = { currentScreen = "dashboard" },
                                     onAction = { action ->
-                                        if (action == "START_COACH_CHAT") {
-                                            currentScreen = "coach_chat"
+                                        when (action) {
+                                            "START_GUIDED_TRIAGE", "START_COACH_CHAT" -> {
+                                                val alert = viewModel.selectedNudgeAlert
+                                                val stepsData = alert?.let { com.zivaa.app.presentation.dashboard.parseActionSteps(it.action_steps) }
+                                                coachChatViewModel.startTriageForNudge(
+                                                    alertTitle = alert?.nudge_title ?: "Health Check",
+                                                    riskLevel = alert?.risk_level ?: "LOW",
+                                                    whyFlaggedSummary = alert?.nudge_text ?: "",
+                                                    caregiverChecklist = stepsData?.caregiverChecklist ?: emptyList()
+                                                )
+                                                currentScreen = "coach_chat"
+                                            }
+                                            "CALL_AMBULANCE" -> {
+                                                try {
+                                                    val dialIntent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                                                        data = android.net.Uri.parse("tel:108")
+                                                    }
+                                                    startActivity(dialIntent)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
+                                            "CALL_CAREGIVER" -> {
+                                                try {
+                                                    val dialIntent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                                                        data = android.net.Uri.parse("tel:")
+                                                    }
+                                                    startActivity(dialIntent)
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
+                                            "ORDER_HOME_LABS", "BOOK_HOME_LABS", "ORDER_PREVENTIVE_CHECKUP" -> {
+                                                currentScreen = "lab_tests"
+                                            }
+                                            "BOOK_HOME_PHYSIO", "BOOK_PHYSIO", "BOOK_SPECIALIST_TELEHEALTH", "REVIEW_MEDS", "BOOK_HOME_ECG", "BOOK_HOME_SLEEP_STUDY" -> {
+                                                currentScreen = "care"
+                                            }
+                                            "SHARE_CLINICAL_SUMMARY" -> {
+                                                val alert = viewModel.selectedNudgeAlert
+                                                val stepsData = alert?.let { com.zivaa.app.presentation.dashboard.parseActionSteps(it.action_steps) }
+                                                val chk = stepsData?.caregiverChecklist ?: emptyList()
+                                                val chkText = if (chk.isNotEmpty()) "\n\nBedside steps recommended:\n" + chk.mapIndexed { idx, s -> "${idx + 1}. $s" }.joinToString("\n") else ""
+                                                val shareText = "Zivaa Clinical Alert for Shyam:\n*${alert?.nudge_title ?: "Health Alert"}* (${alert?.risk_level ?: "LOW"} Priority)\n\n${alert?.nudge_text ?: ""}$chkText"
+                                                try {
+                                                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                        type = "text/plain"
+                                                        putExtra(android.content.Intent.EXTRA_SUBJECT, "Health Alert: ${alert?.nudge_title}")
+                                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                    }
+                                                    startActivity(android.content.Intent.createChooser(sendIntent, "Share with Doctor / Caregiver"))
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
+                                            "VIEW_METRICS", "VIEW_MONTHLY_REPORT" -> {
+                                                currentScreen = "dashboard"
+                                            }
+                                            else -> {
+                                                if (action.startsWith("LAUNCH_")) {
+                                                    val alert = viewModel.selectedNudgeAlert
+                                                    val stepsData = alert?.let { com.zivaa.app.presentation.dashboard.parseActionSteps(it.action_steps) }
+                                                    coachChatViewModel.startTriageForNudge(
+                                                        alertTitle = alert?.nudge_title ?: "Health Check",
+                                                        riskLevel = alert?.risk_level ?: "LOW",
+                                                        whyFlaggedSummary = alert?.nudge_text ?: "",
+                                                        caregiverChecklist = stepsData?.caregiverChecklist ?: emptyList()
+                                                    )
+                                                    currentScreen = "coach_chat"
+                                                }
+                                            }
                                         }
                                     }
                                 )

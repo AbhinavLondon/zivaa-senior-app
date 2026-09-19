@@ -30,7 +30,7 @@ class UploadDocumentViewModel(
     private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
     val uploadState: StateFlow<UploadState> = _uploadState
 
-    fun uploadDocument(context: Context, uri: Uri, effectiveDate: String? = null, onUploadStarted: () -> Unit) {
+    fun uploadDocument(context: Context, uri: Uri, effectiveDate: String? = null, label: String = "LAB_REPORT", onUploadStarted: () -> Unit) {
         viewModelScope.launch {
             _uploadState.value = UploadState.Uploading
             
@@ -55,13 +55,13 @@ class UploadDocumentViewModel(
                     if (it.moveToFirst()) {
                         val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                         if (nameIndex != -1) {
-                            displayName = it.getString(nameIndex)
+                            it.getString(nameIndex)?.let { name -> displayName = name }
                         }
                     }
                 }
                 if (!displayName.contains(".")) {
                     val extension = if (mimeType.contains("pdf")) "pdf" else "jpg"
-                    displayName = "$displayName.$extension"
+                    displayName = "${displayName}.${extension}"
                 }
 
                 val requestFile = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
@@ -72,7 +72,11 @@ class UploadDocumentViewModel(
 
                 val filePart = MultipartBody.Part.createFormData("file", displayName, progressRequestBody)
 
-                UploadManager.startUpload(patientId, effectiveDate, filePart, displayName)
+                if (label.equals("PRESCRIPTION", ignoreCase = true)) {
+                    UploadManager.startPrescriptionUpload(patientId, filePart, displayName)
+                } else {
+                    UploadManager.startUpload(patientId, effectiveDate, filePart, displayName)
+                }
                 
                 // Immediately notify UI to navigate away
                 onUploadStarted()
@@ -100,3 +104,4 @@ class UploadDocumentViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+

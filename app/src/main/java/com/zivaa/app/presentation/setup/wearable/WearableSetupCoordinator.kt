@@ -83,7 +83,7 @@ fun WearableSetupCoordinator(
         coroutineScope.launch {
             val support = healthConnectManager.checkHealthConnectSupportAndRedirect()
             if (support == HealthConnectSupport.AVAILABLE) {
-                if (healthConnectManager.hasAllPermissions()) {
+                if (healthConnectManager.hasAnyPermissions()) {
                     runDetection(brand)
                 } else {
                     pendingBrandAfterPermission = brand

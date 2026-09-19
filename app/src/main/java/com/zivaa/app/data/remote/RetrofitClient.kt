@@ -14,7 +14,15 @@ object RetrofitClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    @Volatile
     var authManager: AuthManager? = null
+
+    fun initialize(context: android.content.Context) {
+        if (authManager == null) {
+            authManager = AuthManager.getInstance(context)
+        }
+    }
+
     private val authInterceptor = Interceptor { chain ->
         val token = authManager?.getAccessToken() ?: SUPABASE_ANON_KEY
         val requestBuilder = chain.request().newBuilder()
@@ -40,7 +48,12 @@ object RetrofitClient {
             
             val refreshRequest = RefreshTokenRequest(refresh_token = refreshToken)
             val call = apiService.refreshToken(refreshRequest)
-            val retrofitResponse = call.execute() // Synchronous execution
+            val retrofitResponse = try {
+                call.execute() // Synchronous execution
+            } catch (e: Exception) {
+                android.util.Log.e("RetrofitClient", "Exception during synchronous token refresh: ${e.message}", e)
+                return null
+            }
             
             if (retrofitResponse.isSuccessful) {
                 val newTokens = retrofitResponse.body()
@@ -56,6 +69,7 @@ object RetrofitClient {
                 }
             }
             
+            android.util.Log.w("RetrofitClient", "Token refresh failed with HTTP ${retrofitResponse.code()}: ${retrofitResponse.errorBody()?.string()}. Clearing session.")
             // If we fail to refresh the token, log out the user
             authManager?.clearSession()
             return null

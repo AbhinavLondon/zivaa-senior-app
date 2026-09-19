@@ -11,6 +11,12 @@ interface SupabaseApiService {
     suspend fun insertRawVitals(
         @Body payload: List<SupabaseVitalRecord>
     ): Response<Void>
+
+    @retrofit2.http.DELETE("rest/v1/vitals_raw")
+    suspend fun deleteRawVitalsByHealthConnectIds(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("values->>health_connect_id") healthConnectIdInQuery: String
+    ): Response<Void>
     
     @Headers("Prefer: resolution=merge-duplicates")
     @POST("rest/v1/vitals_daily")
@@ -51,6 +57,13 @@ interface SupabaseApiService {
     suspend fun getDiagnosticReportById(
         @retrofit2.http.Query("id") idQuery: String
     ): Response<List<SupabaseFhirDiagnosticReport>>
+
+    @retrofit2.http.GET("rest/v1/patient_documents")
+    suspend fun getPatientDocuments(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("document_type") documentTypeQuery: String? = null,
+        @retrofit2.http.Query("order") order: String = "created_at.desc"
+    ): Response<List<SupabasePatientDocument>>
 
     @retrofit2.http.GET("rest/v1/fhir_observations")
     suspend fun getObservationsByReport(

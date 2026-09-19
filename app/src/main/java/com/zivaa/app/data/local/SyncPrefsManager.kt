@@ -31,7 +31,18 @@ class SyncPrefsManager(context: Context) {
 
     fun clearChangesToken(patientId: String? = null) {
         val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
-        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).apply()
+        val permKey = getScopedKey(KEY_TOKEN_PERMISSIONS, patientId)
+        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).remove(permKey).apply()
+    }
+
+    fun getTokenPermissions(patientId: String? = null): Set<String> {
+        val key = getScopedKey(KEY_TOKEN_PERMISSIONS, patientId)
+        return prefs.getStringSet(key, emptySet()) ?: emptySet()
+    }
+
+    fun saveTokenPermissions(permissions: Set<String>, patientId: String? = null) {
+        val key = getScopedKey(KEY_TOKEN_PERMISSIONS, patientId)
+        prefs.edit().putStringSet(key, permissions).apply()
     }
 
     fun getLastSyncedPatientId(): String? = prefs.getString("last_synced_patient_id", null)
@@ -256,13 +267,34 @@ class SyncPrefsManager(context: Context) {
         editor.apply()
     }
 
+    fun isBaselineBackfillComplete(patientId: String? = null): Boolean {
+        val key = getScopedKey(KEY_BASELINE_BACKFILL_COMPLETE, patientId)
+        return prefs.getBoolean(key, false)
+    }
+
+    fun setBaselineBackfillComplete(complete: Boolean, patientId: String? = null) {
+        val key = getScopedKey(KEY_BASELINE_BACKFILL_COMPLETE, patientId)
+        prefs.edit().putBoolean(key, complete).apply()
+    }
+
+    fun hasPromptedHistoryPermission(): Boolean {
+        return prefs.getBoolean(KEY_PROMPTED_HISTORY_PERMISSION, false)
+    }
+
+    fun setPromptedHistoryPermission(prompted: Boolean) {
+        prefs.edit().putBoolean(KEY_PROMPTED_HISTORY_PERMISSION, prompted).apply()
+    }
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }
 
     companion object {
         private const val PREFS_NAME = "health_sync_prefs"
+        private const val KEY_PROMPTED_HISTORY_PERMISSION = "prompted_history_permission"
         private const val KEY_CHANGES_TOKEN = "changes_token"
+        private const val KEY_TOKEN_PERMISSIONS = "token_permissions"
+        private const val KEY_BASELINE_BACKFILL_COMPLETE = "baseline_backfill_complete"
         private const val KEY_PHONE_SENSOR_ENABLED = "phone_sensor_enabled"
         private const val KEY_SETUP_COMPLETE = "setup_complete"
         private const val KEY_TODAY_TOUR_COMPLETED = "today_tour_completed"

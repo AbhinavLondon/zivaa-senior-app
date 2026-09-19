@@ -7,11 +7,26 @@ import com.zivaa.app.data.health.HealthConnectManager
 import com.zivaa.app.data.local.SyncPrefsManager
 import com.zivaa.app.data.sensors.SensorDataStore
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class HealthDataSyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
+
+    companion object {
+        private const val TAG = "HealthDataSyncWorker"
+        private const val CHUNK_SIZE = 800
+        private const val MAX_CONCURRENT_UPLOADS = 3
+        private const val DELETION_CHUNK_SIZE = 50
+        private const val NOTIFICATION_ID = 40401
+    }
 
     override suspend fun doWork(): Result {
         val healthConnectManager = HealthConnectManager(applicationContext)
@@ -19,26 +34,31 @@ class HealthDataSyncWorker(
 
         // Ensure Health Connect is available
         if (!healthConnectManager.isSdkAvailable()) {
+            android.util.Log.e(TAG, "Health Connect SDK is not available on this device. Aborting sync.")
             return Result.failure()
         }
 
-        // Ensure the background read feature is available
-        if (!healthConnectManager.isBackgroundReadAvailable()) {
-            return Result.failure()
+        // Adaptive background read feature check (Android 14+ specific)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val syncType = inputData.getString("sync_type") ?: "Background"
+            if (syncType.equals("Background", ignoreCase = true) && !healthConnectManager.isBackgroundReadAvailable()) {
+                android.util.Log.w(TAG, "Health Connect background read feature is unavailable on this Android 14+ device.")
+            }
         }
 
-        // Check if we have the permissions (including background read)
-        if (!healthConnectManager.hasAllPermissions()) {
-            return Result.failure()
+        // Ensure at least one health metric permission is granted so we can sync available data
+        if (!healthConnectManager.hasAnyPermissions()) {
+            android.util.Log.w(TAG, "No Health Connect permissions granted. Skipping background sync.")
+            return Result.success()
         }
 
-        // Initialize AuthManager so background syncs have the JWT token
-        val authManager = com.zivaa.app.data.remote.AuthManager(applicationContext)
-        com.zivaa.app.data.remote.RetrofitClient.authManager = authManager
+        // Initialize AuthManager so background syncs have the JWT token thread-safely
+        val authManager = com.zivaa.app.data.remote.AuthManager.getInstance(applicationContext)
+        com.zivaa.app.data.remote.RetrofitClient.initialize(applicationContext)
 
         val patientId = authManager.getUserId()
         if (patientId == null) {
-            println("No authenticated user found. Cannot sync health data.")
+            android.util.Log.e(TAG, "No authenticated user found (JWT/patientId is null). Cannot sync health data.")
             return Result.failure()
         }
 
@@ -48,7 +68,7 @@ class HealthDataSyncWorker(
             val forceBackfill = inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
             
             if (lastSyncedPatient != patientId) {
-                println("New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous token.")
+                android.util.Log.i(TAG, "New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous token.")
                 syncPrefsManager.clearChangesToken(patientId)
                 syncPrefsManager.setLastSyncedPatientId(patientId)
             }
@@ -57,36 +77,68 @@ class HealthDataSyncWorker(
                 val prioritiesRes = com.zivaa.app.data.remote.RetrofitClient.apiService.getSourcePriorities()
                 if (prioritiesRes.isSuccessful && !prioritiesRes.body().isNullOrEmpty()) {
                     syncPrefsManager.saveSourcePriorities(prioritiesRes.body()!!)
+                } else {
+                    android.util.Log.w(TAG, "Source priorities returned non-success HTTP ${prioritiesRes.code()}")
                 }
             } catch (e: Exception) {
-                // Non-blocking
+                android.util.Log.w(TAG, "Non-blocking fetch of source priorities failed: ${e.message}", e)
             }
 
-            val currentToken = if (forceBackfill) null else syncPrefsManager.getChangesToken(patientId)
+            val currentGranted = healthConnectManager.getGrantedPermissions()
+            val tokenPermissions = syncPrefsManager.getTokenPermissions(patientId)
+            val newlyGranted = currentGranted - tokenPermissions
+
+            val permissionsExpanded = (tokenPermissions.isNotEmpty() && newlyGranted.isNotEmpty()) ||
+                    (tokenPermissions.isEmpty() && syncPrefsManager.getChangesToken(patientId) != null)
+
+            if (permissionsExpanded) {
+                android.util.Log.i(TAG, "Health Connect permissions expanded (new: $newlyGranted). Resetting ChangesToken to backfill new metrics.")
+                syncPrefsManager.clearChangesToken(patientId)
+            }
+
+            val currentToken = if (forceBackfill || permissionsExpanded) null else syncPrefsManager.getChangesToken(patientId)
             val payload = mutableListOf<com.zivaa.app.data.remote.SupabaseVitalRecord>()
             var nextToken: String? = null
 
             if (currentToken == null) {
-                // FIRST RUN / FORCE BACKFILL: No token exists for this patient.
-                // 1. Fetch 90 days of backfill data.
-                val rawRecords = healthConnectManager.fetchAllAvailableMetrics()
-                println("No token or force backfill for $patientId. Fetched ${rawRecords.size} records for backfill.")
-                
-                payload.addAll(rawRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
+                // Elevate to Foreground Service for initial baseline backfill to lift 10-minute OS timeout
+                try {
+                    setForeground(createForegroundInfo())
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Could not set foreground info for baseline backfill: ${e.message}")
+                }
 
-                // 2. Initialize tracking dates so initial sync doesn't immediately trigger fallbacks
+                // FIRST RUN / FORCE BACKFILL: No token exists for this patient.
+                // 1. Fetch Priority Window (last 7 days) first for instant dashboard hydration
+                val now = Instant.now()
+                val priorityStart = now.minus(7, ChronoUnit.DAYS)
+                val priorityRecords = healthConnectManager.fetchAllAvailableMetrics(priorityStart, now)
+                android.util.Log.i(TAG, "Fetched ${priorityRecords.size} records for 7-day priority window.")
+                payload.addAll(priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
+
+                // 2. Fetch remaining deep history (days 8 to 90)
+                val deepHistoryStart = now.minus(90, ChronoUnit.DAYS)
+                val deepHistoryRecords = healthConnectManager.fetchAllAvailableMetrics(deepHistoryStart, priorityStart)
+                android.util.Log.i(TAG, "Fetched ${deepHistoryRecords.size} records for 8-90 day history window.")
+                payload.addAll(deepHistoryRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
+
+                val allRecords = priorityRecords + deepHistoryRecords
+
+                // 3. Initialize tracking dates so initial sync doesn't immediately trigger fallbacks
                 val nowStr = java.time.LocalDate.now().toString()
-                if (rawRecords.any { it::class.simpleName == "SleepSessionRecord" }) {
+                if (allRecords.any { it::class.simpleName == "SleepSessionRecord" }) {
                     syncPrefsManager.setLastSleepSyncDate(nowStr)
                 }
-                if (rawRecords.any { it::class.simpleName == "StepsRecord" }) {
+                if (allRecords.any { it::class.simpleName == "StepsRecord" }) {
                     syncPrefsManager.setLastStepsSyncDate(nowStr)
                 }
-                if (rawRecords.any { it::class.simpleName == "HeartRateRecord" }) {
+                if (allRecords.any { it::class.simpleName == "HeartRateRecord" }) {
                     syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis())
                 }
 
-                // 3. Obtain a new ChangesToken for future runs
+                syncPrefsManager.setBaselineBackfillComplete(true, patientId)
+
+                // 4. Obtain a new ChangesToken for future runs
                 nextToken = healthConnectManager.getChangesToken()
             } else {
                 // SUBSEQUENT RUNS: Use ChangesToken API with official Google pagination loop.
@@ -94,30 +146,60 @@ class HealthDataSyncWorker(
                     var token: String = currentToken
                     var hasMore: Boolean
                     var totalUpsertions = 0
+                    val deletedRecordIds = mutableListOf<String>()
                     do {
+                        if (isStopped) {
+                            android.util.Log.w(TAG, "Worker stopped during ChangesToken pagination. Halting gracefully.")
+                            return Result.retry()
+                        }
                         val changesResponse = try {
                             healthConnectManager.getChanges(token)
                         } catch (e: Exception) {
-                            println("Error reading changes from token: ${e.message}")
+                            android.util.Log.e(TAG, "Error reading changes from token [${token.take(12)}...]: ${e.javaClass.simpleName} - ${e.message}", e)
                             null
                         }
                         if (changesResponse != null) {
                             val upsertions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.UpsertionChange>()
+                            val deletions = changesResponse.changes.filterIsInstance<androidx.health.connect.client.changes.DeletionChange>()
+
                             totalUpsertions += upsertions.size
                             payload.addAll(upsertions.flatMap { healthConnectManager.mapRecordToSupabase(it.record, patientId) })
+                            deletedRecordIds.addAll(deletions.map { it.recordId })
+
                             token = changesResponse.nextChangesToken
                             hasMore = changesResponse.hasMore
                         } else {
                             if (nextToken == null) {
+                                android.util.Log.w(TAG, "Null changes response without active nextToken. Clearing token for $patientId.")
                                 syncPrefsManager.clearChangesToken(patientId)
                             }
                             break
                         }
                     } while (hasMore)
                     nextToken = token
-                    println("[SYNC METHOD] ChangesToken pagination complete: $totalUpsertions upsertions for patient $patientId.")
+                    android.util.Log.i(TAG, "ChangesToken pagination complete: $totalUpsertions upsertions, ${deletedRecordIds.size} deletions for patient $patientId.")
+
+                    // Process deletions in Supabase
+                    if (deletedRecordIds.isNotEmpty()) {
+                        for (delChunk in deletedRecordIds.chunked(DELETION_CHUNK_SIZE)) {
+                            try {
+                                val filterStr = "in.(${delChunk.joinToString(",")})"
+                                val delRes = com.zivaa.app.data.remote.RetrofitClient.apiService.deleteRawVitalsByHealthConnectIds(
+                                    patientIdQuery = "eq.$patientId",
+                                    healthConnectIdInQuery = filterStr
+                                )
+                                if (delRes.isSuccessful) {
+                                    android.util.Log.i(TAG, "Successfully purged ${delChunk.size} deleted Health Connect records from Supabase.")
+                                } else {
+                                    android.util.Log.w(TAG, "Failed to purge deleted records from Supabase: HTTP ${delRes.code()} - ${delRes.errorBody()?.string()}")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e(TAG, "Exception purging deleted Health Connect records from Supabase: ${e.message}", e)
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
-                    println("Changes token expired or error: ${e.message}. Clearing token.")
+                    android.util.Log.e(TAG, "Changes token expired or unrecoverable error: ${e.message}. Clearing token and scheduling retry.", e)
                     syncPrefsManager.clearChangesToken(patientId)
                     return Result.retry()
                 }
@@ -161,7 +243,7 @@ class HealthDataSyncWorker(
                         (isForeground || (attemptsToday < 2 && cooldownPassed))
 
                 if (shouldFallback) {
-                    println("[SYNC METHOD] Fallback Triggered (Sleep: $sleepMissing, Steps: $stepsMissing, HR: $hrMissing, Attempt: ${attemptsToday + 1}/2, Foreground: $isForeground)")
+                    android.util.Log.i(TAG, "Fallback Triggered (Sleep: $sleepMissing, Steps: $stepsMissing, HR: $hrMissing, Attempt: ${attemptsToday + 1}/2, Foreground: $isForeground)")
                     syncPrefsManager.recordFallbackAttempt(nowStr)
                     syncPrefsManager.setLastFallbackAttemptDate(nowStr)
 
@@ -229,17 +311,48 @@ class HealthDataSyncWorker(
                     "BodyTemperatureRecord" to 8
                 )
                 val sortedPayload = uniquePayload.sortedBy { metricPriority[it.metricType] ?: Int.MAX_VALUE }
-                val chunks = sortedPayload.chunked(25)
+                val chunks = sortedPayload.chunked(CHUNK_SIZE)
                 var allSuccessful = true
-                for (chunk in chunks) {
-                    val response = com.zivaa.app.data.remote.RetrofitClient.apiService.insertRawVitals(chunk)
-                    if (!response.isSuccessful) {
-                        println("Failed to sync chunk: ${response.code()} ${response.errorBody()?.string()}")
-                        allSuccessful = false
+                val semaphore = Semaphore(MAX_CONCURRENT_UPLOADS)
+                coroutineScope {
+                    val deferredUploads = chunks.mapIndexed { index, chunk ->
+                        async(Dispatchers.IO) {
+                            if (isStopped) {
+                                android.util.Log.w(TAG, "Worker stopped before uploading chunk ${index + 1}/${chunks.size}")
+                                return@async false
+                            }
+                            semaphore.withPermit {
+                                if (isStopped) {
+                                    android.util.Log.w(TAG, "Worker stopped before acquiring permit for chunk ${index + 1}/${chunks.size}")
+                                    return@withPermit false
+                                }
+                                android.util.Log.i(TAG, "Syncing chunk ${index + 1}/${chunks.size} (${chunk.size} records) [concurrency active]...")
+                                val response = try {
+                                    com.zivaa.app.data.remote.RetrofitClient.apiService.insertRawVitals(chunk)
+                                } catch (e: Exception) {
+                                    android.util.Log.e(TAG, "Exception syncing chunk ${index + 1}/${chunks.size}: ${e.message}", e)
+                                    null
+                                }
+                                if (response == null || !response.isSuccessful) {
+                                    val errorStr = response?.errorBody()?.string() ?: "Network error or null response"
+                                    android.util.Log.e(TAG, "Failed to sync chunk ${index + 1}/${chunks.size}: HTTP ${response?.code()} - $errorStr")
+                                    false
+                                } else {
+                                    true
+                                }
+                            }
+                        }
                     }
+                    allSuccessful = deferredUploads.awaitAll().all { it }
+                }
+
+                if (isStopped) {
+                    android.util.Log.w(TAG, "Worker stopped during chunk uploads. Retrying.")
+                    return Result.retry()
                 }
 
                 if (!allSuccessful) {
+                    android.util.Log.w(TAG, "One or more chunks failed to sync to Supabase. Scheduling retry without advancing ChangesToken.")
                     // Don't save the new token if sync fails, so we retry fetching these changes later
                     return Result.retry()
                 } else {
@@ -248,7 +361,7 @@ class HealthDataSyncWorker(
                         val totalRecords = uniquePayload.size
                         val metricTypes = uniquePayload.map { it.metricType }.distinct()
                         
-                        com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
+                        val syncRes = com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
                             com.zivaa.app.data.remote.SyncCompletePayload(
                                 patient_id = patientId, 
                                 timezone = java.util.TimeZone.getDefault().id, 
@@ -257,9 +370,13 @@ class HealthDataSyncWorker(
                                 metric_types = metricTypes
                             )
                         )
-                        println("Sync complete orchestration triggered successfully ($syncType).")
+                        if (syncRes.isSuccessful) {
+                            android.util.Log.i(TAG, "Sync complete orchestration triggered successfully ($syncType).")
+                        } else {
+                            android.util.Log.w(TAG, "Sync complete orchestration returned HTTP ${syncRes.code()}: ${syncRes.errorBody()?.string()}")
+                        }
                     } catch (e: Exception) {
-                        println("Failed to trigger sync complete orchestration: ${e.message}")
+                        android.util.Log.e(TAG, "Failed to trigger sync complete orchestration: ${e.message}", e)
                     }
                 }
             }
@@ -267,18 +384,56 @@ class HealthDataSyncWorker(
             // If everything succeeded (or there were 0 records to sync but we got a valid token), save the next token
             if (nextToken != null) {
                 syncPrefsManager.saveChangesToken(nextToken, patientId)
-                println("Saved next ChangesToken for patient $patientId.")
+                syncPrefsManager.saveTokenPermissions(currentGranted, patientId)
+                android.util.Log.i(TAG, "Saved next ChangesToken and footprint (${currentGranted.size} types) for patient $patientId.")
             }
 
             // Sync Daily Aggregations logic removed: Aggregation is now handled seamlessly by a Postgres trigger in Supabase!
             
             Result.success()
         } catch (e: SecurityException) {
-            println("SecurityException: Background read not permitted or missing permissions. ${e.message}")
+            android.util.Log.e(TAG, "SecurityException: Health Connect background read not permitted or permissions missing: ${e.message}", e)
             Result.failure()
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e(TAG, "Unexpected error in HealthDataSyncWorker execution: ${e.javaClass.simpleName} - ${e.message}", e)
             Result.retry()
+        }
+    }
+
+    private fun createForegroundInfo(): androidx.work.ForegroundInfo {
+        val channelId = "zivaa_health_sync_channel"
+        val notificationManager = applicationContext.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Health Data Synchronization",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows progress during initial or deep health baseline synchronization"
+            }
+            notificationManager?.createNotificationChannel(channel)
+        }
+
+        val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, channelId)
+            .setContentTitle("Zivaa Health Sync")
+            .setContentText("Securing your health baseline...")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setOngoing(true)
+            .setSilent(true)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            androidx.work.ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            )
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            androidx.work.ForegroundInfo(NOTIFICATION_ID, notification, 0)
+        } else {
+            androidx.work.ForegroundInfo(NOTIFICATION_ID, notification)
         }
     }
 }

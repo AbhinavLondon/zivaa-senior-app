@@ -26,6 +26,13 @@ interface ZivaaApiService {
         @Part file: MultipartBody.Part
     ): Response<UploadFhirResponse>
 
+    @Multipart
+    @POST("api/v1/fhir/Prescription/upload")
+    suspend fun uploadPrescription(
+        @Query("patient_id") patient_id: String,
+        @Part file: MultipartBody.Part
+    ): Response<UploadFhirResponse>
+
     @POST("api/v1/health/daily-plan")
     suspend fun getDailyPlan(
         @Body payload: DailyPlanPayload

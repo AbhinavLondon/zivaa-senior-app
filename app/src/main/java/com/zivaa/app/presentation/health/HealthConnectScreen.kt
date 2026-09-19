@@ -43,7 +43,7 @@ fun HealthConnectScreen() {
     // Request permissions launcher
     val requestPermissionActivityContract = PermissionController.createRequestPermissionResultContract()
     val requestPermissionsLauncher = rememberLauncherForActivityResult(requestPermissionActivityContract) { granted ->
-        if (granted.containsAll(healthConnectManager.permissions)) {
+        if (granted.intersect(healthConnectManager.permissions).isNotEmpty()) {
             hasPermissions = true
         } else {
             Toast.makeText(context, "Permissions not granted", Toast.LENGTH_SHORT).show()
@@ -54,9 +54,9 @@ fun HealthConnectScreen() {
     LaunchedEffect(Unit) {
         isSupported = healthConnectManager.checkHealthConnectSupportAndRedirect()
         if (isSupported == HealthConnectSupport.AVAILABLE) {
-            hasPermissions = healthConnectManager.hasAllPermissions()
-            canReadBackground = healthConnectManager.isBackgroundReadAvailable()
-            canReadHistory = healthConnectManager.isHistoryReadAvailable()
+            hasPermissions = healthConnectManager.hasAnyPermissions()
+            canReadBackground = healthConnectManager.hasBackgroundReadPermission()
+            canReadHistory = healthConnectManager.hasHistoryReadPermission()
         }
     }
 
@@ -100,10 +100,14 @@ fun HealthConnectScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(onClick = {
+                    val syncConstraints = androidx.work.Constraints.Builder()
+                        .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                        .build()
                     val syncWorkData = androidx.work.Data.Builder()
                         .putString("sync_type", "Manual")
                         .build()
                     val workRequest = OneTimeWorkRequestBuilder<HealthDataSyncWorker>()
+                        .setConstraints(syncConstraints)
                         .setInputData(syncWorkData)
                         .build()
                     WorkManager.getInstance(context).enqueue(workRequest)

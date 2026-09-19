@@ -74,7 +74,7 @@ fun UploadDocumentScreen(
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && tempPhotoUri != null) {
             selectedUri = tempPhotoUri
-            viewModel?.uploadDocument(context, tempPhotoUri!!) {
+            viewModel?.uploadDocument(context, tempPhotoUri!!, label = label) {
                 onUploadOptionSelected()
             }
         }
@@ -83,7 +83,7 @@ fun UploadDocumentScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) {
             selectedUri = uri
-            viewModel?.uploadDocument(context, uri) {
+            viewModel?.uploadDocument(context, uri, label = label) {
                 onUploadOptionSelected()
             }
         }
@@ -485,3 +485,4 @@ fun SecondaryUploadButton(
         }
     }
 }
+

@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 43
-        versionName = "1.0.42"
+        versionCode = 44
+        versionName = "1.0.43"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.42 - Health Connect live steps sync safety net, prioritized metric batching, auto-refresh on sync completion, and standardized sleep stage mapping"
+                releaseNotes = "Zivaa v1.0.43 - Conversational guided bedside triage with AI Health Coach, actionable clinical CTAs, direct lab tests deep-linking, and doctor clinical summary sharing"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

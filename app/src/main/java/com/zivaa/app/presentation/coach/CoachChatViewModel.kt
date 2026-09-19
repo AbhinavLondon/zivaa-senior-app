@@ -74,6 +74,22 @@ class CoachChatViewModel(
         _historySessionTitle.value = null
     }
 
+    fun startTriageForNudge(
+        alertTitle: String,
+        riskLevel: String,
+        whyFlaggedSummary: String = "",
+        caregiverChecklist: List<String> = emptyList()
+    ) {
+        startNewChat()
+        val checklistText = if (caregiverChecklist.isNotEmpty()) {
+            "\nRecommended bedside triage steps:\n" + caregiverChecklist.mapIndexed { idx, item -> "${idx + 1}. $item" }.joinToString("\n")
+        } else ""
+
+        val vitalContext = if (whyFlaggedSummary.isNotBlank()) " Vital note: $whyFlaggedSummary." else ""
+        val userPrompt = "Hi Coach, I need your guidance on this health alert: '$alertTitle' ($riskLevel priority).$vitalContext$checklistText\n\nCan you guide me through checking on Shyam step-by-step?"
+        sendMessage(userPrompt)
+    }
+
     fun loadSessions() {
         val patientId = authManager.getUserId() ?: return
         android.util.Log.d("CoachChat", "loadSessions: patientId=$patientId")

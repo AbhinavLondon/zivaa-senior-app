@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Nightlight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -719,7 +720,10 @@ data class ActionStepsData(
     val titleEmphasis: String?,
     val description: String,
     val primaryCta: CTAButtonData?,
-    val secondaryCta: CTAButtonData?
+    val secondaryCta: CTAButtonData?,
+    val caregiverChecklist: List<String> = emptyList(),
+    val escalationTier: String? = null,
+    val escalationReason: String? = null
 )
 
 fun parseActionSteps(raw: Any?): ActionStepsData? {
@@ -747,7 +751,12 @@ fun parseActionSteps(raw: Any?): ActionStepsData? {
             )
         }
         
-        return ActionStepsData(title, titleEmphasis, description, primaryCta, secondaryCta)
+        val rawChecklist = raw["caregiver_checklist"] as? List<*>
+        val caregiverChecklist = rawChecklist?.mapNotNull { it as? String } ?: emptyList()
+        val escalationTier = raw["escalation_tier"] as? String
+        val escalationReason = raw["escalation_reason"] as? String
+        
+        return ActionStepsData(title, titleEmphasis, description, primaryCta, secondaryCta, caregiverChecklist, escalationTier, escalationReason)
     } catch (e: Exception) {
         return null
     }
@@ -823,6 +832,63 @@ fun WhatWeRecommendSection(data: ActionStepsData, riskLevel: String, onAction: (
                 style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 24.sp),
                 color = inkColor.copy(alpha = 0.8f)
             )
+
+            if (!data.escalationReason.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(buttonColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = data.escalationReason,
+                        style = ZivaaTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+                        color = inkColor
+                    )
+                }
+            }
+
+            if (data.caregiverChecklist.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "CAREGIVER BEDSIDE ACTION STEPS",
+                    style = ZivaaTheme.typography.meta.copy(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.05.em
+                    ),
+                    color = if (isHighRisk) {
+                        if (isDarkTheme) Color(0xFFD27A6B) else Color(0xFF98463A)
+                    } else {
+                        ZivaaTheme.colors.sage
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                data.caregiverChecklist.forEach { step ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .size(6.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(inkColor.copy(alpha = 0.7f))
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = step,
+                            style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
+                            color = inkColor.copy(alpha = 0.9f)
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
             
@@ -843,6 +909,9 @@ fun WhatWeRecommendSection(data: ActionStepsData, riskLevel: String, onAction: (
                             Spacer(modifier = Modifier.width(8.dp))
                         } else if (data.primaryCta.icon == "clipboard") {
                             Icon(imageVector = Icons.Outlined.Assignment, contentDescription = null, tint = buttonTextColor, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else if (data.primaryCta.icon == "chat" || data.primaryCta.icon == "message-circle") {
+                            Icon(imageVector = Icons.Filled.AutoAwesome, contentDescription = null, tint = buttonTextColor, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(text = data.primaryCta.label, style = ZivaaTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp), color = buttonTextColor)
