@@ -9,11 +9,7 @@ import com.zivaa.app.data.sensors.SensorDataStore
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
 class HealthDataSyncWorker(
     appContext: Context,
@@ -23,7 +19,6 @@ class HealthDataSyncWorker(
     companion object {
         private const val TAG = "HealthDataSyncWorker"
         private const val CHUNK_SIZE = 800
-        private const val MAX_CONCURRENT_UPLOADS = 3
         private const val DELETION_CHUNK_SIZE = 50
     }
 
@@ -394,8 +389,8 @@ class HealthDataSyncWorker(
 
     private suspend fun uploadRecordsToSupabase(
         records: List<com.zivaa.app.data.remote.SupabaseVitalRecord>
-    ): Boolean {
-        if (records.isEmpty()) return true
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (records.isEmpty()) return@withContext true
         val uniquePayload = records.distinctBy { 
             it.patientId + "_" + it.metricType + "_" + it.recordedAt + "_" + it.source 
         }
@@ -411,39 +406,25 @@ class HealthDataSyncWorker(
         )
         val sortedPayload = uniquePayload.sortedBy { metricPriority[it.metricType] ?: Int.MAX_VALUE }
         val chunks = sortedPayload.chunked(CHUNK_SIZE)
-        val semaphore = Semaphore(MAX_CONCURRENT_UPLOADS)
-        var allSuccessful = true
-        coroutineScope {
-            val deferredUploads = chunks.mapIndexed { index, chunk ->
-                async(Dispatchers.IO) {
-                    if (isStopped) {
-                        android.util.Log.w(TAG, "Worker stopped before uploading chunk ${index + 1}/${chunks.size}")
-                        return@async false
-                    }
-                    semaphore.withPermit {
-                        if (isStopped) {
-                            android.util.Log.w(TAG, "Worker stopped before acquiring permit for chunk ${index + 1}/${chunks.size}")
-                            return@withPermit false
-                        }
-                        android.util.Log.i(TAG, "Syncing chunk ${index + 1}/${chunks.size} (${chunk.size} records) [concurrency active]...")
-                        val response = try {
-                            com.zivaa.app.data.remote.RetrofitClient.apiService.insertRawVitals(chunk)
-                        } catch (e: Exception) {
-                            android.util.Log.e(TAG, "Exception syncing chunk ${index + 1}/${chunks.size}: ${e.message}", e)
-                            null
-                        }
-                        if (response == null || !response.isSuccessful) {
-                            val errorStr = response?.errorBody()?.string() ?: "Network error or null response"
-                            android.util.Log.e(TAG, "Failed to sync chunk ${index + 1}/${chunks.size}: HTTP ${response?.code()} - $errorStr")
-                            false
-                        } else {
-                            true
-                        }
-                    }
-                }
+
+        for ((index, chunk) in chunks.withIndex()) {
+            if (isStopped) {
+                android.util.Log.w(TAG, "Worker stopped before uploading chunk ${index + 1}/${chunks.size}")
+                return@withContext false
             }
-            allSuccessful = deferredUploads.awaitAll().all { it }
+            android.util.Log.i(TAG, "Syncing chunk ${index + 1}/${chunks.size} (${chunk.size} records) [sequential]...")
+            val response = try {
+                com.zivaa.app.data.remote.RetrofitClient.apiService.insertRawVitals(chunk)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception syncing chunk ${index + 1}/${chunks.size}: ${e.message}", e)
+                null
+            }
+            if (response == null || !response.isSuccessful) {
+                val errorStr = response?.errorBody()?.string() ?: "Network error or null response"
+                android.util.Log.e(TAG, "Failed to sync chunk ${index + 1}/${chunks.size}: HTTP ${response?.code()} - $errorStr")
+                return@withContext false
+            }
         }
-        return allSuccessful
+        true
     }
 }
