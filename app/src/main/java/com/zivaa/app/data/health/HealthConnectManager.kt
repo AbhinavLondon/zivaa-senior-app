@@ -32,6 +32,8 @@ data class AggregatedHealthData(
 
 class HealthConnectManager(private val context: Context) {
 
+    var activeUserId: String? = null
+
     val healthConnectClient by lazy {
         if (isSdkAvailable()) HealthConnectClient.getOrCreate(context) else null
     }
@@ -346,10 +348,9 @@ class HealthConnectManager(private val context: Context) {
             if (durationSeconds <= minWindowSeconds) {
                 // Isolated the corrupted zero-duration record window (<= 30 seconds)!
                 // Completely ignore this invalid entry so authentic records are never affected.
-                android.util.Log.w(
-                    "HealthConnectManager",
-                    "Ignoring corrupted zero-duration StepsRecord in window $start to $end (${e.message})"
-                )
+                val warnMsg = "Ignoring corrupted zero-duration StepsRecord in window $start to $end (${e.message})"
+                android.util.Log.w("HealthConnectManager", warnMsg)
+                com.zivaa.app.data.health.logging.HealthSyncLogger.recordRawLogLine(context, activeUserId, "HealthConnectManager", "W", warnMsg)
                 emptyList()
             } else {
                 // Bisect the time window into two halves
@@ -361,7 +362,9 @@ class HealthConnectManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("HealthConnectManager", "Unexpected error reading steps between $start and $end", e)
+            val errorMsg = "Unexpected error reading steps between $start and $end"
+            android.util.Log.e("HealthConnectManager", errorMsg, e)
+            com.zivaa.app.data.health.logging.HealthSyncLogger.recordRawLogLine(context, activeUserId, "HealthConnectManager", "E", "$errorMsg: ${e.message}", e)
             emptyList()
         }
     }
@@ -393,7 +396,9 @@ class HealthConnectManager(private val context: Context) {
                     pageToken = result.pageToken
                 } while (pageToken != null)
             } catch (e: Exception) {
-                android.util.Log.w("HealthConnectManager", "safeRead failed for ${recordClass.simpleName}: ${e.message}")
+                val warnMsg = "safeRead failed for ${recordClass.simpleName}: ${e.message}"
+                android.util.Log.w("HealthConnectManager", warnMsg)
+                com.zivaa.app.data.health.logging.HealthSyncLogger.recordRawLogLine(context, activeUserId, "HealthConnectManager", "W", warnMsg, e)
             }
         }
 
@@ -442,11 +447,52 @@ class HealthConnectManager(private val context: Context) {
         return records
     }
 
+    suspend fun <T : Record> readRecordsSafely(recordClass: kotlin.reflect.KClass<T>, startTime: Instant, endTime: Instant): List<T> {
+        val client = healthConnectClient ?: return emptyList()
+        val timeFilter = TimeRangeFilter.between(startTime, endTime)
+        val resultList = mutableListOf<T>()
+        try {
+            var pageToken: String? = null
+            do {
+                val request = ReadRecordsRequest(
+                    recordType = recordClass,
+                    timeRangeFilter = timeFilter,
+                    pageToken = pageToken,
+                    ascendingOrder = false
+                )
+                val result = client.readRecords(request)
+                resultList.addAll(result.records)
+                pageToken = result.pageToken
+            } while (pageToken != null)
+        } catch (e: Exception) {
+            val warnMsg = "readRecordsSafely failed for ${recordClass.simpleName}: ${e.message}"
+            android.util.Log.w("HealthConnectManager", warnMsg)
+            com.zivaa.app.data.health.logging.HealthSyncLogger.recordRawLogLine(context, activeUserId, "HealthConnectManager", "W", warnMsg, e)
+        }
+        return resultList
+    }
+
     suspend fun fetchTodayStepsRecords(): List<StepsRecord> {
         val zone = ZoneId.systemDefault()
         val todayStart = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
         val todayEnd = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
         return readStepsRecordsSafely(todayStart, todayEnd)
+    }
+
+    suspend fun fetchTodayHeartRateRecords(): List<HeartRateRecord> {
+        val zone = ZoneId.systemDefault()
+        val todayStart = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val todayEnd = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
+        return readRecordsSafely(HeartRateRecord::class, todayStart, todayEnd)
+    }
+
+    suspend fun fetchRecentSleepRecords(): List<SleepSessionRecord> {
+        val zone = ZoneId.systemDefault()
+        // Sleep sessions typically start yesterday evening/night and end this morning.
+        // Looking back 36 hours guarantees capturing last night's full sleep session.
+        val lookbackStart = java.time.LocalDate.now(zone).minusDays(1).atTime(12, 0).atZone(zone).toInstant()
+        val now = Instant.now()
+        return readRecordsSafely(SleepSessionRecord::class, lookbackStart, now)
     }
 
     suspend fun getChangesToken(): String? {

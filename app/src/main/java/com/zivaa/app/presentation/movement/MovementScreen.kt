@@ -1052,9 +1052,9 @@ fun HourlyStepsChartCard(viewModel: MovementViewModel) {
                 }
             }
             
-            val maxSteps = hourlyData.maxOfOrNull { it.second } ?: 0
+            val maxSteps = hourlyData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0
             val seriesList = hourlyData.mapIndexed { index, pair ->
-                List(hourlyData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                List(hourlyData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
             }
             val chartEntryModel = entryModelOf(*seriesList.toTypedArray())
 
@@ -1360,15 +1360,29 @@ fun WeeklyMobilityScoreChartCard(
         Column {
             val scoreData = if (viewModel.weeklyMobilityScore.isEmpty()) List(7) { "-" to 0 } else viewModel.weeklyMobilityScore
             val chartEntryModel = if (viewModel.selectedChartType == MovementChartType.LINE) {
-                entryModelOf(scoreData.mapIndexed { i, p -> FloatEntry(x = i.toFloat(), y = p.second.toFloat()) })
+                val seriesList = mutableListOf<List<FloatEntry>>()
+                var currentSeries = mutableListOf<FloatEntry>()
+                scoreData.forEachIndexed { i, p ->
+                    if (p.second.toDouble() >= 0) {
+                        currentSeries.add(FloatEntry(x = i.toFloat(), y = p.second.toFloat()))
+                    } else {
+                        if (currentSeries.isNotEmpty()) {
+                            seriesList.add(currentSeries)
+                            currentSeries = mutableListOf()
+                        }
+                    }
+                }
+                if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+                if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+                entryModelOf(*seriesList.toTypedArray())
             } else {
                 val series = scoreData.mapIndexed { index, pair ->
-                    List(scoreData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                    List(scoreData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
                 }
                 entryModelOf(*series.toTypedArray())
             }
 
-            val maxDataValue = scoreData.maxOfOrNull { it.second } ?: 0
+            val maxDataValue = scoreData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0
             // Fixed reference scale for 85+ Optimal Zone (85 / 145 = 58.6% from bottom) with headroom
             val chartMax = 145f
             val plotAreaHeightDp = 150.dp
@@ -1537,7 +1551,7 @@ fun WeeklyMobilityScoreChartCard(
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {
                 val chartLineColor = if (isDark) ZivaaTheme.colors.sage else Color(0xFF2E6B56)
                 lineChart(
-                    lines = listOf(
+                    lines = List(chartEntryModel.entries.size) {
                         LineChart.LineSpec(
                             lineColor = chartLineColor.toArgb(),
                             lineThicknessDp = 3f,
@@ -1548,7 +1562,7 @@ fun WeeklyMobilityScoreChartCard(
                                 else -> 8f
                             }
                         )
-                    ),
+                    },
                     decorations = listOf(optimalLine, avgLine),
                     axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                         minY = 0f,
@@ -1705,16 +1719,30 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
         Column {
             val stepsData = if (viewModel.weeklySteps.isEmpty()) List(7) { "-" to 0 } else viewModel.weeklySteps
             val chartEntryModel = if (viewModel.selectedChartType == MovementChartType.LINE) {
-                entryModelOf(stepsData.mapIndexed { i, p -> FloatEntry(x = i.toFloat(), y = p.second.toFloat()) })
+                val seriesList = mutableListOf<List<FloatEntry>>()
+                var currentSeries = mutableListOf<FloatEntry>()
+                stepsData.forEachIndexed { i, p ->
+                    if (p.second.toDouble() >= 0) {
+                        currentSeries.add(FloatEntry(x = i.toFloat(), y = p.second.toFloat()))
+                    } else {
+                        if (currentSeries.isNotEmpty()) {
+                            seriesList.add(currentSeries)
+                            currentSeries = mutableListOf()
+                        }
+                    }
+                }
+                if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+                if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+                entryModelOf(*seriesList.toTypedArray())
             } else {
                 val series = stepsData.mapIndexed { index, pair ->
-                    List(stepsData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                    List(stepsData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
                 }
                 entryModelOf(*series.toTypedArray())
             }
 
             // Chart with right-side labels aligned to threshold lines
-            val maxDataValue = stepsData.maxOfOrNull { it.second } ?: 0
+            val maxDataValue = stepsData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0
             val currentGoal = viewModel.mobilitySummary?.goalSteps ?: viewModel.goalSteps ?: 6000
             val validGoal = currentGoal > 0
             // Fixed reference scale for target zone (goal / 0.5862f) with headroom for bars exceeding goal
@@ -1850,7 +1878,7 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
 
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {
                 lineChart(
-                    lines = listOf(
+                    lines = List(chartEntryModel.entries.size) {
                         LineChart.LineSpec(
                             lineColor = ZivaaTheme.colors.sage.toArgb(),
                             lineThicknessDp = 3f,
@@ -1861,7 +1889,7 @@ fun WeeklyStepsChartCard(viewModel: MovementViewModel) {
                                 else -> 8f
                             }
                         )
-                    ),
+                    },
                     decorations = if (validGoal) listOf(goalLine, avgLine) else listOf(avgLine),
                     axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                         minY = 0f,
@@ -2021,15 +2049,29 @@ fun WeeklyCadenceChartCard(viewModel: MovementViewModel) {
         Column {
             val cadenceData = if (viewModel.weeklyCadence.isEmpty()) List(7) { "-" to 0 } else viewModel.weeklyCadence
             val chartEntryModel = if (viewModel.selectedChartType == MovementChartType.LINE) {
-                entryModelOf(cadenceData.mapIndexed { i, p -> FloatEntry(x = i.toFloat(), y = p.second.toFloat()) })
+                val seriesList = mutableListOf<List<FloatEntry>>()
+                var currentSeries = mutableListOf<FloatEntry>()
+                cadenceData.forEachIndexed { i, p ->
+                    if (p.second.toDouble() >= 0) {
+                        currentSeries.add(FloatEntry(x = i.toFloat(), y = p.second.toFloat()))
+                    } else {
+                        if (currentSeries.isNotEmpty()) {
+                            seriesList.add(currentSeries)
+                            currentSeries = mutableListOf()
+                        }
+                    }
+                }
+                if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+                if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+                entryModelOf(*seriesList.toTypedArray())
             } else {
                 val series = cadenceData.mapIndexed { index, pair ->
-                    List(cadenceData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                    List(cadenceData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
                 }
                 entryModelOf(*series.toTypedArray())
             }
 
-            val maxDataValue = cadenceData.maxOfOrNull { it.second } ?: 0
+            val maxDataValue = cadenceData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0
             // Fixed reference scale for 80 spm Brisk Zone (80 / 136.5 = 58.6% from bottom) with headroom
             val chartMax = maxOf(136.5f, maxDataValue.toFloat() * 1.15f)
             val plotAreaHeightDp = 150.dp
@@ -2156,7 +2198,7 @@ fun WeeklyCadenceChartCard(viewModel: MovementViewModel) {
 
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {
                 lineChart(
-                    lines = listOf(
+                    lines = List(chartEntryModel.entries.size) {
                         LineChart.LineSpec(
                             lineColor = ZivaaTheme.colors.sage.toArgb(),
                             lineThicknessDp = 3f,
@@ -2167,7 +2209,7 @@ fun WeeklyCadenceChartCard(viewModel: MovementViewModel) {
                                 else -> 8f
                             }
                         )
-                    ),
+                    },
                     decorations = listOf(briskLine, avgLine),
                     axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                         minY = 0f,
@@ -2325,15 +2367,29 @@ fun WeeklyActiveMinutesChartCard(viewModel: MovementViewModel) {
         Column {
             val minutesData = if (viewModel.weeklyActiveMinutes.isEmpty()) List(7) { "-" to 0.0 } else viewModel.weeklyActiveMinutes
             val chartEntryModel = if (viewModel.selectedChartType == MovementChartType.LINE) {
-                entryModelOf(minutesData.mapIndexed { i, p -> FloatEntry(x = i.toFloat(), y = p.second.toFloat()) })
+                val seriesList = mutableListOf<List<FloatEntry>>()
+                var currentSeries = mutableListOf<FloatEntry>()
+                minutesData.forEachIndexed { i, p ->
+                    if (p.second.toDouble() >= 0) {
+                        currentSeries.add(FloatEntry(x = i.toFloat(), y = p.second.toFloat()))
+                    } else {
+                        if (currentSeries.isNotEmpty()) {
+                            seriesList.add(currentSeries)
+                            currentSeries = mutableListOf()
+                        }
+                    }
+                }
+                if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+                if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+                entryModelOf(*seriesList.toTypedArray())
             } else {
                 val series = minutesData.mapIndexed { index, pair ->
-                    List(minutesData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                    List(minutesData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
                 }
                 entryModelOf(*series.toTypedArray())
             }
 
-            val maxDataValue = (minutesData.maxOfOrNull { it.second } ?: 0.0).toFloat()
+            val maxDataValue = (minutesData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0.0).toFloat()
             // Fixed reference scale for 30m Target Zone (30 / 51.2 = 58.6% from bottom) with headroom
             val chartMax = maxOf(51.2f, maxDataValue * 1.15f)
             val plotAreaHeightDp = 150.dp
@@ -2457,7 +2513,7 @@ fun WeeklyActiveMinutesChartCard(viewModel: MovementViewModel) {
 
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {
                 lineChart(
-                    lines = listOf(
+                    lines = List(chartEntryModel.entries.size) {
                         LineChart.LineSpec(
                             lineColor = ZivaaTheme.colors.sage.toArgb(),
                             lineThicknessDp = 3f,
@@ -2468,7 +2524,7 @@ fun WeeklyActiveMinutesChartCard(viewModel: MovementViewModel) {
                                 else -> 8f
                             }
                         )
-                    ),
+                    },
                     decorations = listOf(targetLine, avgLine),
                     axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                         minY = 0f,
@@ -2626,15 +2682,29 @@ fun WeeklyActiveHoursChartCard(viewModel: MovementViewModel) {
         Column {
             val hoursData = if (viewModel.weeklyActiveHours.isEmpty()) List(7) { "-" to 0 } else viewModel.weeklyActiveHours
             val chartEntryModel = if (viewModel.selectedChartType == MovementChartType.LINE) {
-                entryModelOf(hoursData.mapIndexed { i, p -> FloatEntry(x = i.toFloat(), y = p.second.toFloat()) })
+                val seriesList = mutableListOf<List<FloatEntry>>()
+                var currentSeries = mutableListOf<FloatEntry>()
+                hoursData.forEachIndexed { i, p ->
+                    if (p.second.toDouble() >= 0) {
+                        currentSeries.add(FloatEntry(x = i.toFloat(), y = p.second.toFloat()))
+                    } else {
+                        if (currentSeries.isNotEmpty()) {
+                            seriesList.add(currentSeries)
+                            currentSeries = mutableListOf()
+                        }
+                    }
+                }
+                if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+                if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+                entryModelOf(*seriesList.toTypedArray())
             } else {
                 val series = hoursData.mapIndexed { index, pair ->
-                    List(hoursData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) pair.second.toFloat() else 0f) }
+                    List(hoursData.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index && pair.second.toDouble() >= 0) pair.second.toFloat() else 0f) }
                 }
                 entryModelOf(*series.toTypedArray())
             }
 
-            val maxDataValue = hoursData.maxOfOrNull { it.second } ?: 0
+            val maxDataValue = hoursData.maxOfOrNull { if (it.second.toDouble() < 0) 0 else it.second.toInt() } ?: 0
             // Fixed reference scale for 8h Target Zone (8 / 13.65 = 58.6% from bottom) with headroom
             val chartMax = maxOf(13.65f, maxDataValue.toFloat() * 1.15f)
             val plotAreaHeightDp = 150.dp
@@ -2761,7 +2831,7 @@ fun WeeklyActiveHoursChartCard(viewModel: MovementViewModel) {
 
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {
                 lineChart(
-                    lines = listOf(
+                    lines = List(chartEntryModel.entries.size) {
                         LineChart.LineSpec(
                             lineColor = ZivaaTheme.colors.sage.toArgb(),
                             lineThicknessDp = 3f,
@@ -2772,7 +2842,7 @@ fun WeeklyActiveHoursChartCard(viewModel: MovementViewModel) {
                                 else -> 8f
                             }
                         )
-                    ),
+                    },
                     decorations = listOf(targetLine, avgLine),
                     axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                         minY = 0f,

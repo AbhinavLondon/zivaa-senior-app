@@ -188,40 +188,40 @@ class RestViewModel : ViewModel() {
             
             chartRestScores = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { scoreMap[it.date.take(10)]?.restScore?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartTotalSleep = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.sleepHours?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartSleepDeep = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.sleepStage5Hours?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartSleepRem = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.sleepStage6Hours?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartSleepLight = chunks.map { chunk -> 
-                val vals = chunk.mapNotNull { vital ->
-                    val total = vital.sleepHours?.toFloat() ?: 0f
-                    val deep = vital.sleepStage5Hours?.toFloat() ?: 0f
-                    val rem = vital.sleepStage6Hours?.toFloat() ?: 0f
-                    (total - deep - rem).coerceAtLeast(0f)
+                val vals = chunk.mapNotNull { 
+                    val total = it.sleepHours?.toFloat() ?: 0f
+                    val deep = it.sleepStage5Hours?.toFloat() ?: 0f
+                    val rem = it.sleepStage6Hours?.toFloat() ?: 0f
+                    maxOf(0f, total - deep - rem)
                 }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartRestingHr = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.restingHeartRateCalculated?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartSkinTemp = chunks.map { chunk -> 
-                val vals = chunk.mapNotNull { it.skinTemperatureDelta?.toFloat() }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                val vals = chunk.mapNotNull { it.skinTemperatureDelta?.toFloat() }.filter { it != 0f }
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
             chartRespRate = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.respiratoryRateAvg?.toFloat() }.filter { it > 0f }
-                if (vals.isNotEmpty()) vals.average().toFloat() else 0f
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
 
             hasSkinTempData = chunks.any { chunk -> chunk.any { it.skinTemperatureDelta != null } }
@@ -234,23 +234,27 @@ class RestViewModel : ViewModel() {
             chartDetailedDates = targetVitalsRaw.map { formatDetailedDate(it.date) }
             
             chartRestScores = targetVitalsRaw.map { vital -> 
-                scoreMap[vital.date.take(10)]?.restScore?.toFloat() ?: 0f 
+                scoreMap[vital.date.take(10)]?.restScore?.toFloat() ?: -1f 
             }
             
-            chartTotalSleep = targetVitalsRaw.map { it.sleepHours?.toFloat() ?: 0f }
+            chartTotalSleep = targetVitalsRaw.map { it.sleepHours?.toFloat() ?: -1f }
             
-            chartSleepDeep = targetVitalsRaw.map { it.sleepStage5Hours?.toFloat() ?: 0f }
-            chartSleepRem = targetVitalsRaw.map { it.sleepStage6Hours?.toFloat() ?: 0f }
+            chartSleepDeep = targetVitalsRaw.map { it.sleepStage5Hours?.toFloat() ?: -1f }
+            chartSleepRem = targetVitalsRaw.map { it.sleepStage6Hours?.toFloat() ?: -1f }
             chartSleepLight = targetVitalsRaw.map { vital ->
-                val total = vital.sleepHours?.toFloat() ?: 0f
-                val deep = vital.sleepStage5Hours?.toFloat() ?: 0f
-                val rem = vital.sleepStage6Hours?.toFloat() ?: 0f
-                (total - deep - rem).coerceAtLeast(0f)
+                val total = vital.sleepHours?.toFloat()
+                if (total == null) {
+                    -1f
+                } else {
+                    val deep = vital.sleepStage5Hours?.toFloat() ?: 0f
+                    val rem = vital.sleepStage6Hours?.toFloat() ?: 0f
+                    maxOf(0f, total - deep - rem)
+                }
             }
             
-            chartRestingHr = targetVitalsRaw.map { it.restingHeartRateCalculated?.toFloat() ?: 0f }
-            chartSkinTemp = targetVitalsRaw.map { it.skinTemperatureDelta?.toFloat() ?: 0f }
-            chartRespRate = targetVitalsRaw.map { it.respiratoryRateAvg?.toFloat() ?: 0f }
+            chartRestingHr = targetVitalsRaw.map { it.restingHeartRateCalculated?.toFloat() ?: -1f }
+            chartSkinTemp = targetVitalsRaw.map { it.skinTemperatureDelta?.toFloat() ?: -1f }
+            chartRespRate = targetVitalsRaw.map { it.respiratoryRateAvg?.toFloat() ?: -1f }
 
             hasSkinTempData = targetVitalsRaw.any { it.skinTemperatureDelta != null }
             hasRespRateData = targetVitalsRaw.any { it.respiratoryRateAvg != null && it.respiratoryRateAvg > 0 }

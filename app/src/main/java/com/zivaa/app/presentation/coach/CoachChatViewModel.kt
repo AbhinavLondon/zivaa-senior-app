@@ -82,11 +82,11 @@ class CoachChatViewModel(
     ) {
         startNewChat()
         val checklistText = if (caregiverChecklist.isNotEmpty()) {
-            "\nRecommended bedside triage steps:\n" + caregiverChecklist.mapIndexed { idx, item -> "${idx + 1}. $item" }.joinToString("\n")
+            "\nRecommended steps for me:\n" + caregiverChecklist.mapIndexed { idx, item -> "${idx + 1}. $item" }.joinToString("\n")
         } else ""
 
         val vitalContext = if (whyFlaggedSummary.isNotBlank()) " Vital note: $whyFlaggedSummary." else ""
-        val userPrompt = "Hi Coach, I need your guidance on this health alert: '$alertTitle' ($riskLevel priority).$vitalContext$checklistText\n\nCan you guide me through checking on Shyam step-by-step?"
+        val userPrompt = "Hi Coach, I'm reviewing my health alert: '$alertTitle' ($riskLevel priority).$vitalContext$checklistText\n\nCan you guide me step-by-step through what I should do right now?"
         sendMessage(userPrompt)
     }
 

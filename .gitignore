@@ -23,3 +23,5 @@ log.txt
 query_syncs.py
 *.py
 window_dump.xml
+sync_logs/
+*.log

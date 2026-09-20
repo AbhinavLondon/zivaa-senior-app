@@ -143,44 +143,44 @@ class SyncPrefsManager(context: Context) {
             .apply()
     }
 
-    fun getLastSleepSyncDate(): String? = prefs.getString(KEY_LAST_SLEEP_SYNC, null)
-    fun setLastSleepSyncDate(dateStr: String) {
-        prefs.edit().putString(KEY_LAST_SLEEP_SYNC, dateStr).apply()
+    fun getLastSleepSyncDate(patientId: String? = null): String? = prefs.getString(getScopedKey(KEY_LAST_SLEEP_SYNC, patientId), null)
+    fun setLastSleepSyncDate(dateStr: String, patientId: String? = null) {
+        prefs.edit().putString(getScopedKey(KEY_LAST_SLEEP_SYNC, patientId), dateStr).apply()
     }
 
-    fun getLastStepsSyncDate(): String? = prefs.getString(KEY_LAST_STEPS_SYNC, null)
-    fun setLastStepsSyncDate(dateStr: String) {
-        prefs.edit().putString(KEY_LAST_STEPS_SYNC, dateStr).apply()
+    fun getLastStepsSyncDate(patientId: String? = null): String? = prefs.getString(getScopedKey(KEY_LAST_STEPS_SYNC, patientId), null)
+    fun setLastStepsSyncDate(dateStr: String, patientId: String? = null) {
+        prefs.edit().putString(getScopedKey(KEY_LAST_STEPS_SYNC, patientId), dateStr).apply()
     }
 
-    fun getLastHeartRateSyncTime(): Long = prefs.getLong(KEY_LAST_HR_SYNC, 0L)
-    fun setLastHeartRateSyncTime(timeMs: Long) {
-        prefs.edit().putLong(KEY_LAST_HR_SYNC, timeMs).apply()
+    fun getLastHeartRateSyncTime(patientId: String? = null): Long = prefs.getLong(getScopedKey(KEY_LAST_HR_SYNC, patientId), 0L)
+    fun setLastHeartRateSyncTime(timeMs: Long, patientId: String? = null) {
+        prefs.edit().putLong(getScopedKey(KEY_LAST_HR_SYNC, patientId), timeMs).apply()
     }
 
-    fun getLastFallbackAttemptDate(): String? = prefs.getString(KEY_LAST_FALLBACK_ATTEMPT, null)
-    fun setLastFallbackAttemptDate(dateStr: String) {
-        prefs.edit().putString(KEY_LAST_FALLBACK_ATTEMPT, dateStr).apply()
+    fun getLastFallbackAttemptDate(patientId: String? = null): String? = prefs.getString(getScopedKey(KEY_LAST_FALLBACK_ATTEMPT, patientId), null)
+    fun setLastFallbackAttemptDate(dateStr: String, patientId: String? = null) {
+        prefs.edit().putString(getScopedKey(KEY_LAST_FALLBACK_ATTEMPT, patientId), dateStr).apply()
     }
 
-    fun getFallbackAttemptsCount(dateStr: String): Int {
-        val lastDate = prefs.getString(KEY_LAST_FALLBACK_ATTEMPT_DATE, null)
+    fun getFallbackAttemptsCount(dateStr: String, patientId: String? = null): Int {
+        val lastDate = prefs.getString(getScopedKey(KEY_LAST_FALLBACK_ATTEMPT_DATE, patientId), null)
         if (lastDate != dateStr) {
             return 0
         }
-        return prefs.getInt(KEY_FALLBACK_ATTEMPTS_COUNT, 0)
+        return prefs.getInt(getScopedKey(KEY_FALLBACK_ATTEMPTS_COUNT, patientId), 0)
     }
 
-    fun recordFallbackAttempt(dateStr: String) {
-        val currentCount = getFallbackAttemptsCount(dateStr)
+    fun recordFallbackAttempt(dateStr: String, patientId: String? = null) {
+        val currentCount = getFallbackAttemptsCount(dateStr, patientId)
         prefs.edit()
-            .putString(KEY_LAST_FALLBACK_ATTEMPT_DATE, dateStr)
-            .putInt(KEY_FALLBACK_ATTEMPTS_COUNT, currentCount + 1)
-            .putLong(KEY_LAST_FALLBACK_TIMESTAMP, System.currentTimeMillis())
+            .putString(getScopedKey(KEY_LAST_FALLBACK_ATTEMPT_DATE, patientId), dateStr)
+            .putInt(getScopedKey(KEY_FALLBACK_ATTEMPTS_COUNT, patientId), currentCount + 1)
+            .putLong(getScopedKey(KEY_LAST_FALLBACK_TIMESTAMP, patientId), System.currentTimeMillis())
             .apply()
     }
 
-    fun getLastFallbackTimestamp(): Long = prefs.getLong(KEY_LAST_FALLBACK_TIMESTAMP, 0L)
+    fun getLastFallbackTimestamp(patientId: String? = null): Long = prefs.getLong(getScopedKey(KEY_LAST_FALLBACK_TIMESTAMP, patientId), 0L)
 
     fun getStepsGoal(patientId: String? = null): Int? {
         val goal = prefs.getInt(getScopedKey(KEY_STEPS_GOAL, patientId), -1)

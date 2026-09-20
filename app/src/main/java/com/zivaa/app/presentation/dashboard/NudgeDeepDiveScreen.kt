@@ -853,7 +853,7 @@ fun WhatWeRecommendSection(data: ActionStepsData, riskLevel: String, onAction: (
             if (data.caregiverChecklist.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "CAREGIVER BEDSIDE ACTION STEPS",
+                    text = "WHAT YOU CAN DO RIGHT NOW",
                     style = ZivaaTheme.typography.meta.copy(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,

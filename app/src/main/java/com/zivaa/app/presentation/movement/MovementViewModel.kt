@@ -432,20 +432,20 @@ class MovementViewModel(
                         } else {
                             totalStepsToday = "0"
                             isGoalMet = false
-                            weeklySteps = List(7) { "-" to 0 }
-                            weeklyCadence = List(7) { "-" to 0 }
-                            weeklyActiveMinutes = List(7) { "-" to 0.0 }
-                            weeklyActiveHours = List(7) { "-" to 0 }
-                            weeklyMobilityScore = List(7) { "-" to 0 }
+                            weeklySteps = List(7) { "-" to -1 }
+                            weeklyCadence = List(7) { "-" to -1 }
+                            weeklyActiveMinutes = List(7) { "-" to -1.0 }
+                            weeklyActiveHours = List(7) { "-" to -1 }
+                            weeklyMobilityScore = List(7) { "-" to -1 }
                             averageMobilityScore = 0
                             hourlySteps = hours24Labels.map { it to 0 }
                         }
                     } else {
-                        weeklySteps = List(7) { "-" to 0 }
-                        weeklyCadence = List(7) { "-" to 0 }
-                        weeklyActiveMinutes = List(7) { "-" to 0.0 }
-                        weeklyActiveHours = List(7) { "-" to 0 }
-                        weeklyMobilityScore = List(7) { "-" to 0 }
+                        weeklySteps = List(7) { "-" to -1 }
+                        weeklyCadence = List(7) { "-" to -1 }
+                        weeklyActiveMinutes = List(7) { "-" to -1.0 }
+                        weeklyActiveHours = List(7) { "-" to -1 }
+                        weeklyMobilityScore = List(7) { "-" to -1 }
                         averageMobilityScore = 0
                         hourlySteps = hours24Labels.map { it to 0 }
                     }
@@ -453,11 +453,11 @@ class MovementViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
                 totalStepsToday = "0"
-                weeklySteps = List(7) { "-" to 0 }
-                weeklyCadence = List(7) { "-" to 0 }
-                weeklyActiveMinutes = List(7) { "-" to 0.0 }
-                weeklyActiveHours = List(7) { "-" to 0 }
-                weeklyMobilityScore = List(7) { "-" to 0 }
+                weeklySteps = List(7) { "-" to -1 }
+                weeklyCadence = List(7) { "-" to -1 }
+                weeklyActiveMinutes = List(7) { "-" to -1.0 }
+                weeklyActiveHours = List(7) { "-" to -1 }
+                weeklyMobilityScore = List(7) { "-" to -1 }
                 averageMobilityScore = 0
                 hourlySteps = hours24Labels.map { it to 0 }
             } finally {
@@ -513,29 +513,29 @@ class MovementViewModel(
                 val daySteps = if (healthConnectManager != null && i < 30) {
                     try {
                         val hcSteps = healthConnectManager.aggregateSteps(dayStart, dayEnd).toInt()
-                        if (hcSteps > 0) hcSteps else (dbRecord?.totalSteps ?: 0)
+                        if (hcSteps > 0) hcSteps else (dbRecord?.totalSteps ?: -1)
                     } catch (e: Exception) {
-                        dbRecord?.totalSteps ?: 0
+                        dbRecord?.totalSteps ?: -1
                     }
                 } else {
-                    dbRecord?.totalSteps ?: 0
+                    dbRecord?.totalSteps ?: -1
                 }
-                val dayCadence = dbRecord?.avgCadenceSpm?.toInt() ?: 0
-                val dayActiveMins = dbRecord?.activeMovementMinutes ?: 0.0
-                val dayActiveHours = dbRecord?.activeHoursCount ?: 0
+                val dayCadence = dbRecord?.avgCadenceSpm?.toInt() ?: -1
+                val dayActiveMins = dbRecord?.activeMovementMinutes ?: -1.0
+                val dayActiveHours = dbRecord?.activeHoursCount ?: -1
 
-                val dayScore = if (daySteps > 0 || dayCadence > 0 || dayActiveMins > 0.0 || dayActiveHours > 0) {
+                val dayScore = if (daySteps >= 0 || dayCadence >= 0 || dayActiveMins >= 0.0 || dayActiveHours >= 0) {
                     MobilityCalculator.calculateMobilityScore(
-                        totalSteps = daySteps,
+                        totalSteps = maxOf(0, daySteps),
                         goalSteps = goalSteps,
-                        cadenceSpm = dayCadence,
-                        activeMinutes = dayActiveMins.roundToInt(),
-                        activeHoursCount = dayActiveHours,
+                        cadenceSpm = maxOf(0, dayCadence),
+                        activeMinutes = maxOf(0.0, dayActiveMins).roundToInt(),
+                        activeHoursCount = maxOf(0, dayActiveHours),
                         elapsedDaytimeHours = 12,
                         isCompletedDay = true
                     ).overallScore
                 } else {
-                    0
+                    -1
                 }
 
                 list.add(

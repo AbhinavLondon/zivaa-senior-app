@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 48
-        versionName = "1.0.47"
+        versionCode = 49
+        versionName = "1.0.48"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.47 - Resilient Health Connect historical backfill checkpointing and non-intrusive manual sync queuing"
+                releaseNotes = "Zivaa v1.0.48 - Diagnostic health sync logging, high-throughput Health Connect worker optimization, and Mobility & Rest score deep-dive enhancements"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

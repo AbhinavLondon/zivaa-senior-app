@@ -870,8 +870,21 @@ fun RestChartCard(
     }
 
     val chartEntryModel = if (chartType == RestChartType.LINE) {
-        val entries = values.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-        entryModelOf(entries)
+        val seriesList = mutableListOf<List<FloatEntry>>()
+        var currentSeries = mutableListOf<FloatEntry>()
+        values.forEachIndexed { index, value ->
+            if (value >= -0.1f) {
+                currentSeries.add(FloatEntry(x = index.toFloat(), y = value))
+            } else {
+                if (currentSeries.isNotEmpty()) {
+                    seriesList.add(currentSeries)
+                    currentSeries = mutableListOf()
+                }
+            }
+        }
+        if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
+        if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f))) // Safe fallback
+        entryModelOf(*seriesList.toTypedArray())
     } else {
         val series = values.mapIndexed { index, value ->
             List(values.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) value else 0f) }
@@ -1023,7 +1036,7 @@ fun RestChartCard(
                             )
                         } else {
                             lineChart(
-                                lines = listOf(
+                                lines = List(chartEntryModel.entries.size) {
                                     com.patrykandpatrick.vico.compose.chart.line.lineSpec(
                                         lineColor = color,
                                         lineBackgroundShader = null,
@@ -1031,7 +1044,7 @@ fun RestChartCard(
                                         point = shapeComponent(shape = Shapes.pillShape, color = color),
                                         pointSize = 6.dp
                                     )
-                                ),
+                                },
                                 decorations = decorations,
                                 axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                                     minY = 0f,
@@ -1113,28 +1126,49 @@ fun RestSleepStagesChartCard(
     val remLineColor = Color(0xFF3B82F6)
     val deepLineColor = Color(0xFF4EAE7B)
 
+    val totalSeriesList = mutableListOf<List<FloatEntry>>()
+    val remSeriesList = mutableListOf<List<FloatEntry>>()
+    val deepSeriesList = mutableListOf<List<FloatEntry>>()
     val chartModel = if (chartType == RestChartType.BAR) {
         val deepEntries = deep.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
         val remEntries = rem.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
         val lightEntries = light.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
         entryModelOf(deepEntries, remEntries, lightEntries)
     } else {
-        val totalEntries = (0 until deep.size).map { index ->
+        var curTotal = mutableListOf<FloatEntry>()
+        var curRem = mutableListOf<FloatEntry>()
+        var curDeep = mutableListOf<FloatEntry>()
+        
+        (0 until deep.size).forEach { index ->
             val d = deep.getOrElse(index) { 0f }
             val r = rem.getOrElse(index) { 0f }
             val l = light.getOrElse(index) { 0f }
-            FloatEntry(x = index.toFloat(), y = d + r + l)
+            
+            if (d >= -0.1f && r >= -0.1f && l >= -0.1f) {
+                curTotal.add(FloatEntry(x = index.toFloat(), y = d + r + l))
+            } else {
+                if (curTotal.isNotEmpty()) { totalSeriesList.add(curTotal); curTotal = mutableListOf() }
+            }
+            if (d >= -0.1f && r >= -0.1f) {
+                curRem.add(FloatEntry(x = index.toFloat(), y = d + r))
+            } else {
+                if (curRem.isNotEmpty()) { remSeriesList.add(curRem); curRem = mutableListOf() }
+            }
+            if (d >= -0.1f) {
+                curDeep.add(FloatEntry(x = index.toFloat(), y = d))
+            } else {
+                if (curDeep.isNotEmpty()) { deepSeriesList.add(curDeep); curDeep = mutableListOf() }
+            }
         }
-        val remCumulativeEntries = (0 until deep.size).map { index ->
-            val d = deep.getOrElse(index) { 0f }
-            val r = rem.getOrElse(index) { 0f }
-            FloatEntry(x = index.toFloat(), y = d + r)
-        }
-        val deepCumulativeEntries = (0 until deep.size).map { index ->
-            val d = deep.getOrElse(index) { 0f }
-            FloatEntry(x = index.toFloat(), y = d)
-        }
-        entryModelOf(totalEntries, remCumulativeEntries, deepCumulativeEntries)
+        if (curTotal.isNotEmpty()) totalSeriesList.add(curTotal)
+        if (curRem.isNotEmpty()) remSeriesList.add(curRem)
+        if (curDeep.isNotEmpty()) deepSeriesList.add(curDeep)
+        
+        if (totalSeriesList.isEmpty()) totalSeriesList.add(listOf(FloatEntry(0f, 0f)))
+        if (remSeriesList.isEmpty()) remSeriesList.add(listOf(FloatEntry(0f, 0f)))
+        if (deepSeriesList.isEmpty()) deepSeriesList.add(listOf(FloatEntry(0f, 0f)))
+        
+        entryModelOf(*(totalSeriesList + remSeriesList + deepSeriesList).toTypedArray())
     }
 
     Box(
@@ -1206,35 +1240,41 @@ fun RestSleepStagesChartCard(
                         )
                     } else {
                         lineChart(
-                            lines = listOf(
-                                lineSpec(
-                                    lineColor = lightLineColor,
-                                    lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(lightLineColor.copy(alpha = 0.3f), lightLineColor.copy(alpha = 0.05f))
-                                    ),
-                                    lineThickness = 2.5.dp,
-                                    point = shapeComponent(shape = Shapes.pillShape, color = lightLineColor),
-                                    pointSize = pointSize
-                                ),
-                                lineSpec(
-                                    lineColor = remLineColor,
-                                    lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(remLineColor.copy(alpha = 0.3f), remLineColor.copy(alpha = 0.05f))
-                                    ),
-                                    lineThickness = 2.5.dp,
-                                    point = shapeComponent(shape = Shapes.pillShape, color = remLineColor),
-                                    pointSize = pointSize
-                                ),
-                                lineSpec(
-                                    lineColor = deepLineColor,
-                                    lineBackgroundShader = verticalGradient(
-                                        colors = arrayOf(deepLineColor.copy(alpha = 0.3f), deepLineColor.copy(alpha = 0.05f))
-                                    ),
-                                    lineThickness = 2.5.dp,
-                                    point = shapeComponent(shape = Shapes.pillShape, color = deepLineColor),
-                                    pointSize = pointSize
-                                )
-                            ),
+                            lines = buildList {
+                                repeat(totalSeriesList.size) {
+                                    add(lineSpec(
+                                        lineColor = lightLineColor,
+                                        lineBackgroundShader = verticalGradient(
+                                            colors = arrayOf(lightLineColor.copy(alpha = 0.3f), lightLineColor.copy(alpha = 0.05f))
+                                        ),
+                                        lineThickness = 2.5.dp,
+                                        point = shapeComponent(shape = Shapes.pillShape, color = lightLineColor),
+                                        pointSize = pointSize
+                                    ))
+                                }
+                                repeat(remSeriesList.size) {
+                                    add(lineSpec(
+                                        lineColor = remLineColor,
+                                        lineBackgroundShader = verticalGradient(
+                                            colors = arrayOf(remLineColor.copy(alpha = 0.6f), remLineColor.copy(alpha = 0.1f))
+                                        ),
+                                        lineThickness = 2.5.dp,
+                                        point = shapeComponent(shape = Shapes.pillShape, color = remLineColor),
+                                        pointSize = pointSize
+                                    ))
+                                }
+                                repeat(deepSeriesList.size) {
+                                    add(lineSpec(
+                                        lineColor = deepLineColor,
+                                        lineBackgroundShader = verticalGradient(
+                                            colors = arrayOf(deepLineColor.copy(alpha = 0.8f), deepLineColor.copy(alpha = 0.2f))
+                                        ),
+                                        lineThickness = 2.5.dp,
+                                        point = shapeComponent(shape = Shapes.pillShape, color = deepLineColor),
+                                        pointSize = pointSize
+                                    ))
+                                }
+                            },
                             axisValuesOverrider = AxisValuesOverrider.fixed(
                                 minY = 0f,
                                 maxY = chartMax
