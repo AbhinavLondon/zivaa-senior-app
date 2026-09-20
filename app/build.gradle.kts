@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 50
-        versionName = "1.0.49"
+        versionCode = 51
+        versionName = "1.0.50"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.49 - Circadian sleep session indexing by wake-up end time and foreground manual sync priority dispatch"
+                releaseNotes = "Zivaa v1.0.50 - Decoupled historical health backfill worker, token-first delta recovery, and deterministic session vitals anchor"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

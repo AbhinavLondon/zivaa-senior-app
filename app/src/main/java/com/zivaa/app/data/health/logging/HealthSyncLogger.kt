@@ -57,6 +57,7 @@ object HealthSyncLogger {
         DELETION_PURGE,
         FALLBACK_TRIGGER,
         ORCHESTRATION_TRIGGER,
+        HISTORICAL_BACKFILL,
         SYNC_SUCCESS,
         SYNC_FAILED,
         SYNC_RETRY

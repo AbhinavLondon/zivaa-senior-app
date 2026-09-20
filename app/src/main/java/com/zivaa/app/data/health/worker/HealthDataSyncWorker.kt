@@ -51,7 +51,7 @@ class HealthDataSyncWorker(
     override suspend fun doWork(): Result {
         val authManager = com.zivaa.app.data.remote.AuthManager.getInstance(applicationContext)
         com.zivaa.app.data.remote.RetrofitClient.initialize(applicationContext)
-        val patientId = authManager.getUserId()
+        val patientId = authManager.getUserId() ?: inputData.getString("patient_id")
         activePatientId = patientId
 
         val healthConnectManager = HealthConnectManager(applicationContext)
@@ -132,19 +132,12 @@ class HealthDataSyncWorker(
 
         return try {
             val lastSyncedPatient = syncPrefsManager.getLastSyncedPatientId()
-            val forceBackfill = inputData.getBoolean("force_backfill", false) || (lastSyncedPatient != patientId)
+            val forceBackfill = inputData.getBoolean("force_backfill", false)
             
             if (lastSyncedPatient != patientId) {
-                logWorkerI("New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous token.")
-                HealthSyncLogger.log(
-                    context = applicationContext,
-                    userId = patientId,
-                    syncType = syncType,
-                    stage = HealthSyncLogger.Stage.SYNC_START,
-                    details = "New or switched patient detected ($patientId vs $lastSyncedPatient). Clearing previous ChangesToken."
-                )
-                syncPrefsManager.clearChangesToken(patientId)
+                logWorkerI("Switched patient detected ($patientId vs $lastSyncedPatient). Updating active patient reference.")
                 syncPrefsManager.setLastSyncedPatientId(patientId)
+                // INVARIANT: Do NOT clear patientId's token! Each patient owns their scoped token.
             }
 
             try {
@@ -162,8 +155,7 @@ class HealthDataSyncWorker(
             val tokenPermissions = syncPrefsManager.getTokenPermissions(patientId)
             val newlyGranted = currentGranted - tokenPermissions
 
-            val permissionsExpanded = (tokenPermissions.isNotEmpty() && newlyGranted.isNotEmpty()) ||
-                    (tokenPermissions.isEmpty() && syncPrefsManager.getChangesToken(patientId) != null)
+            val permissionsExpanded = tokenPermissions.isNotEmpty() && newlyGranted.isNotEmpty()
 
             if (permissionsExpanded) {
                 logWorkerI("Health Connect permissions expanded (new: $newlyGranted). Resetting ChangesToken to backfill new metrics.")
@@ -183,151 +175,80 @@ class HealthDataSyncWorker(
             var nextToken: String? = null
 
             if (currentToken == null) {
-                // FIRST RUN / FORCE BACKFILL / TOKEN RECOVERY:
-                val lastSyncTs = syncPrefsManager.getLastSuccessfulSyncTimestamp(patientId)
+                // TOKEN-FIRST "SNAPSHOT-AND-TAIL" INITIALIZATION:
+                // Step 1: Freeze change-feed cursor FIRST to guarantee mathematical zero gap.
+                val startToken = healthConnectManager.getChangesToken()
                 val now = Instant.now()
-                var totalRecordsUploaded = 0
+                val priorityStart = now.minus(7, ChronoUnit.DAYS)
 
-                if (lastSyncTs > 0L && !forceBackfill) {
-                    // RESILIENT TOKEN EXPIRY RECOVERY:
-                    // Recover incrementally from last successful sync timestamp instead of a full 90-day backfill
-                    val sinceInstant = Instant.ofEpochMilli(lastSyncTs)
-                    logWorkerI("ChangesToken expired/reset. Recovering incrementally from $sinceInstant to $now")
-                    HealthSyncLogger.log(
+                logWorkerI("Initializing zero-gap sync. Priority hydration window [$priorityStart to $now]")
+                HealthSyncLogger.log(
+                    context = applicationContext,
+                    userId = patientId,
+                    syncType = syncType,
+                    stage = HealthSyncLogger.Stage.METRIC_QUERY,
+                    details = "Priority hydration window [$priorityStart to $now] with token-first freeze."
+                )
+
+                // Step 2: Fetch Priority Hydration Window (last 7 days)
+                val priorityRecords = healthConnectManager.fetchAllAvailableMetrics(priorityStart, now)
+                logWorkerI("Fetched ${priorityRecords.size} records for 7-day priority window.")
+
+                val priorityBreakdown = priorityRecords.groupBy { it::class.simpleName ?: "Record" }
+                for ((mName, mList) in priorityBreakdown) {
+                    HealthSyncLogger.logMetricQuery(
                         context = applicationContext,
                         userId = patientId,
                         syncType = syncType,
-                        stage = HealthSyncLogger.Stage.METRIC_QUERY,
-                        details = "ChangesToken expired/reset. Recovering incrementally from $sinceInstant to $now"
+                        metricType = mName,
+                        recordCount = mList.size,
+                        details = "7-day priority window hydration [$priorityStart to $now]"
                     )
-                    var windowEnd = now
-                    while (windowEnd.isAfter(sinceInstant)) {
-                        if (isStopped) return Result.retry()
-                        val windowStart = if (windowEnd.minus(7, ChronoUnit.DAYS).isBefore(sinceInstant)) sinceInstant else windowEnd.minus(7, ChronoUnit.DAYS)
-                        val windowRecords = healthConnectManager.fetchAllAvailableMetrics(windowStart, windowEnd)
-                        if (windowRecords.isNotEmpty()) {
-                            val windowBreakdown = windowRecords.groupBy { it::class.simpleName ?: "Record" }
-                            for ((mName, mList) in windowBreakdown) {
-                                HealthSyncLogger.logMetricQuery(
-                                    context = applicationContext,
-                                    userId = patientId,
-                                    syncType = syncType,
-                                    metricType = mName,
-                                    recordCount = mList.size,
-                                    details = "Incremental recovery window [$windowStart to $windowEnd]"
-                                )
-                            }
-                            val windowPayload = windowRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
-                            val success = uploadRecordsToSupabase(windowPayload, patientId, syncType)
-                            if (!success) return Result.retry()
-                            totalRecordsUploaded += windowPayload.size
-                        }
-                        windowEnd = windowStart
-                    }
-                } else {
-                    // FIRST RUN / FULL BASELINE BACKFILL:
-                    val savedCheckpoint = if (forceBackfill) 0L else syncPrefsManager.getHistoricalLookbackProgress(patientId)
-                    val priorityStart = now.minus(7, ChronoUnit.DAYS)
+                }
 
-                    if (savedCheckpoint == 0L) {
-                        // 1. Fetch & UPLOAD Priority Window (last 7 days) FIRST for instant dashboard hydration
-                        val priorityRecords = healthConnectManager.fetchAllAvailableMetrics(priorityStart, now)
-                        logWorkerI("Fetched ${priorityRecords.size} records for 7-day priority window.")
-                        
-                        val priorityBreakdown = priorityRecords.groupBy { it::class.simpleName ?: "Record" }
-                        for ((mName, mList) in priorityBreakdown) {
-                            HealthSyncLogger.logMetricQuery(
-                                context = applicationContext,
-                                userId = patientId,
-                                syncType = syncType,
-                                metricType = mName,
-                                recordCount = mList.size,
-                                details = "7-day priority window hydration [$priorityStart to $now]"
+                if (priorityRecords.isNotEmpty()) {
+                    val priorityPayload = priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
+                    val prioritySuccess = uploadRecordsToSupabase(priorityPayload, patientId, syncType)
+                    if (!prioritySuccess) return Result.retry()
+                    payload.addAll(priorityPayload)
+
+                    // Immediate orchestration ping so dashboard displays fresh data
+                    try {
+                        val pingStart = System.currentTimeMillis()
+                        val pingRes = com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
+                            com.zivaa.app.data.remote.SyncCompletePayload(
+                                patient_id = patientId, 
+                                timezone = java.util.TimeZone.getDefault().id, 
+                                sync_type = "PriorityHydration",
+                                records_synced = priorityPayload.size,
+                                metric_types = priorityPayload.map { it.metricType }.distinct()
                             )
-                        }
-
-                        if (priorityRecords.isNotEmpty()) {
-                            val priorityPayload = priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
-                            val prioritySuccess = uploadRecordsToSupabase(priorityPayload, patientId, syncType)
-                            if (!prioritySuccess) return Result.retry()
-                            totalRecordsUploaded += priorityPayload.size
-
-                            // Immediate orchestration ping so dashboard displays fresh data without waiting for deep history
-                            try {
-                                val pingStart = System.currentTimeMillis()
-                                val pingRes = com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
-                                    com.zivaa.app.data.remote.SyncCompletePayload(
-                                        patient_id = patientId, 
-                                        timezone = java.util.TimeZone.getDefault().id, 
-                                        sync_type = "PriorityHydration",
-                                        records_synced = priorityPayload.size,
-                                        metric_types = priorityPayload.map { it.metricType }.distinct()
-                                    )
-                                )
-                                val pingDuration = System.currentTimeMillis() - pingStart
-                                HealthSyncLogger.log(
-                                    context = applicationContext,
-                                    userId = patientId,
-                                    syncType = syncType,
-                                    stage = HealthSyncLogger.Stage.ORCHESTRATION_TRIGGER,
-                                    status = if (pingRes.isSuccessful) HealthSyncLogger.Status.SUCCESS else HealthSyncLogger.Status.WARNING,
-                                    durationMs = pingDuration,
-                                    details = "Priority hydration orchestration ping (HTTP ${pingRes.code()})"
-                                )
-                            } catch (e: Exception) {
-                                logWorkerW("Priority sync complete notice failed: ${e.message}")
-                            }
-                        }
-                        syncPrefsManager.setHistoricalLookbackProgress(priorityStart.toEpochMilli(), patientId)
-                    } else {
-                        logWorkerI("Resuming deep history backfill from checkpoint: ${Instant.ofEpochMilli(savedCheckpoint)}")
+                        )
+                        val pingDuration = System.currentTimeMillis() - pingStart
                         HealthSyncLogger.log(
                             context = applicationContext,
                             userId = patientId,
                             syncType = syncType,
-                            stage = HealthSyncLogger.Stage.METRIC_QUERY,
-                            details = "Resuming deep history backfill from checkpoint: ${Instant.ofEpochMilli(savedCheckpoint)}"
+                            stage = HealthSyncLogger.Stage.ORCHESTRATION_TRIGGER,
+                            status = if (pingRes.isSuccessful) HealthSyncLogger.Status.SUCCESS else HealthSyncLogger.Status.WARNING,
+                            durationMs = pingDuration,
+                            details = "Priority hydration orchestration ping (HTTP ${pingRes.code()})"
                         )
+                    } catch (e: Exception) {
+                        logWorkerW("Priority sync complete notice failed: ${e.message}")
                     }
-
-                    // 2. Stream remaining deep history in rolling 7-day windows
-                    // Health Connect enforces 30-day lookback limit unless READ_HEALTH_DATA_HISTORY is granted
-                    val maxLookbackDays = if (healthConnectManager.hasHistoryReadPermission()) 90L else 30L
-                    val maxLookbackInstant = now.minus(maxLookbackDays, ChronoUnit.DAYS)
-                    var windowEnd = if (savedCheckpoint > 0L) Instant.ofEpochMilli(savedCheckpoint) else priorityStart
-
-                    while (windowEnd.isAfter(maxLookbackInstant)) {
-                        if (isStopped) return Result.retry()
-                        val windowStart = if (windowEnd.minus(7, ChronoUnit.DAYS).isBefore(maxLookbackInstant)) maxLookbackInstant else windowEnd.minus(7, ChronoUnit.DAYS)
-                        val chunkRecords = healthConnectManager.fetchAllAvailableMetrics(windowStart, windowEnd)
-                        if (chunkRecords.isNotEmpty()) {
-                            val chunkBreakdown = chunkRecords.groupBy { it::class.simpleName ?: "Record" }
-                            for ((mName, mList) in chunkBreakdown) {
-                                HealthSyncLogger.logMetricQuery(
-                                    context = applicationContext,
-                                    userId = patientId,
-                                    syncType = syncType,
-                                    metricType = mName,
-                                    recordCount = mList.size,
-                                    details = "Historical backfill window [$windowStart to $windowEnd]"
-                                )
-                            }
-                            val chunkPayload = chunkRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
-                            val chunkSuccess = uploadRecordsToSupabase(chunkPayload, patientId, syncType)
-                            if (!chunkSuccess) return Result.retry()
-                            totalRecordsUploaded += chunkPayload.size
-                        }
-                        windowEnd = windowStart
-                        syncPrefsManager.setHistoricalLookbackProgress(windowEnd.toEpochMilli(), patientId)
-                    }
-
-                    syncPrefsManager.setBaselineBackfillComplete(true, patientId)
-                    syncPrefsManager.clearHistoricalLookbackProgress(patientId)
                 }
 
-                // 3. Obtain a fresh ChangesToken for future incremental runs
-                nextToken = healthConnectManager.getChangesToken()
+                // Step 3: Advance live token to the pre-frozen cursor
+                nextToken = startToken
                 syncPrefsManager.setLastSuccessfulSyncTimestamp(System.currentTimeMillis(), patientId)
+
+                // Step 4: If baseline historical backfill (up to 30/90 days) is incomplete,
+                // trigger dedicated decoupled worker. NEVER run deep backfill in live sync!
+                if (!syncPrefsManager.isBaselineBackfillComplete(patientId)) {
+                    logWorkerI("Enqueuing decoupled historical backfill for patient $patientId.")
+                    HealthHistoricalBackfillWorker.enqueue(applicationContext, patientId)
+                }
             } else {
                 // SUBSEQUENT RUNS: Use ChangesToken API with official Google pagination loop.
                 try {
@@ -463,166 +384,50 @@ class HealthDataSyncWorker(
                         }
                     }
                 } catch (e: Exception) {
-                    logWorkerE("Changes token expired or unrecoverable error: ${e.message}. Clearing token and scheduling retry.", e)
+                    logWorkerE("Changes token expired or unrecoverable error: ${e.message}. Recovering via zero-gap token refresh.", e)
                     HealthSyncLogger.log(
                         context = applicationContext,
                         userId = patientId,
                         syncType = syncType,
                         stage = HealthSyncLogger.Stage.CHANGES_QUERY,
-                        status = HealthSyncLogger.Status.FAILURE,
-                        details = "Changes token expired or unrecoverable error. Clearing token and scheduling retry.",
+                        status = HealthSyncLogger.Status.WARNING,
+                        details = "Changes token expired. Recovering incrementally from last successful sync.",
                         exception = e
                     )
-                    syncPrefsManager.clearChangesToken(patientId)
-                    return Result.retry()
-                }
-
-                // --- METRIC STATE TRACKING ---
-                val nowStr = java.time.LocalDate.now().toString()
-                val nowMs = System.currentTimeMillis()
-
-                val hasSleep = payload.any { it.metricType == "SleepSessionRecord" }
-                val hasSteps = payload.any { it.metricType == "StepsRecord" }
-                val hasHeartRate = payload.any { it.metricType == "HeartRateRecord" }
-
-                if (hasSleep) {
-                    syncPrefsManager.setLastSleepSyncDate(nowStr, patientId)
-                }
-                if (hasSteps) {
-                    syncPrefsManager.setLastStepsSyncDate(nowStr, patientId)
-                }
-                if (hasHeartRate) {
-                    syncPrefsManager.setLastHeartRateSyncTime(nowMs, patientId)
-                }
-
-                // --- SMART 2-STRIKE FALLBACK CHECK ---
-                val lastSleepDate = syncPrefsManager.getLastSleepSyncDate(patientId)
-                val isPast10AM = java.time.LocalTime.now().isAfter(java.time.LocalTime.of(10, 0))
-                val sleepMissing = (lastSleepDate != nowStr) && isPast10AM
-
-                val lastStepsDate = syncPrefsManager.getLastStepsSyncDate(patientId)
-                val isPast11AM = java.time.LocalTime.now().isAfter(java.time.LocalTime.of(11, 0))
-                val stepsMissing = (lastStepsDate != nowStr) && isPast11AM
-
-                val lastHrTime = syncPrefsManager.getLastHeartRateSyncTime(patientId)
-                val hrMissing = (lastHrTime == 0L) || ((nowMs - lastHrTime) > (4 * 60 * 60 * 1000L))
-
-                val isForeground = syncType == HealthSyncLogger.SyncType.FOREGROUND
-                val attemptsToday = syncPrefsManager.getFallbackAttemptsCount(nowStr, patientId)
-                val lastAttemptTs = syncPrefsManager.getLastFallbackTimestamp(patientId)
-                val cooldownPassed = (nowMs - lastAttemptTs) > (3 * 60 * 60 * 1000L)
-
-                val shouldFallback = (sleepMissing || stepsMissing || hrMissing) &&
-                        (isForeground || (attemptsToday < 2 && cooldownPassed))
-
-                if (shouldFallback) {
-                    logWorkerI("Fallback Triggered (Sleep: $sleepMissing, Steps: $stepsMissing, HR: $hrMissing, Attempt: ${attemptsToday + 1}/2, Foreground: $isForeground)")
-                    HealthSyncLogger.log(
-                        context = applicationContext,
-                        userId = patientId,
-                        syncType = syncType,
-                        stage = HealthSyncLogger.Stage.FALLBACK_TRIGGER,
-                        status = HealthSyncLogger.Status.WARNING,
-                        details = "Fallback Triggered (Sleep: $sleepMissing, Steps: $stepsMissing, HR: $hrMissing, Attempt: ${attemptsToday + 1}/2, Foreground: $isForeground)"
-                    )
-                    syncPrefsManager.recordFallbackAttempt(nowStr, patientId)
-                    syncPrefsManager.setLastFallbackAttemptDate(nowStr, patientId)
-
-                    val fallbackRecords = healthConnectManager.fetchAllAvailableMetrics(2)
-                    val fallbackBreakdown = fallbackRecords.groupBy { it::class.simpleName ?: "Record" }
-                    for ((mName, mList) in fallbackBreakdown) {
-                        HealthSyncLogger.logMetricQuery(
-                            context = applicationContext,
-                            userId = patientId,
-                            syncType = syncType,
-                            metricType = mName,
-                            recordCount = mList.size,
-                            details = "Smart fallback scan (last 2 days)"
-                        )
+                    // Token-first recovery:
+                    val recoverToken = healthConnectManager.getChangesToken()
+                    val lastSyncTs = syncPrefsManager.getLastSuccessfulSyncTimestamp(patientId)
+                    val sinceInstant = if (lastSyncTs > 0L) Instant.ofEpochMilli(lastSyncTs) else Instant.now().minus(7, ChronoUnit.DAYS)
+                    val recoveredRecords = healthConnectManager.fetchAllAvailableMetrics(sinceInstant, Instant.now())
+                    if (recoveredRecords.isNotEmpty()) {
+                        payload.addAll(recoveredRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
                     }
-
-                    payload.addAll(fallbackRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
-
-                    if (fallbackRecords.any { it::class.simpleName == "SleepSessionRecord" }) {
-                        syncPrefsManager.setLastSleepSyncDate(nowStr, patientId)
-                    }
-                    if (fallbackRecords.any { it::class.simpleName == "StepsRecord" }) {
-                        syncPrefsManager.setLastStepsSyncDate(nowStr, patientId)
-                    }
-                    if (fallbackRecords.any { it::class.simpleName == "HeartRateRecord" }) {
-                        syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis(), patientId)
-                    }
+                    nextToken = recoverToken
                 }
             }
 
-            // Safety net: Ensure today's steps are never missing if Health Connect has recorded steps
-            val todayLocalDate = java.time.LocalDate.now()
-            val todayStart = todayLocalDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
-            val hasTodayStepsInPayload = payload.any { record ->
-                record.metricType == "StepsRecord" && try {
-                    Instant.parse(record.recordedAt).isAfter(todayStart)
-                } catch (e: Exception) {
-                    false
-                }
-            }
-            if (!hasTodayStepsInPayload) {
-                val todaySteps = healthConnectManager.fetchTodayStepsRecords()
-                if (todaySteps.isNotEmpty()) {
-                    HealthSyncLogger.logMetricQuery(
-                        context = applicationContext,
-                        userId = patientId,
-                        syncType = syncType,
-                        metricType = "StepsRecord",
-                        recordCount = todaySteps.size,
-                        details = "Safety net: Hydrated authentic today steps."
-                    )
-                    payload.addAll(todaySteps.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
-                    syncPrefsManager.setLastStepsSyncDate(todayLocalDate.toString(), patientId)
-                }
+            // --- DETERMINISTIC SESSION VITALS ANCHOR ---
+            // Local SQLite range query (<10ms) for low-frequency session metrics (Sleep, Resting HR).
+            // Guarantees zero gaps and handles OEM batching / stage recalculations idempotently.
+            val anchorNow = Instant.now()
+            val anchorStart = anchorNow.minus(24, ChronoUnit.HOURS)
+
+            val sessionSleep = healthConnectManager.readRecordsSafely(
+                androidx.health.connect.client.records.SleepSessionRecord::class,
+                anchorStart,
+                anchorNow
+            )
+            if (sessionSleep.isNotEmpty()) {
+                payload.addAll(sessionSleep.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
             }
 
-            // Safety net: Ensure today's Heart Rate is never missing if Health Connect has recorded heart rate
-            val hasTodayHrInPayload = payload.any { record ->
-                record.metricType == "HeartRateRecord" && try {
-                    Instant.parse(record.recordedAt).isAfter(todayStart)
-                } catch (e: Exception) {
-                    false
-                }
-            }
-            if (!hasTodayHrInPayload) {
-                val todayHr = healthConnectManager.fetchTodayHeartRateRecords()
-                if (todayHr.isNotEmpty()) {
-                    HealthSyncLogger.logMetricQuery(
-                        context = applicationContext,
-                        userId = patientId,
-                        syncType = syncType,
-                        metricType = "HeartRateRecord",
-                        recordCount = todayHr.size,
-                        details = "Safety net: Hydrated authentic today heart rate."
-                    )
-                    payload.addAll(todayHr.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
-                    syncPrefsManager.setLastHeartRateSyncTime(System.currentTimeMillis(), patientId)
-                }
-            }
-
-            // Safety net: Ensure recent Sleep is never missing if Health Connect has recorded sleep sessions
-            val hasRecentSleepInPayload = payload.any { record ->
-                record.metricType == "SleepSessionRecord"
-            }
-            if (!hasRecentSleepInPayload) {
-                val recentSleep = healthConnectManager.fetchRecentSleepRecords()
-                if (recentSleep.isNotEmpty()) {
-                    HealthSyncLogger.logMetricQuery(
-                        context = applicationContext,
-                        userId = patientId,
-                        syncType = syncType,
-                        metricType = "SleepSessionRecord",
-                        recordCount = recentSleep.size,
-                        details = "Safety net: Hydrated authentic recent sleep sessions."
-                    )
-                    payload.addAll(recentSleep.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
-                    syncPrefsManager.setLastSleepSyncDate(todayLocalDate.toString(), patientId)
-                }
+            val sessionRestingHr = healthConnectManager.readRecordsSafely(
+                androidx.health.connect.client.records.RestingHeartRateRecord::class,
+                anchorStart,
+                anchorNow
+            )
+            if (sessionRestingHr.isNotEmpty()) {
+                payload.addAll(sessionRestingHr.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) })
             }
 
             // Sync to backend if we have records

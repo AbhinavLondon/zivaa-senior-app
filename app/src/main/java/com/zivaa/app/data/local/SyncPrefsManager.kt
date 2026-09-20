@@ -32,8 +32,7 @@ class SyncPrefsManager(context: Context) {
     fun clearChangesToken(patientId: String? = null) {
         val key = getScopedKey(KEY_CHANGES_TOKEN, patientId)
         val permKey = getScopedKey(KEY_TOKEN_PERMISSIONS, patientId)
-        val progressKey = getScopedKey(KEY_HISTORICAL_LOOKBACK_PROGRESS, patientId)
-        prefs.edit().remove(key).remove(KEY_CHANGES_TOKEN).remove(permKey).remove(progressKey).apply()
+        prefs.edit().remove(key).remove(permKey).apply()
     }
 
     fun getTokenPermissions(patientId: String? = null): Set<String> {
