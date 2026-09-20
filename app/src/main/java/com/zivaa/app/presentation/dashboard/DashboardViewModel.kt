@@ -961,7 +961,9 @@ class DashboardViewModel(
                 fetchDailyPlan(vitalsMap)
 
                 // Trigger the background worker to silently handle the massive Supabase sync using changes tokens
+                val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: prefsManager.getLastSyncedPatientId()
                 val workData = androidx.work.Data.Builder()
+                    .putString("patient_id", patientId)
                     .putBoolean("force_backfill", force)
                     .putString("sync_type", "Foreground")
                     .build()
@@ -974,10 +976,9 @@ class DashboardViewModel(
                     .build()
                 val appContext = getApplication<Application>().applicationContext
                 val workManager = androidx.work.WorkManager.getInstance(appContext)
-                val syncPolicy = if (force) androidx.work.ExistingWorkPolicy.REPLACE else androidx.work.ExistingWorkPolicy.KEEP
                 workManager.enqueueUniqueWork(
                     "ManualHealthDataSync",
-                    syncPolicy,
+                    androidx.work.ExistingWorkPolicy.REPLACE,
                     oneTimeWork
                 )
 

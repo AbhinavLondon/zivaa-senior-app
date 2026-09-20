@@ -52,7 +52,7 @@ data class MetricRecord(
                 is BasalMetabolicRateRecord -> record.time.toString()
                 is HydrationRecord -> record.startTime.toString()
                 is NutritionRecord -> record.startTime.toString()
-                is SleepSessionRecord -> record.startTime.toString()
+                is SleepSessionRecord -> record.endTime.toString()
                 is MenstruationFlowRecord -> record.time.toString()
                 is MenstruationPeriodRecord -> record.startTime.toString()
                 is OvulationTestRecord -> record.time.toString()
