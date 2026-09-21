@@ -179,6 +179,7 @@ fun RestScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // 2x2 Grid of factors
+                            // 2x2 Grid of factors (4 rows of 2 tiles)
                             val b = viewModel.restBreakdown
                             
                             // Values
@@ -186,9 +187,10 @@ fun RestScreen(
                             val durValNum = (b?.get("sleep_hours") as? Number)?.toDouble()
                             val durVal = durValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
-                            val qualPts = (b?.get("quality_pts") as? Number)?.toInt() ?: 0
-                            val effValNum = (b?.get("sleep_efficiency_pct") as? Number)?.toInt()
-                            val effVal = effValNum?.let { "${it}%" } ?: "No data"
+                            // WASO replaces Efficiency
+                            val wasoPts = (b?.get("waso_pts") as? Number)?.toInt()
+                            val wasoValNum = (b?.get("waso_mins") as? Number)?.toDouble()
+                            val wasoVal = wasoValNum?.let { "${it.toInt()} min" } ?: "No data"
                             
                             val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
                             val deepVal = deepValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
@@ -196,36 +198,54 @@ fun RestScreen(
                             val remValNum = (b?.get("sleep_stage_6_hours") as? Number)?.toDouble()
                             val remVal = remValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
                             
-                            val rhrPts = (b?.get("vitals_pts") as? Number)?.toInt() ?: 0
+                            // Resting HR & HRV
                             val rhrValNum = (b?.get("resting_heart_rate") as? Number)?.toInt()
                             val rhrVal = rhrValNum?.let { "$it bpm" } ?: "No data"
+                            val hrvScorePts = (b?.get("hrv_pts") as? Number)?.toInt()
+                            val rhrMax = if (hrvScorePts != null) 15 else 30
+                            val rhrScorePts = (b?.get("rhr_pts") as? Number)?.toInt() ?: (b?.get("vitals_pts") as? Number)?.toInt() ?: 0
+
+                            val hrvValNum = (b?.get("hrv_rmssd") as? Number)?.toDouble()
+                            val hrvBaseNum = (b?.get("hrv_rmssd_baseline") as? Number)?.toDouble()
+                            val hasHrv = hrvValNum != null && hrvValNum > 0
+                            val hrvPrimaryVal = if (hasHrv) "${hrvValNum!!.toInt()} ms" else "No Data"
+                            val hrvScoreText = if (hasHrv && hrvScorePts != null) "$hrvScorePts/15" else ""
+                            val hrvProgress = if (hasHrv) {
+                                if (hrvBaseNum != null && hrvBaseNum > 0) (hrvValNum!! / hrvBaseNum).toFloat().coerceIn(0f, 1f)
+                                else (hrvValNum!!.toFloat() / 50f).coerceIn(0f, 1f)
+                            } else 0f
+                            val hrvStatusText = if (!hasHrv) "No Data" else if (hrvScorePts != null && hrvScorePts >= 12) "Optimal" else if (hrvScorePts != null && hrvScorePts >= 7) "Steady" else "Attention"
+                            val hrvAccentColor = if (!hasHrv) Color(0xFF6B7280) else if (hrvScorePts != null && hrvScorePts >= 12) Color(0xFF4EAE7B) else if (hrvScorePts != null && hrvScorePts >= 7) Color(0xFFE5A643) else Color(0xFFE58B43)
                             
                             val tempPts = (b?.get("penalty_pts") as? Number)?.toInt() ?: 0
                             val tempVal = (b?.get("skin_temp_delta") as? Number)?.toDouble()?.let { String.format(Locale.US, "%+.1f°C", it) } ?: "--"
 
+                            // Row 1: Sleep time & WASO
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Sleep time",
-                                    scoreText = if (durValNum == null) "" else "$durPts/40",
+                                    scoreText = if (durValNum == null) "" else "$durPts/35",
                                     primaryValue = durVal,
                                     unitText = "",
-                                    progress = if (durValNum == null) 0f else (durPts / 40f).coerceIn(0f, 1f),
-                                    statusText = if (durValNum == null) "No data" else if (durPts >= 35) "Optimal" else "Attention",
-                                    accentColor = if (durValNum == null) Color(0xFF6B7280) else if (durPts >= 35) Color(0xFF4EAE7B) else Color(0xFFE5A643)
+                                    progress = if (durValNum == null) 0f else (durPts / 35f).coerceIn(0f, 1f),
+                                    statusText = if (durValNum == null) "No data" else if (durPts >= 30) "Optimal" else if (durPts >= 20) "Steady" else "Attention",
+                                    accentColor = if (durValNum == null) Color(0xFF6B7280) else if (durPts >= 30) Color(0xFF4EAE7B) else if (durPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
-                                    title = "Efficiency",
-                                    scoreText = if (effValNum == null) "" else "$qualPts/30",
-                                    primaryValue = effVal,
+                                    title = "WASO",
+                                    scoreText = if (wasoValNum == null) "" else "${wasoPts ?: 0}/15",
+                                    primaryValue = wasoVal,
                                     unitText = "",
-                                    progress = if (effValNum == null) 0f else (qualPts / 30f).coerceIn(0f, 1f),
-                                    statusText = if (effValNum == null) "No data" else if (qualPts >= 20) "Steady" else "Attention",
-                                    accentColor = if (effValNum == null) Color(0xFF6B7280) else if (qualPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = if (wasoValNum == null) 0f else if (wasoPts != null) (wasoPts / 15f).coerceIn(0f, 1f) else if (wasoValNum <= 30) 1f else (1f - ((wasoValNum.toFloat() - 30f) / 45f)).coerceIn(0f, 1f),
+                                    statusText = if (wasoValNum == null) "No data" else if (wasoValNum <= 30) "Optimal" else if (wasoValNum <= 60) "Steady" else "Attention",
+                                    accentColor = if (wasoValNum == null) Color(0xFF6B7280) else if (wasoValNum <= 30) Color(0xFF4EAE7B) else if (wasoValNum <= 60) Color(0xFFE5A643) else Color(0xFFE58B43)
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
+
+                            // Row 2: Deep sleep & REM sleep
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
@@ -249,17 +269,34 @@ fun RestScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
+
+                            // Row 3: Resting HR & HRV (next to Resting HR)
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Resting HR",
-                                    scoreText = if (rhrValNum == null) "" else "$rhrPts/30",
+                                    scoreText = if (rhrValNum == null) "" else "$rhrScorePts/$rhrMax",
                                     primaryValue = rhrVal,
                                     unitText = "",
-                                    progress = if (rhrValNum == null) 0f else (rhrPts / 30f).coerceIn(0f, 1f),
-                                    statusText = if (rhrValNum == null) "No data" else if (rhrPts == 30) "Optimal" else "Attention",
-                                    accentColor = if (rhrValNum == null) Color(0xFF6B7280) else if (rhrPts == 30) Color(0xFF4EAE7B) else Color(0xFFE58B43)
+                                    progress = if (rhrValNum == null) 0f else (rhrScorePts.toFloat() / rhrMax.toFloat()).coerceIn(0f, 1f),
+                                    statusText = if (rhrValNum == null) "No data" else if (rhrScorePts >= (rhrMax * 0.85f)) "Optimal" else if (rhrScorePts >= (rhrMax * 0.5f)) "Steady" else "Attention",
+                                    accentColor = if (rhrValNum == null) Color(0xFF6B7280) else if (rhrScorePts >= (rhrMax * 0.85f)) Color(0xFF4EAE7B) else if (rhrScorePts >= (rhrMax * 0.5f)) Color(0xFFE5A643) else Color(0xFFE58B43)
                                 )
+                                RestFactorTile(
+                                    modifier = Modifier.weight(1f),
+                                    title = "HRV",
+                                    scoreText = hrvScoreText,
+                                    primaryValue = hrvPrimaryVal,
+                                    unitText = "",
+                                    progress = hrvProgress,
+                                    statusText = hrvStatusText,
+                                    accentColor = hrvAccentColor
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Row 4: Skin temp & Resp. rate
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Skin temp",
@@ -270,9 +307,6 @@ fun RestScreen(
                                     statusText = if (b?.get("skin_temp_delta") == null) "No data" else if (tempPts > 0) "Elevated" else "Normal",
                                     accentColor = if (b?.get("skin_temp_delta") == null) Color(0xFF6B7280) else if (tempPts > 0) Color(0xFFE58B43) else Color(0xFF4EAE7B)
                                 )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 val rrValNum = (b?.get("respiratory_rate") as? Number)?.toDouble()
                                 val rrVal = rrValNum?.let { String.format(Locale.US, "%.1f brpm", it) } ?: "No data"
                                 val totalPenalties = (b?.get("penalty_pts") as? Number)?.toInt() ?: 0
@@ -288,7 +322,6 @@ fun RestScreen(
                                     statusText = if (rrValNum == null) "No data" else if (rrPenalty > 0) "Elevated" else "Normal",
                                     accentColor = if (rrValNum == null) Color(0xFF6B7280) else if (rrPenalty > 0) Color(0xFFE58B43) else Color(0xFF4EAE7B)
                                 )
-                                Box(modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -382,6 +415,22 @@ fun RestScreen(
                             showAverageLine = true,
                             averageValue = viewModel.averageRestingHr,
                             unitSuffix = " bpm",
+                            isDecimal = false
+                        )
+                        
+                        RestChartCard(
+                            title = "Heart Rate Variability (ms)",
+                            dates = viewModel.chartDates,
+                            detailedDates = viewModel.chartDetailedDates,
+                            values = viewModel.chartHrv,
+                            chartType = RestChartType.LINE, // Forced line, identical look & feel to RHR
+                            timeRange = viewModel.selectedTimeRange,
+                            startDateLabel = viewModel.startDateLabel,
+                            color = Color(0xFF06B6D4), // Cyan/Teal
+                            showAverageLine = true,
+                            averageValue = viewModel.averageHrv,
+                            isNoData = !viewModel.hasHrvData,
+                            unitSuffix = " ms",
                             isDecimal = false
                         )
                         
@@ -856,7 +905,7 @@ fun RestChartCard(
 
     val isDark = ZivaaTheme.colors.isDark
     val isSevenDays = timeRange == RestTimeRange.SEVEN_DAYS
-    val noDataState = isNoData || (values.all { it == 0f } && (title.contains("Skin Temp", ignoreCase = true) || title.contains("Respiratory", ignoreCase = true)))
+    val noDataState = isNoData || (values.all { it <= 0f } && (title.contains("Skin Temp", ignoreCase = true) || title.contains("Respiratory", ignoreCase = true) || title.contains("HRV", ignoreCase = true) || title.contains("Variability", ignoreCase = true)))
 
     val barThickness = when (timeRange) {
         RestTimeRange.SEVEN_DAYS -> 20.dp
@@ -920,6 +969,7 @@ fun RestChartCard(
             title.contains("Rest Score", ignoreCase = true) -> "Avg ${averageValue.toInt()}"
             title.contains("Sleep", ignoreCase = true) -> "Avg ${String.format(Locale.US, "%.1fh", averageValue)}"
             title.contains("Heart Rate", ignoreCase = true) -> "Avg ${averageValue.toInt()} bpm"
+            title.contains("HRV", ignoreCase = true) || title.contains("Variability", ignoreCase = true) -> "Avg ${averageValue.toInt()} ms"
             else -> "Avg ${String.format(Locale.US, "%.1f", averageValue)}"
         }
         ThresholdLine(

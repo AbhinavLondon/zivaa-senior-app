@@ -110,7 +110,11 @@ fun HealthConnectScreen() {
                         .setConstraints(syncConstraints)
                         .setInputData(syncWorkData)
                         .build()
-                    WorkManager.getInstance(context).enqueue(workRequest)
+                    WorkManager.getInstance(context).enqueueUniqueWork(
+                        "ManualHealthDataSync",
+                        androidx.work.ExistingWorkPolicy.KEEP,
+                        workRequest
+                    )
                     Toast.makeText(context, "Sync started! Check Supabase in a few seconds.", Toast.LENGTH_LONG).show()
                 }) {
                     Text("Sync Data to Supabase")

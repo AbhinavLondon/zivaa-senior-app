@@ -49,6 +49,7 @@ class RestViewModel : ViewModel() {
     var chartSleepRem by mutableStateOf<List<Float>>(emptyList())
     var chartSleepLight by mutableStateOf<List<Float>>(emptyList())
     var chartRestingHr by mutableStateOf<List<Float>>(emptyList())
+    var chartHrv by mutableStateOf<List<Float>>(emptyList())
     var chartSkinTemp by mutableStateOf<List<Float>>(emptyList())
     var chartRespRate by mutableStateOf<List<Float>>(emptyList())
 
@@ -56,10 +57,12 @@ class RestViewModel : ViewModel() {
     var midDateLabel by mutableStateOf("")
     var hasSkinTempData by mutableStateOf(false)
     var hasRespRateData by mutableStateOf(false)
+    var hasHrvData by mutableStateOf(false)
 
     var averageRestScore by mutableStateOf(0f)
     var averageTotalSleep by mutableStateOf(0f)
     var averageRestingHr by mutableStateOf(0f)
+    var averageHrv by mutableStateOf(0f)
 
     fun setTimeRange(range: RestTimeRange) {
         selectedTimeRange = range
@@ -109,6 +112,8 @@ class RestViewModel : ViewModel() {
                         latestVitals.sleepStage5Hours?.let { mergedBreakdown["sleep_stage_5_hours"] = it }
                         latestVitals.sleepStage6Hours?.let { mergedBreakdown["sleep_stage_6_hours"] = it }
                         latestVitals.restingHeartRateCalculated?.let { mergedBreakdown["resting_heart_rate"] = it }
+                        latestVitals.wasoMins?.let { mergedBreakdown["waso_mins"] = it }
+                        latestVitals.hrvRmssdAvg?.let { mergedBreakdown["hrv_rmssd"] = it }
                         
                         if (latestVitals.skinTemperatureDelta == null) {
                             mergedBreakdown.remove("skin_temp_delta")
@@ -215,6 +220,13 @@ class RestViewModel : ViewModel() {
                 val vals = chunk.mapNotNull { it.restingHeartRateCalculated?.toFloat() }.filter { it > 0f }
                 if (vals.isNotEmpty()) vals.average().toFloat() else -1f
             }
+            chartHrv = chunks.map { chunk -> 
+                val vals = chunk.mapNotNull { 
+                    val h = it.hrvRmssdAvg?.toFloat() ?: (scoreMap[it.date.take(10)]?.restBreakdown?.get("hrv_rmssd") as? Number)?.toFloat()
+                    if (h != null && h > 0f) h else null
+                }
+                if (vals.isNotEmpty()) vals.average().toFloat() else -1f
+            }
             chartSkinTemp = chunks.map { chunk -> 
                 val vals = chunk.mapNotNull { it.skinTemperatureDelta?.toFloat() }.filter { it != 0f }
                 if (vals.isNotEmpty()) vals.average().toFloat() else -1f
@@ -226,6 +238,12 @@ class RestViewModel : ViewModel() {
 
             hasSkinTempData = chunks.any { chunk -> chunk.any { it.skinTemperatureDelta != null } }
             hasRespRateData = chunks.any { chunk -> chunk.any { it.respiratoryRateAvg != null && it.respiratoryRateAvg > 0 } }
+            hasHrvData = chunks.any { chunk -> 
+                chunk.any { 
+                    val h = it.hrvRmssdAvg?.toFloat() ?: (scoreMap[it.date.take(10)]?.restBreakdown?.get("hrv_rmssd") as? Number)?.toFloat()
+                    h != null && h > 0f
+                }
+            }
         } else {
             startDateLabel = targetVitalsRaw.firstOrNull()?.let { formatShortDate(it.date) } ?: ""
             midDateLabel = ""
@@ -253,16 +271,25 @@ class RestViewModel : ViewModel() {
             }
             
             chartRestingHr = targetVitalsRaw.map { it.restingHeartRateCalculated?.toFloat() ?: -1f }
-            chartSkinTemp = targetVitalsRaw.map { it.skinTemperatureDelta?.toFloat() ?: -1f }
-            chartRespRate = targetVitalsRaw.map { it.respiratoryRateAvg?.toFloat() ?: -1f }
+            chartHrv = targetVitalsRaw.map { vital -> 
+                val h = vital.hrvRmssdAvg?.toFloat() ?: (scoreMap[vital.date.take(10)]?.restBreakdown?.get("hrv_rmssd") as? Number)?.toFloat()
+                if (h != null && h > 0f) h else -1f
+            }
+            chartSkinTemp = targetVitalsRaw.map { vital -> vital.skinTemperatureDelta?.toFloat() ?: -1f }
+            chartRespRate = targetVitalsRaw.map { vital -> vital.respiratoryRateAvg?.toFloat() ?: -1f }
 
             hasSkinTempData = targetVitalsRaw.any { it.skinTemperatureDelta != null }
             hasRespRateData = targetVitalsRaw.any { it.respiratoryRateAvg != null && it.respiratoryRateAvg > 0 }
+            hasHrvData = targetVitalsRaw.any { vital -> 
+                val h = vital.hrvRmssdAvg?.toFloat() ?: (scoreMap[vital.date.take(10)]?.restBreakdown?.get("hrv_rmssd") as? Number)?.toFloat()
+                h != null && h > 0f
+            }
         }
 
         averageRestScore = chartRestScores.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
         averageTotalSleep = chartTotalSleep.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
         averageRestingHr = chartRestingHr.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
+        averageHrv = chartHrv.filter { it > 0f }.let { if (it.isNotEmpty()) it.average().toFloat() else 0f }
     }
 
     private fun formatShortDate(dateString: String): String {

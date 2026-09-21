@@ -80,26 +80,26 @@ fun RestExplainerScreen(
                 icon = Icons.Default.NightsStay,
                 iconBgColor = Color(0xFF3B82F6).copy(alpha = 0.2f),
                 iconColor = Color(0xFF60A5FA),
-                title = "Sleep Time (Max 40 points)",
-                description = "You earn up to 40 points by getting closer to 8 hours of sleep. Sleeping 6 hours gives you 30 points!"
+                title = "Sleep Time (Max 35 points)",
+                description = "Personalized to your age and gender based on clinical sleep standards (e.g., 7.0 hours for seniors, 7.5 hours for adults). You earn up to 35 points for meeting your nightly target."
             )
 
-            // Factor 2: Sleep Quality
+            // Factor 2: Sleep Quality & WASO
             ExplainerCard(
                 icon = Icons.Default.CheckCircle,
                 iconBgColor = Color(0xFF4EAE7B).copy(alpha = 0.2f),
                 iconColor = Color(0xFF4EAE7B),
-                title = "Sleep Quality (Max 30 points)",
-                description = "This checks your sleep efficiency and if you reached your 1.5-hour target for Deep Sleep and REM Sleep."
+                title = "Sleep Quality & WASO (Max 35 points)",
+                description = "Tracks Wake After Sleep Onset (WASO) for nocturnal awakenings (up to 15 points), plus reaching targets for Deep Sleep (10 pts) and REM Sleep (10 pts)."
             )
 
-            // Factor 3: Resting Heart Rate
+            // Factor 3: Autonomic Recovery
             ExplainerCard(
                 icon = Icons.Rounded.Favorite,
-                iconBgColor = Color(0xFFEF4444).copy(alpha = 0.2f),
-                iconColor = Color(0xFFF87171),
-                title = "Resting HR (Max 30 points)",
-                description = "During sleep, your heart should rest! You get full points if your heart rate is at or below your normal average."
+                iconBgColor = Color(0xFF06B6D4).copy(alpha = 0.2f),
+                iconColor = Color(0xFF06B6D4),
+                title = "Autonomic Recovery (Max 30 points)",
+                description = "Evaluates your nervous system recovery: up to 15 points when Resting HR dips below baseline, and up to 15 points for Heart Rate Variability (HRV RMSSD) recovery. Devices without HRV gracefully receive all 30 points on heart rate."
             )
 
             // Factor 4: Stress Penalties
@@ -108,7 +108,7 @@ fun RestExplainerScreen(
                 iconBgColor = Color(0xFFF59E0B).copy(alpha = 0.2f),
                 iconColor = Color(0xFFFBBF24),
                 title = "Stress Penalties (Up to -30 pts)",
-                description = "If you are fighting an illness or physically strained, your Skin Temperature or Breathing Rate might be high. This will deduct points from your final score."
+                description = "If you are fighting an illness or experiencing stress, nocturnal skin temperature surges, respiratory rate spikes, or extreme hypersomnia (>10.5 hours) deduct points."
             )
             
             Box(

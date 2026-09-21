@@ -21,6 +21,7 @@ class HealthDataSyncWorker(
         private const val TAG = "HealthDataSyncWorker"
         private const val CHUNK_SIZE = 800
         private const val DELETION_CHUNK_SIZE = 50
+        private val syncMutex = kotlinx.coroutines.sync.Mutex()
     }
 
     private var activePatientId: String? = null
@@ -49,6 +50,18 @@ class HealthDataSyncWorker(
     }
 
     override suspend fun doWork(): Result {
+        if (!syncMutex.tryLock()) {
+            android.util.Log.i(TAG, "Another HealthDataSyncWorker is currently running. Skipping duplicate execution.")
+            return Result.success()
+        }
+        return try {
+            doWorkInternal()
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private suspend fun doWorkInternal(): Result {
         val authManager = com.zivaa.app.data.remote.AuthManager.getInstance(applicationContext)
         com.zivaa.app.data.remote.RetrofitClient.initialize(applicationContext)
         val patientId = authManager.getUserId() ?: inputData.getString("patient_id")

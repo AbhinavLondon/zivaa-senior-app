@@ -34,6 +34,7 @@ class HealthHistoricalBackfillWorker(
         private const val TAG = "HealthHistoricalBackfill"
         private const val CHUNK_SIZE = 800
         const val WORK_NAME_PREFIX = "HistoricalBackfill_"
+        private val backfillMutex = kotlinx.coroutines.sync.Mutex()
 
         fun enqueue(context: Context, patientId: String) {
             val constraints = Constraints.Builder()
@@ -43,16 +44,17 @@ class HealthHistoricalBackfillWorker(
 
             val request = OneTimeWorkRequestBuilder<HealthHistoricalBackfillWorker>()
                 .setConstraints(constraints)
-                .setInputData(workDataOf("patient_id" to patientId))
-                .addTag(TAG)
-                .addTag("$WORK_NAME_PREFIX$patientId")
+                .setInputData(
+                    workDataOf("patient_id" to patientId)
+                )
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                "$WORK_NAME_PREFIX$patientId",
-                ExistingWorkPolicy.KEEP,
-                request
-            )
+            WorkManager.getInstance(context)
+                .enqueueUniqueWork(
+                    "$WORK_NAME_PREFIX$patientId",
+                    ExistingWorkPolicy.KEEP,
+                    request
+                )
         }
     }
 
@@ -82,6 +84,18 @@ class HealthHistoricalBackfillWorker(
     }
 
     override suspend fun doWork(): Result {
+        if (!backfillMutex.tryLock()) {
+            android.util.Log.i(TAG, "Another HealthHistoricalBackfillWorker is currently running. Skipping duplicate execution.")
+            return Result.success()
+        }
+        return try {
+            doWorkInternal()
+        } finally {
+            backfillMutex.unlock()
+        }
+    }
+
+    private suspend fun doWorkInternal(): Result {
         val authManager = com.zivaa.app.data.remote.AuthManager.getInstance(applicationContext)
         com.zivaa.app.data.remote.RetrofitClient.initialize(applicationContext)
         val patientId = inputData.getString("patient_id") ?: authManager.getUserId()
@@ -169,6 +183,22 @@ class HealthHistoricalBackfillWorker(
         syncPrefsManager.clearHistoricalLookbackProgress(patientId)
 
         logI("Historical backfill successfully completed for patient $patientId. Total records: $totalRecordsUploaded.")
+        
+        // Notify backend to trigger sliding-window 90-day baseline rollup
+        try {
+            com.zivaa.app.data.remote.ZivaaBackendClient.apiService.syncComplete(
+                com.zivaa.app.data.remote.SyncCompletePayload(
+                    patient_id = patientId,
+                    timezone = java.util.TimeZone.getDefault().id,
+                    sync_type = "HistoricalBackfill",
+                    records_synced = totalRecordsUploaded
+                )
+            )
+            logI("Historical backfill syncComplete notified backend successfully.")
+        } catch (e: Exception) {
+            logW("Failed to notify backend syncComplete for HistoricalBackfill: ${e.message}")
+        }
+
         HealthSyncLogger.log(
             context = applicationContext,
             userId = patientId,

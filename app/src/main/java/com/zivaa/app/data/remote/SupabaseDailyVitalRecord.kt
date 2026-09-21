@@ -87,7 +87,13 @@ data class SupabaseDailyVitalRecord(
     val activeMovementMinutes: Double? = null,
 
     @SerializedName("active_hours_count")
-    val activeHoursCount: Int? = null
+    val activeHoursCount: Int? = null,
+
+    @SerializedName("waso_mins")
+    val wasoMins: Double? = null,
+
+    @SerializedName("hrv_rmssd_avg")
+    val hrvRmssdAvg: Double? = null
 )
 
 @Keep
