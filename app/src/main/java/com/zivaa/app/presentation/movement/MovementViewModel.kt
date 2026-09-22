@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.zivaa.app.data.health.HealthConnectManager
 import com.zivaa.app.data.remote.RetrofitClient
 import com.zivaa.app.data.remote.SupabaseDailyVitalRecord
@@ -264,9 +266,15 @@ class MovementViewModel(
                                 val setup = planSetupResponse.body()!!.first()
                                 goalSteps = setup.stepsGoal
                                 userMovementLevel = setup.movementLevel
+                                if (setup.stepsGoal != null) {
+                                    prefsManager?.saveStepsGoal(setup.stepsGoal!!)
+                                }
+                            } else {
+                                goalSteps = prefsManager?.getStepsGoal() ?: 10000
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("MovementVM", "Error fetching plan setup: ${e.message}")
+                            goalSteps = prefsManager?.getStepsGoal() ?: 10000
                         }
 
                         val currentGoal = goalSteps
@@ -281,6 +289,7 @@ class MovementViewModel(
                         // Background AI insights
                         launchInsights(userId, stepsToday, goalSteps ?: 10000, averageSteps, zone.id, firstName)
                     } else {
+                        goalSteps = prefsManager?.getStepsGoal() ?: 10000
                         val currentGoal = goalSteps
                         if (currentGoal != null) {
                             isGoalMet = stepsToday >= currentGoal
@@ -306,14 +315,30 @@ class MovementViewModel(
                         targetActiveHours = targetActiveHours
                     )
 
+                    val cachedVitals = if (userId != null) {
+                        try {
+                            val cachedJson = prefsManager?.getCachedDailyVitals(userId)
+                            if (!cachedJson.isNullOrBlank()) {
+                                val listType = object : TypeToken<List<SupabaseDailyVitalRecord>>() {}.type
+                                Gson().fromJson<List<SupabaseDailyVitalRecord>>(cachedJson, listType) ?: emptyList()
+                            } else emptyList()
+                        } catch (e: Exception) { emptyList() }
+                    } else emptyList()
+
                     val historicalRecords = if (userId != null) {
                         try {
                             val vitalsResp = RetrofitClient.apiService.getDailyVitals("eq.$userId", limit = 100)
-                            if (vitalsResp.isSuccessful) vitalsResp.body() ?: emptyList() else emptyList()
+                            if (vitalsResp.isSuccessful && !vitalsResp.body().isNullOrEmpty()) {
+                                val list = vitalsResp.body()!!
+                                prefsManager?.saveCachedDailyVitals(Gson().toJson(list), userId)
+                                list
+                            } else {
+                                cachedVitals
+                            }
                         } catch (e: Exception) {
-                            emptyList()
+                            cachedVitals
                         }
-                    } else emptyList()
+                    } else cachedVitals
 
                     populateWeeklyMobilityKPIs(
                         historicalRecords = historicalRecords,
@@ -336,40 +361,63 @@ class MovementViewModel(
             try {
                 val userId = RetrofitClient.authManager?.getUserId()
                 if (userId != null) {
-                    val dbResponse = RetrofitClient.apiService.getDailyVitals("eq.$userId", limit = 100)
-                    if (dbResponse.isSuccessful) {
-                        val records = dbResponse.body() ?: emptyList()
-                        if (records.isNotEmpty()) {
-                            val todayDateStr = today.toString()
-                            val todayRecord = records.find { it.date.take(10) == todayDateStr }
-                            val steps = todayRecord?.totalSteps ?: 0
-                            totalStepsToday = java.text.NumberFormat.getNumberInstance().format(steps)
+                    val cachedVitals = try {
+                        val cachedJson = prefsManager?.getCachedDailyVitals(userId)
+                        if (!cachedJson.isNullOrBlank()) {
+                            val listType = object : TypeToken<List<SupabaseDailyVitalRecord>>() {}.type
+                            Gson().fromJson<List<SupabaseDailyVitalRecord>>(cachedJson, listType) ?: emptyList()
+                        } else emptyList()
+                    } catch (e: Exception) { emptyList() }
 
-                            var userMovementLevel: String? = null
-                            try {
-                                val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
-                                    patientIdQuery = "eq.$userId",
-                                    stepsGoalQuery = "not.is.null"
-                                )
-                                if (planSetupResponse.isSuccessful && planSetupResponse.body()?.isNotEmpty() == true) {
-                                    val setup = planSetupResponse.body()!!.first()
-                                    goalSteps = setup.stepsGoal
-                                    userMovementLevel = setup.movementLevel
+                    val dbResponse = try {
+                        RetrofitClient.apiService.getDailyVitals("eq.$userId", limit = 100)
+                    } catch (e: Exception) { null }
+
+                    val records = if (dbResponse?.isSuccessful == true && !dbResponse.body().isNullOrEmpty()) {
+                        val list = dbResponse.body()!!
+                        prefsManager?.saveCachedDailyVitals(Gson().toJson(list), userId)
+                        list
+                    } else {
+                        cachedVitals
+                    }
+
+                    if (records.isNotEmpty()) {
+                        val todayDateStr = today.toString()
+                        val todayRecord = records.find { it.date.take(10) == todayDateStr }
+                        val steps = todayRecord?.totalSteps ?: 0
+                        totalStepsToday = java.text.NumberFormat.getNumberInstance().format(steps)
+
+                        var userMovementLevel: String? = null
+                        try {
+                            val planSetupResponse = RetrofitClient.apiService.getPlanSetup(
+                                patientIdQuery = "eq.$userId",
+                                stepsGoalQuery = "not.is.null"
+                            )
+                            if (planSetupResponse.isSuccessful && planSetupResponse.body()?.isNotEmpty() == true) {
+                                val setup = planSetupResponse.body()!!.first()
+                                goalSteps = setup.stepsGoal
+                                userMovementLevel = setup.movementLevel
+                                if (setup.stepsGoal != null) {
+                                    prefsManager?.saveStepsGoal(setup.stepsGoal!!)
                                 }
-                            } catch (e: Exception) {
-                                android.util.Log.e("MovementVM", "Error fetching plan setup: ${e.message}")
-                            }
-
-                            val targetActiveHours = if (userMovementLevel?.contains("gentle", ignoreCase = true) == true) 6 else 8
-
-                            val currentGoal = goalSteps
-                            if (currentGoal != null) {
-                                isGoalMet = steps >= currentGoal
-                                overGoalText = if (isGoalMet) "You walked past your goal today, $firstName." else "You are on your way to your goal today, $firstName."
                             } else {
-                                isGoalMet = false
-                                overGoalText = "Set a goal to start tracking your daily progress, $firstName."
+                                goalSteps = prefsManager?.getStepsGoal() ?: 10000
                             }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MovementVM", "Error fetching plan setup: ${e.message}")
+                            goalSteps = prefsManager?.getStepsGoal() ?: 10000
+                        }
+
+                        val targetActiveHours = if (userMovementLevel?.contains("gentle", ignoreCase = true) == true) 6 else 8
+
+                        val currentGoal = goalSteps
+                        if (currentGoal != null) {
+                            isGoalMet = steps >= currentGoal
+                            overGoalText = if (isGoalMet) "You walked past your goal today, $firstName." else "You are on your way to your goal today, $firstName."
+                        } else {
+                            isGoalMet = false
+                            overGoalText = "Set a goal to start tracking your daily progress, $firstName."
+                        }
 
                             val hourlyResponse = RetrofitClient.apiService.getHourlyVitals("eq.$userId", limit = 48)
                             if (hourlyResponse.isSuccessful) {
@@ -440,17 +488,8 @@ class MovementViewModel(
                             averageMobilityScore = 0
                             hourlySteps = hours24Labels.map { it to 0 }
                         }
-                    } else {
-                        weeklySteps = List(7) { "-" to -1 }
-                        weeklyCadence = List(7) { "-" to -1 }
-                        weeklyActiveMinutes = List(7) { "-" to -1.0 }
-                        weeklyActiveHours = List(7) { "-" to -1 }
-                        weeklyMobilityScore = List(7) { "-" to -1 }
-                        averageMobilityScore = 0
-                        hourlySteps = hours24Labels.map { it to 0 }
                     }
-                }
-            } catch (e: Exception) {
+                } catch (e: Exception) {
                 e.printStackTrace()
                 totalStepsToday = "0"
                 weeklySteps = List(7) { "-" to -1 }

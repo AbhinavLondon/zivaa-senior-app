@@ -8,6 +8,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -363,6 +365,15 @@ fun HeartRateScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
+
+                    var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
+                    LaunchedEffect(viewModel.selectedTimeRange) {
+                        selectedDayIndex = null
+                    }
+                    val onDaySelected: (Int?) -> Unit = { idx ->
+                        selectedDayIndex = idx
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -382,7 +393,9 @@ fun HeartRateScreen(
                             showAverageLine = true,
                             averageValue = viewModel.averageHeartScore,
                             unitSuffix = "",
-                            isDecimal = false
+                            isDecimal = false,
+                            selectedIndex = selectedDayIndex,
+                            onIndexSelected = onDaySelected
                         )
 
                         // Graph 2: Resting Heart Rate (Forced LINE like RestScreen)
@@ -398,7 +411,9 @@ fun HeartRateScreen(
                             showAverageLine = true,
                             averageValue = viewModel.averageRestingHr,
                             unitSuffix = " bpm",
-                            isDecimal = false
+                            isDecimal = false,
+                            selectedIndex = selectedDayIndex,
+                            onIndexSelected = onDaySelected
                         )
 
                         // Graph 3: Heart Rate Variability (Forced LINE like RestScreen)
@@ -415,7 +430,9 @@ fun HeartRateScreen(
                             averageValue = viewModel.averageHrv,
                             isNoData = !viewModel.hasHrvData,
                             unitSuffix = " ms",
-                            isDecimal = false
+                            isDecimal = false,
+                            selectedIndex = selectedDayIndex,
+                            onIndexSelected = onDaySelected
                         )
 
                         // Graph 4: Heart Rate Range (Floating min-max candles + daily avg HR overlay + period avg HR line)
@@ -431,7 +448,9 @@ fun HeartRateScreen(
                             timeRange = viewModel.selectedTimeRange,
                             startDateLabel = viewModel.startDateLabel,
                             overallAverageAvgHr = viewModel.averageDailyAvgHr,
-                            color = Color(0xFF8B5CF6)
+                            color = Color(0xFF8B5CF6),
+                            selectedIndex = selectedDayIndex,
+                            onIndexSelected = onDaySelected
                         )
 
                         // Graph 5: Where It Spent The Day (Stacked Days Distribution Chart)
@@ -444,7 +463,9 @@ fun HeartRateScreen(
                             startDateLabel = viewModel.startDateLabel,
                             restingPct = viewModel.chartZoneResting,
                             moderatePct = viewModel.chartZoneModerate,
-                            peakPct = viewModel.chartZonePeak
+                            peakPct = viewModel.chartZonePeak,
+                            selectedIndex = selectedDayIndex,
+                            onIndexSelected = onDaySelected
                         )
 
                         Spacer(modifier = Modifier.height(140.dp))
@@ -958,7 +979,9 @@ fun HeartChartCard(
     averageValue: Float = 0f,
     isNoData: Boolean = false,
     unitSuffix: String = "",
-    isDecimal: Boolean = false
+    isDecimal: Boolean = false,
+    selectedIndex: Int? = null,
+    onIndexSelected: ((Int?) -> Unit)? = null
 ) {
     if (dates.isEmpty() && values.isEmpty()) return
 
@@ -966,56 +989,7 @@ fun HeartChartCard(
     val isSevenDays = timeRange == HeartTimeRange.SEVEN_DAYS
     val noDataState = isNoData || (values.all { it <= 0f } && title.contains("HRV", ignoreCase = true))
 
-    val barThickness = when (timeRange) {
-        HeartTimeRange.SEVEN_DAYS -> 20.dp
-        HeartTimeRange.THIRTY_DAYS -> 7.dp
-        HeartTimeRange.THREE_MONTHS -> 16.dp
-    }
-    val barSpacing = when (timeRange) {
-        HeartTimeRange.SEVEN_DAYS -> 14.dp
-        HeartTimeRange.THIRTY_DAYS -> 2.5.dp
-        HeartTimeRange.THREE_MONTHS -> 6.dp
-    }
-
-    val chartEntryModel = if (chartType == HeartChartType.LINE) {
-        val seriesList = mutableListOf<List<FloatEntry>>()
-        var currentSeries = mutableListOf<FloatEntry>()
-        values.forEachIndexed { index, value ->
-            if (value >= -0.1f) {
-                currentSeries.add(FloatEntry(x = index.toFloat(), y = value))
-            } else {
-                if (currentSeries.isNotEmpty()) {
-                    seriesList.add(currentSeries)
-                    currentSeries = mutableListOf()
-                }
-            }
-        }
-        if (currentSeries.isNotEmpty()) seriesList.add(currentSeries)
-        if (seriesList.isEmpty()) seriesList.add(listOf(FloatEntry(0f, 0f)))
-        entryModelOf(*seriesList.toTypedArray())
-    } else {
-        val series = values.mapIndexed { index, value ->
-            List(values.size) { i -> FloatEntry(x = i.toFloat(), y = if (i == index) value else 0f) }
-        }
-        entryModelOf(*series.toTypedArray())
-    }
-
     val isHeartScoreCard = title.contains("Heart Health Score", ignoreCase = true) || title.contains("Heart Score", ignoreCase = true)
-
-    val pastBarColor = if (isDark) Color(0xFF4A4E58) else Color(0xFFB8B0A2)
-    val columns = List(values.size) { index ->
-        val barColor = if (isHeartScoreCard) {
-            val barVal = values.getOrNull(index)?.roundToInt() ?: 0
-            if (barVal <= 0) {
-                pastBarColor
-            } else {
-                getHeartScoreTierInfo(barVal).second
-            }
-        } else {
-            if (index == values.size - 1) color else pastBarColor
-        }
-        lineComponent(color = barColor, thickness = barThickness, shape = Shapes.pillShape)
-    }
 
     val chartMax = (values.maxOrNull() ?: 0f) * 1.15f
     val plotAreaHeightDp = 150.dp
@@ -1024,6 +998,10 @@ fun HeartChartCard(
         HeartTimeRange.THIRTY_DAYS -> "30 Days"
         HeartTimeRange.THREE_MONTHS -> "3 Months"
     }
+
+    val selVal = selectedIndex?.let { values.getOrNull(it) }?.takeIf { it > 0f }
+    val selDate = selectedIndex?.let { idx -> detailedDates.getOrNull(idx) ?: dates.getOrNull(idx) ?: "" } ?: ""
+    val hasSelData = selectedIndex != null && selVal != null && selVal > 0f
 
     val heroValue = if (isHeartScoreCard) {
         if (averageValue > 0f) averageValue else {
@@ -1062,32 +1040,6 @@ fun HeartChartCard(
         }
     }
 
-    val avgLine = if (showAverageLine && averageValue > 0f) {
-        val avgLabelText = when {
-            title.contains("Heart Health Score", ignoreCase = true) -> "Avg ${averageValue.toInt()}"
-            title.contains("Heart Rate", ignoreCase = true) -> "Avg ${averageValue.toInt()} bpm"
-            title.contains("HRV", ignoreCase = true) -> "Avg ${averageValue.toInt()} ms"
-            else -> "Avg ${String.format(Locale.US, "%.1f", averageValue)}"
-        }
-        ThresholdLine(
-            thresholdValue = averageValue,
-            lineComponent = lineComponent(
-                color = ZivaaTheme.colors.ink.copy(alpha = 0.35f),
-                thickness = 1.dp,
-                shape = DashedShape(shape = Shapes.rectShape, dashLengthDp = 4f, gapLengthDp = 4f)
-            ),
-            labelComponent = textComponent(
-                color = ZivaaTheme.colors.textBody,
-                textSize = 9.5.sp,
-                margins = dimensionsOf(bottom = 4.dp)
-            ),
-            labelHorizontalPosition = ThresholdLine.LabelHorizontalPosition.Start,
-            thresholdLabel = avgLabelText
-        )
-    } else null
-
-    val decorations = if (avgLine != null) listOf(avgLine) else emptyList()
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1112,7 +1064,74 @@ fun HeartChartCard(
             )
             Spacer(modifier = Modifier.height(14.dp))
             Column(modifier = Modifier.padding(bottom = 18.dp)) {
-                if (noDataState) {
+                if (selectedIndex != null) {
+                    if (hasSelData) {
+                        val selScoreInt = selVal!!.roundToInt()
+                        val (selTagText, selTagColor) = if (isHeartScoreCard) getHeartScoreTierInfo(selScoreInt) else "" to color
+                        val selFormatted = if (isDecimal) String.format(Locale.US, "%.1f", selVal) else if (selVal % 1 == 0f) selVal.toInt().toString() else String.format(Locale.US, "%.1f", selVal)
+                        if (isHeartScoreCard) {
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "$selFormatted$unitSuffix",
+                                    style = ZivaaTheme.typography.displayLarge.copy(
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = selTagColor
+                                    )
+                                )
+                                Text(
+                                    text = selTagText,
+                                    style = ZivaaTheme.typography.bodyLarge.copy(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = selTagColor
+                                    ),
+                                    modifier = Modifier.padding(bottom = 5.dp)
+                                )
+                            }
+                            Text(
+                                text = "$selDate · score",
+                                style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = ZivaaTheme.colors.inkMute
+                            )
+                        } else {
+                            Text(
+                                text = "$selFormatted$unitSuffix",
+                                style = ZivaaTheme.typography.displayLarge.copy(
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = color
+                                )
+                            )
+                            Text(
+                                text = when {
+                                    title.contains("Resting", ignoreCase = true) -> "$selDate · resting rate"
+                                    title.contains("Variability", ignoreCase = true) -> "$selDate · HRV"
+                                    else -> "$selDate · reading"
+                                },
+                                style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = ZivaaTheme.colors.inkMute
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "No data",
+                            style = ZivaaTheme.typography.displayLarge.copy(
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6B7280)
+                            )
+                        )
+                        Text(
+                            text = "$selDate · no readings recorded",
+                            style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = ZivaaTheme.colors.inkMute
+                        )
+                    }
+                } else if (noDataState) {
                     Text(
                         text = "No data",
                         style = ZivaaTheme.typography.displayLarge.copy(
@@ -1193,49 +1212,267 @@ fun HeartChartCard(
                         )
                     }
                 } else {
-                    Chart(
-                        modifier = Modifier.fillMaxSize(),
-                        chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
-                        chart = if (chartType == HeartChartType.BAR) {
-                            columnChart(
-                                columns = columns,
-                                mergeMode = MergeMode.Stack,
-                                spacing = barSpacing,
-                                decorations = decorations,
-                                axisValuesOverrider = AxisValuesOverrider.fixed(
-                                    minY = 0f,
-                                    maxY = if (chartMax > 0f) chartMax else 10f
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val density = LocalDensity.current
+                        val sageColor = ZivaaTheme.colors.sage
+                        val inkColor = ZivaaTheme.colors.ink
+                        val widthPx = constraints.maxWidth.toFloat()
+                        val heightPx = constraints.maxHeight.toFloat()
+                        val n = values.size
+                        if (n == 0) return@BoxWithConstraints
+
+                        val barWidthPx = with(density) {
+                            when (timeRange) {
+                                HeartTimeRange.SEVEN_DAYS -> 20.dp.toPx()
+                                HeartTimeRange.THIRTY_DAYS -> 7.dp.toPx()
+                                HeartTimeRange.THREE_MONTHS -> 16.dp.toPx()
+                            }
+                        }
+
+                        val topPad = with(density) { 8.dp.toPx() }
+                        val bottomPad = with(density) { 6.dp.toPx() }
+                        val plotH = heightPx - topPad - bottomPad
+
+                        val yMax = if (chartMax > 0f) chartMax else 10f
+                        fun getY(v: Float): Float {
+                            val fraction = (v / yMax).coerceIn(0f, 1f)
+                            return topPad + (plotH - (fraction * plotH))
+                        }
+
+                        val slopPx = with(density) { 8.dp.toPx() }
+
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(n, selectedIndex) {
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        val colW = size.width / n.toFloat()
+                                        val downIdx = (down.position.x / colW).toInt().coerceIn(0, n - 1)
+                                        var isDrag = false
+
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            if (!change.pressed) {
+                                                if (!isDrag) {
+                                                    val newIdx = if (selectedIndex == downIdx) null else downIdx
+                                                    onIndexSelected?.invoke(newIdx)
+                                                }
+                                                break
+                                            } else {
+                                                val movedX = kotlin.math.abs(change.position.x - down.position.x)
+                                                if (movedX > slopPx || isDrag) {
+                                                    isDrag = true
+                                                    change.consume()
+                                                    val dragIdx = (change.position.x / colW).toInt().coerceIn(0, n - 1)
+                                                    onIndexSelected?.invoke(dragIdx)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                        ) {
+                            // Period Average Dashed Line
+                            if (showAverageLine && averageValue > 0f) {
+                                val avgY = getY(averageValue)
+                                drawLine(
+                                    color = inkColor.copy(alpha = 0.35f),
+                                    start = Offset(0f, avgY),
+                                    end = Offset(widthPx, avgY),
+                                    strokeWidth = 1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
                                 )
-                            )
-                        } else {
-                            lineChart(
-                                lines = List(chartEntryModel.entries.size) {
-                                    lineSpec(
-                                        lineColor = color,
-                                        lineBackgroundShader = null,
-                                        lineThickness = 3.dp,
-                                        point = shapeComponent(shape = Shapes.pillShape, color = color),
-                                        pointSize = 6.dp
+                            }
+
+                            // Active highlight stripe behind selected column
+                            if (selectedIndex != null) {
+                                val selIdx = selectedIndex
+                                val colW = widthPx / n.toFloat()
+                                val selCx = colW * (selIdx.toFloat() + 0.5f)
+                                drawRoundRect(
+                                    color = color.copy(alpha = 0.09f),
+                                    topLeft = Offset(selCx - colW * 0.46f, topPad),
+                                    size = Size(colW * 0.92f, plotH),
+                                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                                )
+                                drawLine(
+                                    color = sageColor.copy(alpha = 0.55f),
+                                    start = Offset(selCx, topPad),
+                                    end = Offset(selCx, topPad + plotH),
+                                    strokeWidth = 1.5.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                                )
+                            }
+
+                            val pastBarColor = if (isDark) Color(0xFF4A4E58) else Color(0xFFB8B0A2)
+
+                            if (chartType == HeartChartType.BAR) {
+                                for (i in 0 until n) {
+                                    val v = values.getOrNull(i) ?: 0f
+                                    val colW = widthPx / n.toFloat()
+                                    val cx = colW * (i.toFloat() + 0.5f)
+
+                                    if (v > 0f) {
+                                        val topY = getY(v)
+                                        val isSelected = (selectedIndex != null && i == selectedIndex)
+                                        val isToday = (selectedIndex == null && i == n - 1)
+
+                                        val barColor = if (isHeartScoreCard) {
+                                            val tierColor = getHeartScoreTierInfo(v.roundToInt()).second
+                                            when {
+                                                isSelected -> tierColor
+                                                selectedIndex != null -> tierColor.copy(alpha = 0.35f)
+                                                else -> tierColor
+                                            }
+                                        } else {
+                                            when {
+                                                isSelected -> color
+                                                isToday -> color
+                                                selectedIndex != null -> pastBarColor.copy(alpha = 0.35f)
+                                                else -> pastBarColor
+                                            }
+                                        }
+
+                                        val barH = maxOf(plotH - (topY - topPad), barWidthPx)
+                                        drawRoundRect(
+                                            color = barColor,
+                                            topLeft = Offset(cx - barWidthPx / 2f, topY),
+                                            size = Size(barWidthPx, barH),
+                                            cornerRadius = CornerRadius(barWidthPx / 2f, barWidthPx / 2f)
+                                        )
+
+                                        if (isSelected) {
+                                            val haloColor = if (isHeartScoreCard) getHeartScoreTierInfo(v.roundToInt()).second else color
+                                            drawRoundRect(
+                                                color = haloColor.copy(alpha = 0.25f),
+                                                topLeft = Offset(cx - (barWidthPx + 4.dp.toPx()) / 2f, topY - 2.dp.toPx()),
+                                                size = Size(barWidthPx + 4.dp.toPx(), barH + 4.dp.toPx()),
+                                                cornerRadius = CornerRadius((barWidthPx + 4.dp.toPx()) / 2f, (barWidthPx + 4.dp.toPx()) / 2f),
+                                                style = Stroke(width = 1.5.dp.toPx())
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Line chart
+                                val validPoints = mutableListOf<Pair<Int, Offset>>()
+                                for (i in 0 until n) {
+                                    val v = values.getOrNull(i) ?: -1f
+                                    if (v > 0f) {
+                                        val colW = widthPx / n.toFloat()
+                                        val cx = colW * (i.toFloat() + 0.5f)
+                                        val cy = getY(v)
+                                        validPoints.add(i to Offset(cx, cy))
+                                    }
+                                }
+
+                                if (validPoints.size > 1) {
+                                    val path = Path().apply {
+                                        moveTo(validPoints.first().second.x, validPoints.first().second.y)
+                                        for (p in validPoints.drop(1)) {
+                                            lineTo(p.second.x, p.second.y)
+                                        }
+                                    }
+                                    drawPath(
+                                        path = path,
+                                        color = color.copy(alpha = if (selectedIndex != null) 0.6f else 1f),
+                                        style = Stroke(width = 2.5.dp.toPx())
                                     )
-                                },
-                                decorations = decorations,
-                                axisValuesOverrider = AxisValuesOverrider.fixed(
-                                    minY = 0f,
-                                    maxY = if (chartMax > 0f) chartMax else 10f
-                                )
-                            )
-                        },
-                        model = chartEntryModel,
-                        marker = rememberHeartMarker(
-                            dates = detailedDates.ifEmpty { dates },
-                            unitSuffix = unitSuffix,
-                            isDecimal = isDecimal,
-                            title = title,
-                            chartType = chartType
-                        ),
-                        startAxis = null,
-                        bottomAxis = null
-                    )
+                                }
+
+                                for ((idx, p) in validPoints) {
+                                    val isPointSelected = selectedIndex != null && idx == selectedIndex
+                                    if (isPointSelected) {
+                                        drawCircle(color = Color.White, radius = 5.5.dp.toPx(), center = p)
+                                        drawCircle(color = color, radius = 3.5.dp.toPx(), center = p)
+                                    } else {
+                                        drawCircle(color = Color.White, radius = 3.5.dp.toPx(), center = p)
+                                        drawCircle(color = color.copy(alpha = if (selectedIndex != null) 0.5f else 1f), radius = 2.2.dp.toPx(), center = p)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Floating Tooltip Marker Overlay
+                        if (selectedIndex != null) {
+                            val selIdx = selectedIndex
+                            val colW = widthPx / n.toFloat()
+                            val cxPx = colW * (selIdx.toFloat() + 0.5f)
+                            val cxDp = with(density) { cxPx.toDp() }
+                            val tooltipWidth = 140.dp
+                            val leftOffsetDp = (cxDp - tooltipWidth / 2f).coerceIn(0.dp, maxWidth - tooltipWidth)
+
+                            val targetV = selVal
+                            val topY = if (targetV != null) getY(targetV) else (topPad + plotH / 2f)
+                            val tooltipHeightPx = with(density) { 46.dp.toPx() }
+                            val minGapPx = with(density) { 6.dp.toPx() }
+                            val minTopPx = with(density) { 2.dp.toPx() }
+                            val targetTopY = (topY - tooltipHeightPx - minGapPx).coerceAtLeast(minTopPx)
+                            val topOffsetDp = with(density) { targetTopY.toDp() }
+
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = leftOffsetDp, y = topOffsetDp)
+                                    .width(tooltipWidth)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(10.dp),
+                                        ambientColor = if (isDark) Color.Black else Color(0x18000000),
+                                        spotColor = if (isDark) Color.Black else Color(0x28000000)
+                                    )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isDark) Color(0xFF242830) else Color(0xFFFFFFFF))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isDark) Color(0xFF3F4450) else Color(0xFFE5E7EB),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (hasSelData) {
+                                        val formattedVal = if (isDecimal) String.format(Locale.US, "%.1f%s", selVal!!, unitSuffix) else "${selVal!!.toInt()}$unitSuffix"
+                                        val valueTextColor = if (isHeartScoreCard) getHeartScoreTierInfo(selVal!!.roundToInt()).second else color
+                                        Text(
+                                            text = formattedVal,
+                                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            color = valueTextColor,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = if (isHeartScoreCard) "${getHeartScoreTierInfo(selVal!!.roundToInt()).first} · $selDate" else selDate,
+                                            style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp),
+                                            color = ZivaaTheme.colors.inkMute,
+                                            maxLines = 1
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "No readings",
+                                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = Color(0xFF6B7280),
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = selDate,
+                                            style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp),
+                                            color = ZivaaTheme.colors.inkMute,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1243,7 +1480,11 @@ fun HeartChartCard(
                 HeartChartAxisRow(
                     timeRange = timeRange,
                     startLabel = startDateLabel,
-                    labels = dates
+                    labels = dates,
+                    selectedIndex = selectedIndex,
+                    onIndexSelected = if (onIndexSelected != null) { idx ->
+                        onIndexSelected(if (selectedIndex == idx) null else idx)
+                    } else null
                 )
             }
         }
@@ -1263,18 +1504,14 @@ fun HeartRangeChartCard(
     timeRange: HeartTimeRange = HeartTimeRange.SEVEN_DAYS,
     startDateLabel: String = "",
     overallAverageAvgHr: Float = 0f,
-    color: Color = Color(0xFF8B5CF6)
+    color: Color = Color(0xFF8B5CF6),
+    selectedIndex: Int? = null,
+    onIndexSelected: ((Int?) -> Unit)? = null
 ) {
     if (dates.isEmpty() && minValues.isEmpty()) return
 
     val isDark = ZivaaTheme.colors.isDark
     val isSevenDays = timeRange == HeartTimeRange.SEVEN_DAYS
-
-    var selectedIndex by remember { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(timeRange) {
-        selectedIndex = null
-    }
 
     val validSpans = spanValues.filter { it > 0f }
     val latestSpan = validSpans.lastOrNull() ?: 0f
@@ -1407,38 +1644,38 @@ fun HeartRangeChartCard(
                     return topPad + (plotH - (fraction * plotH))
                 }
 
+                val slopPx = with(density) { 8.dp.toPx() }
+
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(n) {
-                            detectTapGestures(
-                                onPress = { offset ->
-                                    val colW = size.width / n.toFloat()
-                                    val idx = (offset.x / colW).toInt().coerceIn(0, n - 1)
-                                    selectedIndex = idx
-                                    tryAwaitRelease()
-                                },
-                                onTap = { offset ->
-                                    val colW = size.width / n.toFloat()
-                                    val idx = (offset.x / colW).toInt().coerceIn(0, n - 1)
-                                    selectedIndex = idx
+                        .pointerInput(n, selectedIndex) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val colW = size.width / n.toFloat()
+                                val downIdx = (down.position.x / colW).toInt().coerceIn(0, n - 1)
+                                var isDrag = false
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    if (!change.pressed) {
+                                        if (!isDrag) {
+                                            val newIdx = if (selectedIndex == downIdx) null else downIdx
+                                            onIndexSelected?.invoke(newIdx)
+                                        }
+                                        break
+                                    } else {
+                                        val movedX = kotlin.math.abs(change.position.x - down.position.x)
+                                        if (movedX > slopPx || isDrag) {
+                                            isDrag = true
+                                            change.consume()
+                                            val dragIdx = (change.position.x / colW).toInt().coerceIn(0, n - 1)
+                                            onIndexSelected?.invoke(dragIdx)
+                                        }
+                                    }
                                 }
-                            )
-                        }
-                        .pointerInput(n) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    val colW = size.width / n.toFloat()
-                                    val idx = (offset.x / colW).toInt().coerceIn(0, n - 1)
-                                    selectedIndex = idx
-                                },
-                                onHorizontalDrag = { change, _ ->
-                                    change.consume()
-                                    val colW = size.width / n.toFloat()
-                                    val idx = (change.position.x / colW).toInt().coerceIn(0, n - 1)
-                                    selectedIndex = idx
-                                }
-                            )
+                            }
                         }
                 ) {
                     // Period Average Dashed Line
@@ -1658,9 +1895,9 @@ fun HeartRangeChartCard(
                 startLabel = startDateLabel,
                 labels = dates,
                 selectedIndex = selectedIndex,
-                onIndexSelected = { idx ->
-                    selectedIndex = if (selectedIndex == idx) null else idx
-                }
+                onIndexSelected = if (onIndexSelected != null) { idx ->
+                    onIndexSelected(if (selectedIndex == idx) null else idx)
+                } else null
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -1704,18 +1941,6 @@ fun HeartRangeChartCard(
                         color = ZivaaTheme.colors.textBody
                     )
                 }
-                if (selectedIndex != null) {
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "Reset",
-                        style = ZivaaTheme.typography.meta.copy(
-                            fontSize = 11.5.sp,
-                            color = ZivaaTheme.colors.sage,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        modifier = Modifier.clickable { selectedIndex = null }
-                    )
-                }
             }
         }
     }
@@ -1731,28 +1956,13 @@ fun HeartZonesChartCard(
     startDateLabel: String = "",
     restingPct: List<Float>,
     moderatePct: List<Float>,
-    peakPct: List<Float>
+    peakPct: List<Float>,
+    selectedIndex: Int? = null,
+    onIndexSelected: ((Int?) -> Unit)? = null
 ) {
     if (dates.isEmpty() || restingPct.isEmpty()) return
 
     val isDark = ZivaaTheme.colors.isDark
-
-    val barThickness = when (timeRange) {
-        HeartTimeRange.SEVEN_DAYS -> 20.dp
-        HeartTimeRange.THIRTY_DAYS -> 7.dp
-        HeartTimeRange.THREE_MONTHS -> 16.dp
-    }
-    val barSpacing = when (timeRange) {
-        HeartTimeRange.SEVEN_DAYS -> 14.dp
-        HeartTimeRange.THIRTY_DAYS -> 2.5.dp
-        HeartTimeRange.THREE_MONTHS -> 6.dp
-    }
-
-    val pointSize = when (timeRange) {
-        HeartTimeRange.SEVEN_DAYS -> 5.dp
-        HeartTimeRange.THIRTY_DAYS -> 3.dp
-        HeartTimeRange.THREE_MONTHS -> 4.dp
-    }
 
     val rangeLabel = when (timeRange) {
         HeartTimeRange.SEVEN_DAYS -> "7 Days"
@@ -1765,51 +1975,10 @@ fun HeartZonesChartCard(
     val moderateColor = Color(0xFF3B82F6) // Steady Blue (75–105 bpm)
     val peakColor = Color(0xFFEF4444) // Elevated Red (>105 bpm)
 
-    val totalSeriesList = mutableListOf<List<FloatEntry>>()
-    val moderateSeriesList = mutableListOf<List<FloatEntry>>()
-    val restingSeriesList = mutableListOf<List<FloatEntry>>()
-
-    val chartModel = if (chartType == HeartChartType.BAR) {
-        val restingEntries = restingPct.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-        val moderateEntries = moderatePct.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-        val peakEntries = peakPct.mapIndexed { index, value -> FloatEntry(x = index.toFloat(), y = value) }
-        entryModelOf(restingEntries, moderateEntries, peakEntries)
-    } else {
-        var curTotal = mutableListOf<FloatEntry>()
-        var curMod = mutableListOf<FloatEntry>()
-        var curRest = mutableListOf<FloatEntry>()
-
-        (0 until restingPct.size).forEach { index ->
-            val r = restingPct.getOrElse(index) { 0f }
-            val m = moderatePct.getOrElse(index) { 0f }
-            val p = peakPct.getOrElse(index) { 0f }
-
-            if (r >= 0f && m >= 0f && p >= 0f) {
-                curTotal.add(FloatEntry(x = index.toFloat(), y = r + m + p))
-            } else {
-                if (curTotal.isNotEmpty()) { totalSeriesList.add(curTotal); curTotal = mutableListOf() }
-            }
-            if (r >= 0f && m >= 0f) {
-                curMod.add(FloatEntry(x = index.toFloat(), y = r + m))
-            } else {
-                if (curMod.isNotEmpty()) { moderateSeriesList.add(curMod); curMod = mutableListOf() }
-            }
-            if (r >= 0f) {
-                curRest.add(FloatEntry(x = index.toFloat(), y = r))
-            } else {
-                if (curRest.isNotEmpty()) { restingSeriesList.add(curRest); curRest = mutableListOf() }
-            }
-        }
-        if (curTotal.isNotEmpty()) totalSeriesList.add(curTotal)
-        if (curMod.isNotEmpty()) moderateSeriesList.add(curMod)
-        if (curRest.isNotEmpty()) restingSeriesList.add(curRest)
-
-        if (totalSeriesList.isEmpty()) totalSeriesList.add(listOf(FloatEntry(0f, 0f)))
-        if (moderateSeriesList.isEmpty()) moderateSeriesList.add(listOf(FloatEntry(0f, 0f)))
-        if (restingSeriesList.isEmpty()) restingSeriesList.add(listOf(FloatEntry(0f, 0f)))
-
-        entryModelOf(*(totalSeriesList + moderateSeriesList + restingSeriesList).toTypedArray())
-    }
+    val selR = selectedIndex?.let { restingPct.getOrNull(it) }?.roundToInt() ?: 0
+    val selM = selectedIndex?.let { moderatePct.getOrNull(it) }?.roundToInt() ?: 0
+    val selP = selectedIndex?.let { peakPct.getOrNull(it) }?.roundToInt() ?: 0
+    val selDate = selectedIndex?.let { idx -> detailedDates.getOrNull(idx) ?: dates.getOrNull(idx) ?: "" } ?: ""
 
     Box(
         modifier = Modifier
@@ -1834,28 +2003,57 @@ fun HeartZonesChartCard(
                 color = ZivaaTheme.colors.eyebrow
             )
             Spacer(modifier = Modifier.height(14.dp))
-            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(restingColor))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Resting (<75 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
+            if (selectedIndex != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(restingColor))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Resting $selR%", color = restingColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(moderateColor))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Active $selM%", color = moderateColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(peakColor))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Peak $selP%", color = peakColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Text(selDate, color = ZivaaTheme.colors.sage, fontSize = 11.5.sp, fontWeight = FontWeight.Medium)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(moderateColor))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Active (75–105 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(peakColor))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Peak (>105 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
+            } else {
+                @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(restingColor))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Resting (<75 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(moderateColor))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Active (75–105 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(peakColor))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Peak (>105 bpm)", color = ZivaaTheme.colors.inkMute, fontSize = 12.sp)
+                    }
                 }
             }
 
@@ -1864,86 +2062,231 @@ fun HeartZonesChartCard(
                     .fillMaxWidth()
                     .height(plotAreaHeightDp)
             ) {
-                Chart(
-                    modifier = Modifier.fillMaxSize(),
-                    chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false),
-                    chart = if (chartType == HeartChartType.BAR) {
-                        columnChart(
-                            columns = listOf(
-                                lineComponent(color = restingColor, thickness = barThickness),
-                                lineComponent(color = moderateColor, thickness = barThickness),
-                                lineComponent(
-                                    color = peakColor,
-                                    thickness = barThickness,
-                                    shape = Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val density = LocalDensity.current
+                    val sageColor = ZivaaTheme.colors.sage
+                    val widthPx = constraints.maxWidth.toFloat()
+                    val heightPx = constraints.maxHeight.toFloat()
+                    val n = restingPct.size
+                    if (n == 0) return@BoxWithConstraints
+
+                    val barWidthPx = with(density) {
+                        when (timeRange) {
+                            HeartTimeRange.SEVEN_DAYS -> 20.dp.toPx()
+                            HeartTimeRange.THIRTY_DAYS -> 7.dp.toPx()
+                            HeartTimeRange.THREE_MONTHS -> 16.dp.toPx()
+                        }
+                    }
+
+                    val topPad = with(density) { 8.dp.toPx() }
+                    val bottomPad = with(density) { 6.dp.toPx() }
+                    val plotH = heightPx - topPad - bottomPad
+
+                    fun getY(v: Float): Float {
+                        val fraction = (v / 100f).coerceIn(0f, 1f)
+                        return topPad + (plotH - (fraction * plotH))
+                    }
+
+                    val slopPx = with(density) { 8.dp.toPx() }
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(n, selectedIndex) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val colW = size.width / n.toFloat()
+                                    val downIdx = (down.position.x / colW).toInt().coerceIn(0, n - 1)
+                                    var isDrag = false
+
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull() ?: break
+                                        if (!change.pressed) {
+                                            if (!isDrag) {
+                                                val newIdx = if (selectedIndex == downIdx) null else downIdx
+                                                onIndexSelected?.invoke(newIdx)
+                                            }
+                                            break
+                                        } else {
+                                            val movedX = kotlin.math.abs(change.position.x - down.position.x)
+                                            if (movedX > slopPx || isDrag) {
+                                                isDrag = true
+                                                change.consume()
+                                                val dragIdx = (change.position.x / colW).toInt().coerceIn(0, n - 1)
+                                                onIndexSelected?.invoke(dragIdx)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                    ) {
+                        // Active highlight stripe behind selected column
+                        if (selectedIndex != null) {
+                            val selIdx = selectedIndex
+                            val colW = widthPx / n.toFloat()
+                            val selCx = colW * (selIdx.toFloat() + 0.5f)
+                            drawRoundRect(
+                                color = sageColor.copy(alpha = 0.09f),
+                                topLeft = Offset(selCx - colW * 0.46f, topPad),
+                                size = Size(colW * 0.92f, plotH),
+                                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                            )
+                            drawLine(
+                                color = sageColor.copy(alpha = 0.55f),
+                                start = Offset(selCx, topPad),
+                                end = Offset(selCx, topPad + plotH),
+                                strokeWidth = 1.5.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                            )
+                        }
+
+                        for (i in 0 until n) {
+                            val r = restingPct.getOrNull(i) ?: 0f
+                            val m = moderatePct.getOrNull(i) ?: 0f
+                            val p = peakPct.getOrNull(i) ?: 0f
+                            val total = r + m + p
+
+                            val colW = widthPx / n.toFloat()
+                            val cx = colW * (i.toFloat() + 0.5f)
+                            val isSelected = (selectedIndex != null && i == selectedIndex)
+                            val dimAlpha = if (selectedIndex != null && !isSelected) 0.35f else 1f
+
+                            if (total > 0f) {
+                                val rH = (r / 100f) * plotH
+                                val mH = (m / 100f) * plotH
+                                val pH = (p / 100f) * plotH
+                                val totalH = rH + mH + pH
+                                val botY = topPad + plotH
+
+                                // Resting (bottom)
+                                if (rH > 0f) {
+                                    drawRoundRect(
+                                        color = restingColor.copy(alpha = dimAlpha),
+                                        topLeft = Offset(cx - barWidthPx / 2f, botY - rH),
+                                        size = Size(barWidthPx, rH),
+                                        cornerRadius = if (mH <= 0f && pH <= 0f) CornerRadius(barWidthPx / 2f, barWidthPx / 2f) else CornerRadius.Zero
+                                    )
+                                }
+                                // Moderate (middle)
+                                if (mH > 0f) {
+                                    drawRoundRect(
+                                        color = moderateColor.copy(alpha = dimAlpha),
+                                        topLeft = Offset(cx - barWidthPx / 2f, botY - rH - mH),
+                                        size = Size(barWidthPx, mH),
+                                        cornerRadius = if (pH <= 0f && rH <= 0f) CornerRadius(barWidthPx / 2f, barWidthPx / 2f) else CornerRadius.Zero
+                                    )
+                                }
+                                // Peak (top)
+                                if (pH > 0f) {
+                                    drawRoundRect(
+                                        color = peakColor.copy(alpha = dimAlpha),
+                                        topLeft = Offset(cx - barWidthPx / 2f, botY - totalH),
+                                        size = Size(barWidthPx, pH),
+                                        cornerRadius = CornerRadius(barWidthPx / 2f, barWidthPx / 2f)
+                                    )
+                                }
+
+                                if (isSelected) {
+                                    drawRoundRect(
+                                        color = Color.White.copy(alpha = 0.3f),
+                                        topLeft = Offset(cx - (barWidthPx + 4.dp.toPx()) / 2f, botY - totalH - 2.dp.toPx()),
+                                        size = Size(barWidthPx + 4.dp.toPx(), totalH + 4.dp.toPx()),
+                                        cornerRadius = CornerRadius((barWidthPx + 4.dp.toPx()) / 2f, (barWidthPx + 4.dp.toPx()) / 2f),
+                                        style = Stroke(width = 1.5.dp.toPx())
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Floating Tooltip
+                    if (selectedIndex != null) {
+                        val selIdx = selectedIndex
+                        val colW = widthPx / n.toFloat()
+                        val cxPx = colW * (selIdx.toFloat() + 0.5f)
+                        val cxDp = with(density) { cxPx.toDp() }
+                        val tooltipWidth = 150.dp
+                        val leftOffsetDp = (cxDp - tooltipWidth / 2f).coerceIn(0.dp, maxWidth - tooltipWidth)
+
+                        val totalPct = selR + selM + selP
+                        val topY = if (totalPct > 0) getY(totalPct.toFloat()) else (topPad + plotH / 2f)
+                        val tooltipHeightPx = with(density) { 46.dp.toPx() }
+                        val minGapPx = with(density) { 6.dp.toPx() }
+                        val minTopPx = with(density) { 2.dp.toPx() }
+                        val targetTopY = (topY - tooltipHeightPx - minGapPx).coerceAtLeast(minTopPx)
+                        val topOffsetDp = with(density) { targetTopY.toDp() }
+
+                        Box(
+                            modifier = Modifier
+                                .offset(x = leftOffsetDp, y = topOffsetDp)
+                                .width(tooltipWidth)
+                                .shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(10.dp),
+                                    ambientColor = if (isDark) Color.Black else Color(0x18000000),
+                                    spotColor = if (isDark) Color.Black else Color(0x28000000)
                                 )
-                            ),
-                            mergeMode = MergeMode.Stack,
-                            spacing = barSpacing,
-                            axisValuesOverrider = AxisValuesOverrider.fixed(
-                                minY = 0f,
-                                maxY = 100f
-                            )
-                        )
-                    } else {
-                        lineChart(
-                            lines = buildList {
-                                repeat(totalSeriesList.size) {
-                                    add(lineSpec(
-                                        lineColor = peakColor,
-                                        lineBackgroundShader = verticalGradient(
-                                            colors = arrayOf(peakColor.copy(alpha = 0.4f), peakColor.copy(alpha = 0.05f))
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isDark) Color(0xFF242830) else Color(0xFFFFFFFF))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isDark) Color(0xFF3F4450) else Color(0xFFE5E7EB),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                if (totalPct > 0) {
+                                    Text(
+                                        text = "Rest $selR% · Act $selM% · Peak $selP%",
+                                        style = ZivaaTheme.typography.bodyMedium.copy(
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
                                         ),
-                                        lineThickness = 2.5.dp,
-                                        point = shapeComponent(shape = Shapes.pillShape, color = peakColor),
-                                        pointSize = pointSize
-                                    ))
-                                }
-                                repeat(moderateSeriesList.size) {
-                                    add(lineSpec(
-                                        lineColor = moderateColor,
-                                        lineBackgroundShader = verticalGradient(
-                                            colors = arrayOf(moderateColor.copy(alpha = 0.6f), moderateColor.copy(alpha = 0.1f))
+                                        color = ZivaaTheme.colors.ink,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = selDate,
+                                        style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp),
+                                        color = ZivaaTheme.colors.inkMute,
+                                        maxLines = 1
+                                    )
+                                } else {
+                                    Text(
+                                        text = "No readings",
+                                        style = ZivaaTheme.typography.bodyMedium.copy(
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold
                                         ),
-                                        lineThickness = 2.5.dp,
-                                        point = shapeComponent(shape = Shapes.pillShape, color = moderateColor),
-                                        pointSize = pointSize
-                                    ))
+                                        color = Color(0xFF6B7280),
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = selDate,
+                                        style = ZivaaTheme.typography.meta.copy(fontSize = 10.sp),
+                                        color = ZivaaTheme.colors.inkMute,
+                                        maxLines = 1
+                                    )
                                 }
-                                repeat(restingSeriesList.size) {
-                                    add(lineSpec(
-                                        lineColor = restingColor,
-                                        lineBackgroundShader = verticalGradient(
-                                            colors = arrayOf(restingColor.copy(alpha = 0.8f), restingColor.copy(alpha = 0.2f))
-                                        ),
-                                        lineThickness = 2.5.dp,
-                                        point = shapeComponent(shape = Shapes.pillShape, color = restingColor),
-                                        pointSize = pointSize
-                                    ))
-                                }
-                            },
-                            axisValuesOverrider = AxisValuesOverrider.fixed(
-                                minY = 0f,
-                                maxY = 100f
-                            )
-                        )
-                    },
-                    model = chartModel,
-                    marker = rememberHeartZonesMarker(
-                        dates = detailedDates.ifEmpty { dates },
-                        restingPct = restingPct,
-                        moderatePct = moderatePct,
-                        peakPct = peakPct
-                    ),
-                    startAxis = null,
-                    bottomAxis = null
-                )
+                            }
+                        }
+                    }
+                }
             }
 
             HeartChartAxisRow(
                 timeRange = timeRange,
                 startLabel = startDateLabel,
-                labels = dates
+                labels = dates,
+                selectedIndex = selectedIndex,
+                onIndexSelected = if (onIndexSelected != null) { idx ->
+                    onIndexSelected(if (selectedIndex == idx) null else idx)
+                } else null
             )
         }
     }

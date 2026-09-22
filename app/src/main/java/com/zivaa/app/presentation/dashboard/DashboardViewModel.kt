@@ -15,11 +15,15 @@ import com.zivaa.app.data.remote.ZivaaBackendClient
 import com.zivaa.app.data.remote.DailyPlanPayload
 import com.zivaa.app.data.remote.DailyPlanResponse
 import com.zivaa.app.data.remote.DailyPlanTask
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.time.Instant
 import java.util.TimeZone
 import android.content.Intent
@@ -69,6 +73,14 @@ class DashboardViewModel(
     var afternoonTasks by mutableStateOf<List<DailyPlanTask>>(emptyList())
     var eveningTasks by mutableStateOf<List<DailyPlanTask>>(emptyList())
     var nightTasks by mutableStateOf<List<DailyPlanTask>>(emptyList())
+    var allWeeklyPlans by mutableStateOf<List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord>>(emptyList())
+        private set
+    var selectedDate by mutableStateOf(java.time.LocalDate.now().toString())
+        private set
+    var isGeneratingPlan by mutableStateOf(false)
+        private set
+    private var currentPlanId: String? = null
+    private val backendApiService: ZivaaApiService = ZivaaBackendClient.apiService
 
     var morningBriefingText by mutableStateOf("")
     var morningBriefingHeadline by mutableStateOf("")
@@ -128,7 +140,11 @@ class DashboardViewModel(
             prefsManager.getCachedSleepHours(userId)?.let { sleepHours = it }
             prefsManager.getCachedHeartRate(userId)?.let { heartRate = it }
             prefsManager.getCachedOxygenLevel(userId)?.let { oxygenLevel = it }
+            prefsManager.getCachedSteps(userId)?.let { steps = it }
         }
+
+        // Fast-path immediate steps fetch from Health Connect (<50ms)
+        fetchTodayStepsFastPath()
 
         val viewedEvening = prefsManager.getListViewedEveningDate(userId) == todayStr
         val viewedAfternoon = prefsManager.getListViewedAfternoonDate(userId) == todayStr
@@ -144,7 +160,13 @@ class DashboardViewModel(
             activeHeroPeriod = "morning"
         }
 
+        // 0ms Instant Hydration: Load cached daily plans from disk immediately
+        loadCachedDailyPlans()
+
         fetchDailyPlan()
+
+        // Flush any pending offline syncs in background if connected
+        flushPendingDailyPlanSyncs()
     }
 
     val hasPlanForToday: Boolean
@@ -188,18 +210,6 @@ class DashboardViewModel(
             return allWeeklyPlans.none { (it.date ?: "") < todayStr }
         }
 
-    var isGeneratingPlan by mutableStateOf(false)
-        private set
-    private var currentPlanId: String? = null
-
-    private val backendApiService: ZivaaApiService = ZivaaBackendClient.apiService
-
-    var allWeeklyPlans by mutableStateOf<List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord>>(emptyList())
-        private set
-        
-    var selectedDate by mutableStateOf(java.time.LocalDate.now().toString())
-        private set
-
     fun selectDate(date: String) {
         selectedDate = date
         val planForDate = allWeeklyPlans.find { it.date == date } ?: allWeeklyPlans.find { it.created_at?.startsWith(date) == true }
@@ -222,45 +232,135 @@ class DashboardViewModel(
         }
     }
 
+    fun loadCachedDailyPlans() {
+        try {
+            val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+            val cachedJson = prefsManager.getCachedWeeklyPlans(patientId)
+            if (!cachedJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord>>() {}.type
+                val records: List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord>? = Gson().fromJson(cachedJson, listType)
+                if (!records.isNullOrEmpty()) {
+                    allWeeklyPlans = records
+                    val todayStr = java.time.LocalDate.now().toString()
+                    selectDate(todayStr)
+                    android.util.Log.i("DashboardVM", "Loaded ${records.size} weekly plans from local cache (0ms instant hydration)")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardVM", "Error loading cached daily plans", e)
+        }
+    }
+
+    fun flushPendingDailyPlanSyncs() {
+        try {
+            val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+            val pending = prefsManager.getPendingPlanSyncs(patientId)
+            if (pending.isNotEmpty()) {
+                android.util.Log.i("DashboardVM", "Found ${pending.size} pending plan syncs in outbox. Enqueueing DailyPlanSyncWorker.")
+                com.zivaa.app.data.health.worker.DailyPlanSyncWorker.enqueue(getApplication(), patientId)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardVM", "Error triggering pending plan syncs", e)
+        }
+    }
+
+    private fun persistWeeklyPlansToCache() {
+        try {
+            val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+            val json = Gson().toJson(allWeeklyPlans)
+            prefsManager.saveCachedWeeklyPlans(json, patientId)
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardVM", "Error persisting weekly plans to cache", e)
+        }
+    }
+
+    private fun mergeWithLocalPlans(remoteRecords: List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord>): List<com.zivaa.app.data.remote.SupabaseDailyPlanRecord> {
+        if (allWeeklyPlans.isEmpty()) return remoteRecords
+
+        val localById = allWeeklyPlans.associateBy { it.id }
+        val localByDate = allWeeklyPlans.associateBy { it.date ?: it.created_at?.take(10) }
+
+        return remoteRecords.map { remote ->
+            val local = localById[remote.id] ?: localByDate[remote.date ?: remote.created_at?.take(10)]
+            if (local?.schedule == null || remote.schedule == null) {
+                remote
+            } else {
+                val mergedSchedule = com.zivaa.app.data.remote.DailyPlanSchedule(
+                    morning = mergeTasks(local.schedule.morning, remote.schedule.morning),
+                    afternoon = mergeTasks(local.schedule.afternoon, remote.schedule.afternoon),
+                    evening = mergeTasks(local.schedule.evening, remote.schedule.evening),
+                    night = mergeTasks(local.schedule.night, remote.schedule.night)
+                )
+                remote.copy(schedule = mergedSchedule)
+            }
+        }
+    }
+
+    private fun mergeTasks(
+        localTasks: List<DailyPlanTask>?,
+        remoteTasks: List<DailyPlanTask>?
+    ): List<DailyPlanTask>? {
+        if (remoteTasks == null) return localTasks
+        if (localTasks == null) return remoteTasks
+
+        val localTaskMap = localTasks.associateBy { it.id }
+        val localByName = localTasks.associateBy { it.task.trim().lowercase() }
+
+        return remoteTasks.map { remoteTask ->
+            val localMatch = localTaskMap[remoteTask.id] ?: localByName[remoteTask.task.trim().lowercase()]
+            if (localMatch != null && localMatch.completed && !remoteTask.completed) {
+                remoteTask.copy(completed = true)
+            } else {
+                remoteTask
+            }
+        }
+    }
+
     private fun syncTaskStatus(period: String, index: Int, completed: Boolean) {
         val planId = currentPlanId ?: return
-        
-        // Update locally so other components observing allWeeklyPlans update instantly
+        val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+
+        val updatedSchedule = com.zivaa.app.data.remote.DailyPlanSchedule(
+            morning = morningTasks,
+            afternoon = afternoonTasks,
+            evening = eveningTasks,
+            night = nightTasks
+        )
+
+        // 1. Update in-memory schedule and allWeeklyPlans immediately
         allWeeklyPlans = allWeeklyPlans.map { plan ->
             if (plan.id == planId) {
-                plan.copy(
-                    schedule = com.zivaa.app.data.remote.DailyPlanSchedule(
-                        morning = morningTasks,
-                        afternoon = afternoonTasks,
-                        evening = eveningTasks,
-                        night = nightTasks
-                    )
-                )
+                plan.copy(schedule = updatedSchedule)
             } else {
                 plan
             }
         }
-        
+
+        // 2. Persist to local disk immediately (ensures survival if app closed/killed offline)
+        persistWeeklyPlansToCache()
+
+        // 3. Queue into offline outbox
+        val scheduleJson = Gson().toJson(updatedSchedule)
+        prefsManager.addPendingPlanSync(planId, scheduleJson, patientId)
+
+        // 4. Try immediate push; if offline or network fails, WorkManager handles guaranteed background retry
         viewModelScope.launch {
             try {
                 android.util.Log.d("ZivaaBackend", "Syncing task $period index $index to $completed via Supabase")
-                val updatedSchedule = com.zivaa.app.data.remote.DailyPlanSchedule(
-                    morning = morningTasks,
-                    afternoon = afternoonTasks,
-                    evening = eveningTasks,
-                    night = nightTasks
-                )
                 val response = com.zivaa.app.data.remote.RetrofitClient.apiService.updateDailyPlan(
                     idQuery = "eq.$planId",
                     updates = mapOf("schedule" to updatedSchedule)
                 )
                 if (response.isSuccessful) {
                     android.util.Log.d("ZivaaBackend", "Successfully updated task on Supabase")
+                    prefsManager.removePendingPlanSync(planId, patientId)
                 } else {
-                    android.util.Log.e("ZivaaBackend", "Failed to update task: ${response.errorBody()?.string()}")
+                    android.util.Log.e("ZivaaBackend", "Failed to update task: ${response.errorBody()?.string()}. Scheduling WorkManager.")
+                    com.zivaa.app.data.health.worker.DailyPlanSyncWorker.enqueue(getApplication(), patientId)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ZivaaBackend", "Exception updating task", e)
+                android.util.Log.e("ZivaaBackend", "Exception updating task (offline), scheduling WorkManager sync", e)
+                com.zivaa.app.data.health.worker.DailyPlanSyncWorker.enqueue(getApplication(), patientId)
             }
         }
     }
@@ -281,6 +381,7 @@ class DashboardViewModel(
                 record
             }
         }
+        persistWeeklyPlansToCache()
     }
 
     fun toggleMorningTask(index: Int) {
@@ -409,13 +510,23 @@ class DashboardViewModel(
         }
     }
 
-    fun fetchDailyPlan(vitalsMap: Map<String, Double>? = null) {
+    fun fetchDailyPlan(vitalsMap: Map<String, Double>? = null, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             try {
                 val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
+                val today = java.time.LocalDate.now()
+                val todayStr = today.toString()
+
+                // Smart TTL (30 mins): If we already have plans for today and cache is fresh, skip network roundtrip unless forced
+                val lastFetch = prefsManager.getLastPlanFetchTimestamp(patientId)
+                val isFresh = (System.currentTimeMillis() - lastFetch) < 30 * 60 * 1000L
+                val hasTodayInCurrent = allWeeklyPlans.any { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
+                if (!forceRefresh && isFresh && hasTodayInCurrent) {
+                    android.util.Log.d("DashboardVM", "Daily plan is fresh (<30m) and contains today. Skipping network fetch.")
+                    return@launch
+                }
                 
                 // Fetch exactly the 7 days of the current week (Sunday to Saturday)
-                val today = java.time.LocalDate.now()
                 val startOfWeek = today.minusDays((today.dayOfWeek.value % 7).toLong())
                 val startOfWeekStr = startOfWeek.toString()
                 
@@ -427,25 +538,29 @@ class DashboardViewModel(
                 )
                 
                 if (response.isSuccessful) {
-                    val records = response.body()
-                    val todayStr = today.toString()
-                    val hasToday = !records.isNullOrEmpty() && records.any { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
+                    val remoteRecords = response.body()
+                    val hasToday = !remoteRecords.isNullOrEmpty() && remoteRecords.any { it.date == todayStr || it.created_at?.startsWith(todayStr) == true }
 
-                    if (!records.isNullOrEmpty() && hasToday) {
-                        allWeeklyPlans = records
+                    if (!remoteRecords.isNullOrEmpty() && hasToday) {
+                        // Merge invariant: preserve locally completed tasks that might not have reached server yet
+                        val merged = mergeWithLocalPlans(remoteRecords)
+                        allWeeklyPlans = merged
+                        prefsManager.setLastPlanFetchTimestamp(System.currentTimeMillis(), patientId)
+                        persistWeeklyPlansToCache()
                         // Select today by default
                         selectDate(todayStr)
+                    } else if (remoteRecords.isNullOrEmpty()) {
+                        // Genuine new user with zero records on server: auto-provision
+                        autoProvisionStarterPlans(patientId, emptyList())
                     } else {
-                        // Missing today or empty weekly plans: auto-provision starter routine!
-                        autoProvisionStarterPlans(patientId, records ?: emptyList())
+                        // Server has some records but today is missing
+                        autoProvisionStarterPlans(patientId, remoteRecords)
                     }
                 } else {
-                    autoProvisionStarterPlans(patientId, emptyList())
+                    android.util.Log.w("DashboardVM", "Failed to fetch daily plans: HTTP ${response.code()} ${response.errorBody()?.string()}. Retaining local cache.")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
-                autoProvisionStarterPlans(patientId, emptyList())
+                android.util.Log.w("DashboardVM", "Network exception fetching daily plans (offline/timeout). Retaining local cache.", e)
             }
         }
     }
@@ -624,6 +739,7 @@ class DashboardViewModel(
                 val combined = (existingWeeklyRecords + newRecords).sortedBy { it.date ?: "" }
                 allWeeklyPlans = combined
                 selectDate(today.toString())
+                persistWeeklyPlansToCache()
 
                 try {
                     com.zivaa.app.data.remote.RetrofitClient.apiService.insertDailyPlanRecords(newRecords)
@@ -721,6 +837,7 @@ class DashboardViewModel(
                                     sleepHours = sleepHours,
                                     heartRate = heartRate,
                                     oxygenLevel = oxygenLevel,
+                                    steps = steps,
                                     patientId = userId
                                 )
                             } else {
@@ -752,7 +869,45 @@ class DashboardViewModel(
         }
     }
 
+    fun fetchTodayStepsFastPath() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (!healthConnectManager.isSdkAvailable()) return@launch
+                val todayStepsRecords = try {
+                    healthConnectManager.fetchTodayStepsRecords()
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardVM", "Failed to fetch today steps records in fast path", e)
+                    emptyList()
+                }
+                val priorities = prefsManager.getSourcePriorities()
+                val resolvedStepsCount = if (todayStepsRecords.isNotEmpty()) {
+                    com.zivaa.app.data.health.SourcePriorityManager.resolveSteps(todayStepsRecords, priorities)
+                } else {
+                    val todayStart = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
+                    try {
+                        healthConnectManager.aggregateSteps(todayStart, java.time.Instant.now()).toLong()
+                    } catch (e: Exception) {
+                        0L
+                    }
+                }
+                val formatted = java.text.NumberFormat.getNumberInstance().format(resolvedStepsCount)
+                android.util.Log.d("DashboardVM", "fetchTodayStepsFastPath resolved $resolvedStepsCount steps from ${todayStepsRecords.size} records")
+                withContext(Dispatchers.Main) {
+                    steps = formatted
+                }
+                val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+                val todayStr = java.time.LocalDate.now().toString()
+                prefsManager.saveCachedSteps(formatted, todayStr, userId)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardVM", "Error in fetchTodayStepsFastPath", e)
+            }
+        }
+    }
+
     fun fetchVitalsAndSync(force: Boolean = false) {
+        // Fast-path: immediately resolve steps within 20-40ms on a dedicated background thread
+        fetchTodayStepsFastPath()
+
         val currentTime = System.currentTimeMillis()
         if (!force && (currentTime - lastFetchTime) < DEBOUNCE_MS) {
             return
@@ -783,6 +938,16 @@ class DashboardViewModel(
                     }
                 }
 
+                // Sync latest source priorities from backend
+                try {
+                    val prioritiesRes = com.zivaa.app.data.remote.RetrofitClient.apiService.getSourcePriorities()
+                    if (prioritiesRes.isSuccessful && !prioritiesRes.body().isNullOrEmpty()) {
+                        prefsManager.saveSourcePriorities(prioritiesRes.body()!!)
+                    }
+                } catch (e: Exception) {
+                    // Fall back to built-in defaults
+                }
+
                 // 1. Live steps resolution using Health Connect + Source Priority
                 val todayStepsRecords = try {
                     healthConnectManager.fetchTodayStepsRecords()
@@ -801,8 +966,11 @@ class DashboardViewModel(
                         0L
                     }
                 }
-                // Immediately update steps state for the UI
-                steps = java.text.NumberFormat.getNumberInstance().format(resolvedStepsCount)
+                // Immediately update steps state for the UI and cache
+                val formattedSteps = java.text.NumberFormat.getNumberInstance().format(resolvedStepsCount)
+                steps = formattedSteps
+                val currentUserId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+                prefsManager.saveCachedSteps(formattedSteps, todayLocal.toString(), currentUserId)
                 val hrValues = apiRecords.filter { it.type == "heart_rate" }
                     .mapNotNull { it.values["bpm"] }
                 val hrAvg = hrValues.average()
@@ -999,8 +1167,9 @@ class DashboardViewModel(
                     vitalsMap["glucose_mg_dl"] = bgAvg
                 }
 
-                // Fetch daily plan concurrently
-                fetchDailyPlan(vitalsMap)
+                // Fetch daily plan concurrently (force refresh on explicit user sync)
+                fetchDailyPlan(vitalsMap, forceRefresh = true)
+                flushPendingDailyPlanSyncs()
 
                 // Trigger the background worker to silently handle the massive Supabase sync using changes tokens
                 val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: prefsManager.getLastSyncedPatientId()

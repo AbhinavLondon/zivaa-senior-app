@@ -6,13 +6,16 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.zivaa.app.data.local.SyncPrefsManager
 import com.zivaa.app.data.remote.RetrofitClient
+import com.zivaa.app.data.remote.SupabaseDailyVitalRecord
 import com.zivaa.app.data.remote.SupabaseZivaaScoreRecord
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
-import com.zivaa.app.data.remote.SupabaseDailyVitalRecord
 
 enum class RestTimeRange(val label: String) {
     SEVEN_DAYS("7 Days"),
@@ -25,7 +28,9 @@ enum class RestChartType(val label: String) {
     LINE("Line")
 }
 
-class RestViewModel : ViewModel() {
+class RestViewModel(
+    private val prefsManager: SyncPrefsManager? = null
+) : ViewModel() {
     var restScore by mutableStateOf<Int?>(null)
     var restBreakdown by mutableStateOf<Map<String, Any?>?>(null)
     var isLoading by mutableStateOf(false)
@@ -64,6 +69,98 @@ class RestViewModel : ViewModel() {
     var averageRestingHr by mutableStateOf(0f)
     var averageHrv by mutableStateOf(0f)
 
+    init {
+        loadCachedRestData()
+    }
+
+    private fun loadCachedRestData() {
+        try {
+            val patientId = RetrofitClient.authManager?.getUserId()
+            val cachedVitalsJson = prefsManager?.getCachedDailyVitals(patientId)
+            val cachedScoresJson = prefsManager?.getCachedZivaaScores(patientId)
+            val gson = Gson()
+
+            if (!cachedVitalsJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<SupabaseDailyVitalRecord>>() {}.type
+                val vitals: List<SupabaseDailyVitalRecord>? = gson.fromJson(cachedVitalsJson, listType)
+                if (!vitals.isNullOrEmpty()) {
+                    allVitals = vitals
+                }
+            }
+
+            if (!cachedScoresJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<SupabaseZivaaScoreRecord>>() {}.type
+                val scores: List<SupabaseZivaaScoreRecord>? = gson.fromJson(cachedScoresJson, listType)
+                if (!scores.isNullOrEmpty()) {
+                    allScores = scores
+                }
+            }
+
+            if (allScores.isNotEmpty() || allVitals.isNotEmpty()) {
+                computeRestScoreAndBreakdown()
+                applyTimeRange(selectedTimeRange)
+                isLoading = false
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RestVM", "Error loading cached rest data", e)
+        }
+    }
+
+    private fun computeRestScoreAndBreakdown() {
+        val todayDateStr = LocalDate.now().toString()
+        val latestScore = allScores.firstOrNull()
+        val latestVitals = allVitals.firstOrNull()
+
+        if (latestScore != null && (latestScore.date.take(10) == todayDateStr || (latestVitals != null && latestVitals.date.take(10) == todayDateStr))) {
+            restScore = if (latestScore.date.take(10) == todayDateStr) latestScore.restScore else 0
+
+            val mergedBreakdown: MutableMap<String, Any?> = latestScore.restBreakdown?.toMutableMap() ?: mutableMapOf()
+
+            if (latestVitals != null && latestVitals.date.take(10) == todayDateStr) {
+                latestVitals.sleepHours?.let { mergedBreakdown["sleep_hours"] = it }
+                latestVitals.sleepEfficiencyPct?.let { mergedBreakdown["sleep_efficiency_pct"] = it }
+                latestVitals.sleepStage5Hours?.let { mergedBreakdown["sleep_stage_5_hours"] = it }
+                latestVitals.sleepStage6Hours?.let { mergedBreakdown["sleep_stage_6_hours"] = it }
+                latestVitals.restingHeartRateCalculated?.let { mergedBreakdown["resting_heart_rate"] = it }
+                latestVitals.wasoMins?.let { mergedBreakdown["waso_mins"] = it }
+                latestVitals.hrvRmssdAvg?.let { mergedBreakdown["hrv_rmssd"] = it }
+
+                if (latestVitals.skinTemperatureDelta == null) {
+                    mergedBreakdown.remove("skin_temp_delta")
+                } else {
+                    mergedBreakdown["skin_temp_delta"] = latestVitals.skinTemperatureDelta
+                }
+
+                if (latestVitals.respiratoryRateAvg == null) {
+                    mergedBreakdown.remove("respiratory_rate")
+                } else {
+                    mergedBreakdown["respiratory_rate"] = latestVitals.respiratoryRateAvg
+                }
+            }
+
+            if (mergedBreakdown.containsKey("duration") && !mergedBreakdown.containsKey("duration_pts")) {
+                mergedBreakdown["duration_pts"] = mergedBreakdown["duration"]!!
+            }
+            if (mergedBreakdown.containsKey("quality") && !mergedBreakdown.containsKey("quality_pts")) {
+                mergedBreakdown["quality_pts"] = mergedBreakdown["quality"]!!
+            }
+            if (mergedBreakdown.containsKey("vitals") && !mergedBreakdown.containsKey("vitals_pts")) {
+                mergedBreakdown["vitals_pts"] = mergedBreakdown["vitals"]!!
+            }
+            if (mergedBreakdown.containsKey("penalties") && !mergedBreakdown.containsKey("penalty_pts")) {
+                mergedBreakdown["penalty_pts"] = mergedBreakdown["penalties"]!!
+            }
+
+            restBreakdown = mergedBreakdown
+        } else if (latestScore != null) {
+            restScore = latestScore.restScore
+            restBreakdown = latestScore.restBreakdown
+        } else {
+            restScore = null
+            restBreakdown = null
+        }
+    }
+
     fun setTimeRange(range: RestTimeRange) {
         selectedTimeRange = range
         applyTimeRange(range)
@@ -75,89 +172,40 @@ class RestViewModel : ViewModel() {
 
     fun fetchData() {
         viewModelScope.launch {
-            isLoading = true
+            isLoading = allScores.isEmpty() && allVitals.isEmpty()
             errorMessage = null
             try {
                 val patientId = RetrofitClient.authManager?.getUserId() ?: return@launch
-                
+
                 // Fetch up to 100 days of history
                 val scoreResponse = RetrofitClient.apiService.getZivaaScores(
                     patientIdQuery = "eq.${patientId}",
                     limit = 100
                 )
-                
+
                 val vitalsResponse = RetrofitClient.apiService.getDailyVitals(
                     patientIdQuery = "eq.${patientId}",
                     limit = 100
                 )
 
-                if (scoreResponse.isSuccessful && !scoreResponse.body().isNullOrEmpty()) {
-                    allScores = scoreResponse.body()!!
-                    val todayDateStr = java.time.LocalDate.now().toString()
-                    if (vitalsResponse.isSuccessful && !vitalsResponse.body().isNullOrEmpty()) {
-                        allVitals = vitalsResponse.body()!!
-                    }
-                    val latestScore = allScores.first()
-                    val latestVitals = if (vitalsResponse.isSuccessful && !vitalsResponse.body().isNullOrEmpty()) vitalsResponse.body()!!.first() else null
-                    
-                    if (latestScore.date.take(10) == todayDateStr || (latestVitals != null && latestVitals.date.take(10) == todayDateStr)) {
-                        restScore = if (latestScore.date.take(10) == todayDateStr) latestScore.restScore else 0
-
-                    
-                    val mergedBreakdown: MutableMap<String, Any?> = latestScore.restBreakdown?.toMutableMap<String, Any?>() ?: mutableMapOf()
-                    
-                    if (latestVitals != null && latestVitals.date.take(10) == todayDateStr) {
-                        latestVitals.sleepHours?.let { mergedBreakdown["sleep_hours"] = it }
-                        latestVitals.sleepEfficiencyPct?.let { mergedBreakdown["sleep_efficiency_pct"] = it }
-                        latestVitals.sleepStage5Hours?.let { mergedBreakdown["sleep_stage_5_hours"] = it }
-                        latestVitals.sleepStage6Hours?.let { mergedBreakdown["sleep_stage_6_hours"] = it }
-                        latestVitals.restingHeartRateCalculated?.let { mergedBreakdown["resting_heart_rate"] = it }
-                        latestVitals.wasoMins?.let { mergedBreakdown["waso_mins"] = it }
-                        latestVitals.hrvRmssdAvg?.let { mergedBreakdown["hrv_rmssd"] = it }
-                        
-                        if (latestVitals.skinTemperatureDelta == null) {
-                            mergedBreakdown.remove("skin_temp_delta")
-                        } else {
-                            mergedBreakdown["skin_temp_delta"] = latestVitals.skinTemperatureDelta
-                        }
-                        
-                        if (latestVitals.respiratoryRateAvg == null) {
-                            mergedBreakdown.remove("respiratory_rate")
-                        } else {
-                            mergedBreakdown["respiratory_rate"] = latestVitals.respiratoryRateAvg
-                        }
-                    }
-                    
-                    if (mergedBreakdown.containsKey("duration") && !mergedBreakdown.containsKey("duration_pts")) {
-                        mergedBreakdown["duration_pts"] = mergedBreakdown["duration"]!!
-                    }
-                    if (mergedBreakdown.containsKey("quality") && !mergedBreakdown.containsKey("quality_pts")) {
-                        mergedBreakdown["quality_pts"] = mergedBreakdown["quality"]!!
-                    }
-                    if (mergedBreakdown.containsKey("vitals") && !mergedBreakdown.containsKey("vitals_pts")) {
-                        mergedBreakdown["vitals_pts"] = mergedBreakdown["vitals"]!!
-                    }
-                    if (mergedBreakdown.containsKey("penalties") && !mergedBreakdown.containsKey("penalty_pts")) {
-                        mergedBreakdown["penalty_pts"] = mergedBreakdown["penalties"]!!
-                    }
-                    
-                    restBreakdown = mergedBreakdown
-                    } else {
-                        restScore = 0
-                        restBreakdown = null
-                    }
-                } else {
-                    restScore = null
-                    restBreakdown = null
-                    allVitals = emptyList()
-                    allScores = emptyList()
+                if (vitalsResponse.isSuccessful && !vitalsResponse.body().isNullOrEmpty()) {
+                    allVitals = vitalsResponse.body()!!
+                    prefsManager?.saveCachedDailyVitals(Gson().toJson(allVitals), patientId)
                 }
 
-                // Initial slice for charts
+                if (scoreResponse.isSuccessful && !scoreResponse.body().isNullOrEmpty()) {
+                    allScores = scoreResponse.body()!!
+                    prefsManager?.saveCachedZivaaScores(Gson().toJson(allScores), patientId)
+                }
+
+                computeRestScoreAndBreakdown()
                 applyTimeRange(selectedTimeRange)
 
             } catch (e: Exception) {
-                errorMessage = e.message ?: "Failed to fetch rest score."
+                android.util.Log.w("RestVM", "Error fetching rest score (offline). Retaining local cache.", e)
+                if (allScores.isEmpty() && allVitals.isEmpty()) {
+                    errorMessage = e.message ?: "Failed to fetch rest score."
+                }
             } finally {
                 isLoading = false
             }
@@ -343,11 +391,13 @@ class RestViewModel : ViewModel() {
     }
 }
 
-class RestViewModelFactory : ViewModelProvider.Factory {
+class RestViewModelFactory(
+    private val prefsManager: SyncPrefsManager? = null
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(RestViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return RestViewModel() as T
+            return RestViewModel(prefsManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -234,6 +234,7 @@ fun DashboardScreen(
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
                     viewModel.refreshVitalsFromDB()
+                    viewModel.fetchTodayStepsFastPath()
                     viewModel.fetchVitalsAndSync()
                     viewModel.refreshNudges()
                 }

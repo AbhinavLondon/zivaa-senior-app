@@ -372,7 +372,7 @@ class MainActivity : ComponentActivity() {
                         )
                         val moodViewModel: com.zivaa.app.presentation.mood.MoodViewModel = viewModel(
                             key = "mood_$activeUserId",
-                            factory = com.zivaa.app.presentation.mood.MoodViewModelFactory(authManager)
+                            factory = com.zivaa.app.presentation.mood.MoodViewModelFactory(authManager, prefsManager)
                         )
 
                         val todayTourState = rememberTodayTourState {
@@ -388,6 +388,7 @@ class MainActivity : ComponentActivity() {
 
                         androidx.compose.runtime.LaunchedEffect(forceDashboardRefresh) {
                             if (forceDashboardRefresh) {
+                                viewModel.fetchTodayStepsFastPath()
                                 viewModel.fetchVitalsAndSync(force = false)
                                 forceDashboardRefresh = false
                             }
@@ -404,12 +405,17 @@ class MainActivity : ComponentActivity() {
                                         && !hasHistoryPerm
                                         && !prefsManager.hasPromptedHistoryPermission()
 
+                                    if (grantedPermissions.any { it.contains("StepsRecord", ignoreCase = true) }) {
+                                        viewModel.fetchTodayStepsFastPath()
+                                    }
+
                                     if (grantedPermissions.intersect(permissions).isEmpty() || shouldPromptHistory) {
                                         if (shouldPromptHistory) {
                                             prefsManager.setPromptedHistoryPermission(true)
                                         }
                                         requestPermissions.launch(permissions)
                                     } else {
+                                        viewModel.fetchTodayStepsFastPath()
                                         viewModel.fetchVitalsAndSync(force = false)
                                     }
                                 } catch (e: Exception) {
@@ -590,6 +596,7 @@ class MainActivity : ComponentActivity() {
                             }
                             "movement" -> {
                                 val movementViewModel: com.zivaa.app.presentation.movement.MovementViewModel = viewModel(
+                                    key = "movement_$activeUserId",
                                     factory = com.zivaa.app.presentation.movement.MovementViewModelFactory(healthConnectManager, prefsManager)
                                 )
                                 com.zivaa.app.presentation.movement.MovementScreen(
@@ -606,10 +613,17 @@ class MainActivity : ComponentActivity() {
                             "sleep" -> SleepScreen(
                                 onNavigateBack = { currentScreen = "dashboard" }
                             )
-                            "rest" -> com.zivaa.app.presentation.rest.RestScreen(
-                                onNavigateBack = { currentScreen = "dashboard" },
-                                onInfoClick = { currentScreen = "rest_explainer" }
-                            )
+                            "rest" -> {
+                                val restViewModel: com.zivaa.app.presentation.rest.RestViewModel = viewModel(
+                                    key = "rest_$activeUserId",
+                                    factory = com.zivaa.app.presentation.rest.RestViewModelFactory(prefsManager)
+                                )
+                                com.zivaa.app.presentation.rest.RestScreen(
+                                    viewModel = restViewModel,
+                                    onNavigateBack = { currentScreen = "dashboard" },
+                                    onInfoClick = { currentScreen = "rest_explainer" }
+                                )
+                            }
                             "rest_explainer" -> com.zivaa.app.presentation.rest.RestExplainerScreen(
                                 onNavigateBack = { currentScreen = "rest" }
                             )
@@ -760,7 +774,8 @@ class MainActivity : ComponentActivity() {
                             }
                             "heart_rate" -> {
                                 val heartRateViewModel: com.zivaa.app.presentation.heartrate.HeartRateViewModel = viewModel(
-                                    factory = com.zivaa.app.presentation.heartrate.HeartRateViewModelFactory()
+                                    key = "heart_rate_$activeUserId",
+                                    factory = com.zivaa.app.presentation.heartrate.HeartRateViewModelFactory(prefsManager)
                                 )
                                 com.zivaa.app.presentation.heartrate.HeartRateScreen(
                                     viewModel = heartRateViewModel,

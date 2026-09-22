@@ -26,9 +26,17 @@ class SourcePriorityManager(private val syncPrefsManager: SyncPrefsManager) {
             if (match != null) return match.priority_rank
 
             return when {
-                source.endsWith("_watch") -> 5
+                source.endsWith("_watch") -> 0
+                source.startsWith("com.sec.android.app.shealth") -> 1
+                source.startsWith("com.fitbit.FitbitMobile") -> 2
+                source.startsWith("com.garmin") -> 2
+                source.startsWith("com.withings") -> 2
+                source.startsWith("com.google.android.apps.fitness") -> 3
+                source.startsWith("com.google.android.apps.healthdata") -> 4
+                source.startsWith("com.google.android.apps.wear.healthservices") -> 1
                 source.endsWith("_phone") -> 50
-                else -> 9999
+                source.startsWith("com.android.healthconnect.phone") -> 50
+                else -> 100
             }
         }
 

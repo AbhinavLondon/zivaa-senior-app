@@ -8,6 +8,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.FloatEntry
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.zivaa.app.data.local.SyncPrefsManager
 import com.zivaa.app.data.remote.RetrofitClient
 import com.zivaa.app.data.remote.SupabaseDailyVitalRecord
 import com.zivaa.app.data.remote.SupabaseZivaaScoreRecord
@@ -57,7 +60,9 @@ data class IntradayHrBucket(
     val hasData: Boolean
 )
 
-class HeartRateViewModel : ViewModel() {
+class HeartRateViewModel(
+    private val prefsManager: SyncPrefsManager? = null
+) : ViewModel() {
     
     // Heart Health Score & Factor States
     var heartScore by mutableStateOf<Int?>(null)
@@ -147,6 +152,137 @@ class HeartRateViewModel : ViewModel() {
         selectedChartType = type
     }
 
+    init {
+        loadCachedHeartData()
+    }
+
+    private fun loadCachedHeartData() {
+        try {
+            val patientId = RetrofitClient.authManager?.getUserId()
+            val cachedVitalsJson = prefsManager?.getCachedDailyVitals(patientId)
+            val cachedScoresJson = prefsManager?.getCachedZivaaScores(patientId)
+            val gson = Gson()
+
+            if (!cachedVitalsJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<SupabaseDailyVitalRecord>>() {}.type
+                val vitals: List<SupabaseDailyVitalRecord>? = gson.fromJson(cachedVitalsJson, listType)
+                if (!vitals.isNullOrEmpty()) {
+                    allVitals = vitals
+                }
+            }
+
+            if (!cachedScoresJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<SupabaseZivaaScoreRecord>>() {}.type
+                val scores: List<SupabaseZivaaScoreRecord>? = gson.fromJson(cachedScoresJson, listType)
+                if (!scores.isNullOrEmpty()) {
+                    allScores = scores
+                }
+            }
+
+            if (allScores.isNotEmpty() || allVitals.isNotEmpty()) {
+                computeScoreAndBreakdown()
+                applyTimeRange(selectedTimeRange)
+                computeWeeklyData(allVitals)
+                _isLoading.value = false
+            }
+
+            val cachedIntradayJson = prefsManager?.getCachedIntradayHeartRate(patientId)
+            val cachedIntradayDate = prefsManager?.getCachedIntradayHeartRateDate(patientId)
+            if (!cachedIntradayJson.isNullOrBlank()) {
+                val listType = object : TypeToken<List<IntradayHrBucket>>() {}.type
+                val buckets: List<IntradayHrBucket>? = gson.fromJson(cachedIntradayJson, listType)
+                if (!buckets.isNullOrEmpty()) {
+                    intradayBuckets = buckets
+                    intradayDateLabel = cachedIntradayDate ?: "Recent"
+                    val populated = buckets.filter { it.hasData }
+                    if (populated.isNotEmpty()) {
+                        intradayMinHr = populated.minOf { it.minBpm }.toInt()
+                        intradayMaxHr = populated.maxOf { it.maxBpm }.toInt()
+                        intradayAvgHr = populated.map { it.avgBpm }.average().toInt()
+
+                        val series1 = (0..47).map { idx ->
+                            val b = buckets[idx]
+                            FloatEntry(idx.toFloat(), b.minBpm)
+                        }
+                        val series2 = (0..47).map { idx ->
+                            val b = buckets[idx]
+                            FloatEntry(idx.toFloat(), maxOf(0f, b.maxBpm - b.minBpm))
+                        }
+                        _chartEntryModelProducer.value = ChartEntryModelProducer(listOf(series1, series2))
+                        _hasData.value = true
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HeartRateVM", "Error loading cached heart data", e)
+        }
+    }
+
+    private fun computeScoreAndBreakdown() {
+        val todayDateStr = LocalDate.now().toString()
+        val yesterdayDate = LocalDate.now().minusDays(1)
+        val yesterdayDateStr = yesterdayDate.toString()
+
+        val targetScore = allScores.firstOrNull { it.heartScore != null && it.date.take(10) < todayDateStr }
+            ?: allScores.firstOrNull { it.heartScore != null }
+        
+        val targetScoreDateStr = targetScore?.date?.take(10) ?: yesterdayDateStr
+        val targetVitals = allVitals.firstOrNull { it.date.take(10) == targetScoreDateStr }
+            ?: allVitals.firstOrNull { it.date.take(10) < todayDateStr }
+
+        try {
+            val scoreLocalDate = LocalDate.parse(targetScoreDateStr)
+            val today = LocalDate.now()
+            scoreDateLabel = when {
+                scoreLocalDate == today.minusDays(1) -> "Yesterday, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
+                scoreLocalDate == today -> "Today, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
+                else -> scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))
+            }
+        } catch (e: Exception) {
+            scoreDateLabel = "Yesterday"
+        }
+
+        if (targetScore != null && targetScore.heartScore != null) {
+            heartScore = targetScore.heartScore
+            val merged: MutableMap<String, Any?> = targetScore.heartBreakdown?.toMutableMap() ?: mutableMapOf()
+            
+            if (targetVitals != null && targetVitals.date.take(10) == targetScoreDateStr) {
+                targetVitals.restingHeartRateCalculated?.let { merged["resting_heart_rate"] = it }
+                targetVitals.hrvRmssdAvg?.let { merged["hrv_rmssd"] = it }
+                targetVitals.minHeartRate?.let { merged["min_heart_rate"] = it }
+                targetVitals.maxHeartRate?.let { merged["max_heart_rate"] = it }
+                targetVitals.avgHeartRate?.let { merged["avg_heart_rate"] = it }
+            }
+            heartBreakdown = merged
+        } else if (targetVitals != null) {
+            val rhr = targetVitals.restingHeartRateCalculated
+            val min = targetVitals.minHeartRate
+            val max = targetVitals.maxHeartRate
+            val span = if (min != null && max != null && max >= min) max - min else null
+            val avg = targetVitals.avgHeartRate
+            val hrv = targetVitals.hrvRmssdAvg
+
+            val breakdownMap = mutableMapOf<String, Any?>()
+            rhr?.let { breakdownMap["resting_heart_rate"] = it }
+            min?.let { breakdownMap["min_heart_rate"] = it }
+            max?.let { breakdownMap["max_heart_rate"] = it }
+            span?.let { breakdownMap["hr_span"] = it }
+            avg?.let { breakdownMap["avg_heart_rate"] = it }
+            hrv?.let { breakdownMap["hrv_rmssd"] = it }
+
+            if (breakdownMap.isNotEmpty()) {
+                heartScore = rhr?.let { (80 + ((65 - it) * 0.5)).toInt().coerceIn(50, 95) }
+                heartBreakdown = breakdownMap
+            } else {
+                heartScore = null
+                heartBreakdown = null
+            }
+        } else {
+            heartScore = null
+            heartBreakdown = null
+        }
+    }
+
     fun fetchAllData() {
         fetchTodayHeartRate()
         fetchWeeklyHeartRate()
@@ -170,79 +306,20 @@ class HeartRateViewModel : ViewModel() {
 
                 if (vitalsResponse.isSuccessful && !vitalsResponse.body().isNullOrEmpty()) {
                     allVitals = vitalsResponse.body()!!
+                    prefsManager?.saveCachedDailyVitals(Gson().toJson(allVitals), patientId)
                 }
 
                 if (scoreResponse.isSuccessful && !scoreResponse.body().isNullOrEmpty()) {
                     allScores = scoreResponse.body()!!
+                    prefsManager?.saveCachedZivaaScores(Gson().toJson(allScores), patientId)
                 }
 
-                val todayDateStr = LocalDate.now().toString()
-                val yesterdayDate = LocalDate.now().minusDays(1)
-                val yesterdayDateStr = yesterdayDate.toString()
-
-                // Anchor score card consistently to the most recently completed 24-hour cycle (Yesterday 00:00 to 24:00)
-                val targetScore = allScores.firstOrNull { it.heartScore != null && it.date.take(10) < todayDateStr }
-                    ?: allScores.firstOrNull { it.heartScore != null }
-                
-                val targetScoreDateStr = targetScore?.date?.take(10) ?: yesterdayDateStr
-                val targetVitals = allVitals.firstOrNull { it.date.take(10) == targetScoreDateStr }
-                    ?: allVitals.firstOrNull { it.date.take(10) < todayDateStr }
-
-                try {
-                    val scoreLocalDate = LocalDate.parse(targetScoreDateStr)
-                    val today = LocalDate.now()
-                    scoreDateLabel = when {
-                        scoreLocalDate == today.minusDays(1) -> "Yesterday, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
-                        scoreLocalDate == today -> "Today, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
-                        else -> scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))
-                    }
-                } catch (e: Exception) {
-                    scoreDateLabel = "Yesterday"
-                }
-
-                if (targetScore != null && targetScore.heartScore != null) {
-                    heartScore = targetScore.heartScore
-                    val merged: MutableMap<String, Any?> = targetScore.heartBreakdown?.toMutableMap() ?: mutableMapOf()
-                    
-                    if (targetVitals != null && targetVitals.date.take(10) == targetScoreDateStr) {
-                        targetVitals.restingHeartRateCalculated?.let { merged["resting_heart_rate"] = it }
-                        targetVitals.hrvRmssdAvg?.let { merged["hrv_rmssd"] = it }
-                        targetVitals.minHeartRate?.let { merged["min_heart_rate"] = it }
-                        targetVitals.maxHeartRate?.let { merged["max_heart_rate"] = it }
-                        targetVitals.avgHeartRate?.let { merged["avg_heart_rate"] = it }
-                    }
-                    heartBreakdown = merged
-                } else if (targetVitals != null) {
-                    val rhr = targetVitals.restingHeartRateCalculated
-                    val min = targetVitals.minHeartRate
-                    val max = targetVitals.maxHeartRate
-                    val span = if (min != null && max != null && max >= min) max - min else null
-                    val avg = targetVitals.avgHeartRate
-                    val hrv = targetVitals.hrvRmssdAvg
-
-                    val breakdownMap = mutableMapOf<String, Any?>()
-                    rhr?.let { breakdownMap["resting_heart_rate"] = it }
-                    min?.let { breakdownMap["min_heart_rate"] = it }
-                    max?.let { breakdownMap["max_heart_rate"] = it }
-                    span?.let { breakdownMap["hr_span"] = it }
-                    avg?.let { breakdownMap["avg_heart_rate"] = it }
-                    hrv?.let { breakdownMap["hrv_rmssd"] = it }
-
-                    if (breakdownMap.isNotEmpty()) {
-                        heartScore = rhr?.let { (80 + ((65 - it) * 0.5)).toInt().coerceIn(50, 95) }
-                        heartBreakdown = breakdownMap
-                    } else {
-                        heartScore = null
-                        heartBreakdown = null
-                    }
-                } else {
-                    heartScore = null
-                    heartBreakdown = null
-                }
-
+                computeScoreAndBreakdown()
                 applyTimeRange(selectedTimeRange)
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.w("HeartRateVM", "Error fetching heart health history (offline). Retaining local cache.", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -559,6 +636,11 @@ class HeartRateViewModel : ViewModel() {
                     }
                 }
                 intradayBuckets = buckets
+                try {
+                    prefsManager?.saveCachedIntradayHeartRate(Gson().toJson(buckets), intradayDateLabel, patientId)
+                } catch (e: Exception) {
+                    android.util.Log.e("HeartRateVM", "Error saving cached intraday HR", e)
+                }
 
                 val populated = buckets.filter { it.hasData }
                 if (populated.isNotEmpty()) {
@@ -600,7 +682,7 @@ class HeartRateViewModel : ViewModel() {
                 applyTimeRange(selectedTimeRange)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _hasData.value = false
+                _hasData.value = intradayBuckets.any { it.hasData }
             } finally {
                 _isLoading.value = false
             }
@@ -618,59 +700,68 @@ class HeartRateViewModel : ViewModel() {
         return "${fmt(startMins)} – ${fmt(endMins)}"
     }
 
+    private fun computeWeeklyData(records: List<SupabaseDailyVitalRecord>) {
+        if (records.isEmpty()) return
+        val validAvgs = records.mapNotNull { it.restingHeartRateCalculated }
+        val calculatedMonthAvg = if (validAvgs.isNotEmpty()) {
+            validAvgs.average().toFloat()
+        } else {
+            72f
+        }
+        _monthAvg.value = calculatedMonthAvg
+
+        val today = LocalDate.now(ZoneId.systemDefault())
+        val dayDataList = mutableListOf<DayData>()
+        val dayFormatter = DateTimeFormatter.ofPattern("EEEEE")
+
+        for (i in 7 downTo 1) {
+            val targetDate = today.minusDays(i.toLong())
+            val targetDateStr = targetDate.toString()
+
+            val record = records.find { it.date.startsWith(targetDateStr) }
+
+            val minHr = record?.minHeartRate?.toFloat() ?: 0f
+            val maxHr = record?.maxHeartRate?.toFloat() ?: 0f
+            val avgHr = record?.restingHeartRateCalculated?.toFloat() ?: 0f
+            val sleepHr = record?.sleepHours?.toFloat() ?: 0f
+
+            dayDataList.add(
+                DayData(
+                    dayName = targetDate.format(dayFormatter),
+                    minHr = minHr,
+                    maxHr = maxHr,
+                    restingHr = avgHr,
+                    sleepHours = sleepHr,
+                    isToday = false
+                )
+            )
+        }
+        _weeklyData.value = dayDataList
+    }
+
     fun fetchWeeklyHeartRate() {
         viewModelScope.launch {
             try {
                 val patientId = RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
-                
+
                 val response = RetrofitClient.apiService.getDailyVitals(
                     patientIdQuery = "eq.$patientId",
                     order = "date.desc",
                     limit = 30
                 )
 
-                if (response.isSuccessful) {
-                    val records = response.body() ?: emptyList()
-                    
-                    val validAvgs = records.mapNotNull { it.restingHeartRateCalculated }
-                    val calculatedMonthAvg = if (validAvgs.isNotEmpty()) {
-                        validAvgs.average().toFloat()
-                    } else {
-                        72f
-                    }
-                    _monthAvg.value = calculatedMonthAvg
-                    
-                    val today = LocalDate.now(ZoneId.systemDefault())
-                    val dayDataList = mutableListOf<DayData>()
-                    val dayFormatter = DateTimeFormatter.ofPattern("EEEEE")
-                    
-                    for (i in 7 downTo 1) {
-                        val targetDate = today.minusDays(i.toLong())
-                        val targetDateStr = targetDate.toString()
-                        
-                        val record = records.find { it.date.startsWith(targetDateStr) }
-                        
-                        val minHr = record?.minHeartRate?.toFloat() ?: 0f
-                        val maxHr = record?.maxHeartRate?.toFloat() ?: 0f
-                        val avgHr = record?.restingHeartRateCalculated?.toFloat() ?: 0f
-                        val sleepHr = record?.sleepHours?.toFloat() ?: 0f
-                        
-                        dayDataList.add(
-                            DayData(
-                                dayName = targetDate.format(dayFormatter),
-                                minHr = minHr,
-                                maxHr = maxHr,
-                                restingHr = avgHr,
-                                sleepHours = sleepHr,
-                                isToday = false
-                            )
-                        )
-                    }
-                    _weeklyData.value = dayDataList
-                    fetchWeeklyInsight(patientId, calculatedMonthAvg, dayDataList)
+                if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                    val records = response.body()!!
+                    computeWeeklyData(records)
+                    fetchWeeklyInsight(patientId, _monthAvg.value, _weeklyData.value)
+                } else if (allVitals.isNotEmpty()) {
+                    computeWeeklyData(allVitals)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                if (allVitals.isNotEmpty()) {
+                    computeWeeklyData(allVitals)
+                }
             }
         }
     }
@@ -782,11 +873,13 @@ class HeartRateViewModel : ViewModel() {
     }
 }
 
-class HeartRateViewModelFactory : ViewModelProvider.Factory {
+class HeartRateViewModelFactory(
+    private val prefsManager: SyncPrefsManager? = null
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(HeartRateViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return HeartRateViewModel() as T
+            return HeartRateViewModel(prefsManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

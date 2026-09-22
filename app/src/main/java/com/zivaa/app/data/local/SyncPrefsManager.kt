@@ -3,7 +3,7 @@ package com.zivaa.app.data.local
 import android.content.Context
 import android.content.SharedPreferences
 
-class SyncPrefsManager(context: Context) {
+class SyncPrefsManager(val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun getScopedKey(baseKey: String, patientId: String? = null): String {
@@ -203,7 +203,10 @@ class SyncPrefsManager(context: Context) {
     }
 
     fun getSourcePriorities(): List<com.zivaa.app.data.remote.MetricSourcePriorityRecord> {
-        val str = prefs.getString(KEY_METRIC_PRIORITIES, null) ?: return emptyList()
+        val str = prefs.getString(KEY_METRIC_PRIORITIES, null)
+        if (str.isNullOrBlank()) {
+            return DEFAULT_SOURCE_PRIORITIES
+        }
         val list = mutableListOf<com.zivaa.app.data.remote.MetricSourcePriorityRecord>()
         try {
             val array = org.json.JSONArray(str)
@@ -219,16 +222,27 @@ class SyncPrefsManager(context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            return DEFAULT_SOURCE_PRIORITIES
         }
-        return list
+        return if (list.isNotEmpty()) list else DEFAULT_SOURCE_PRIORITIES
     }
 
-    fun saveCachedVitals(dateStr: String, sleepHours: String, heartRate: String, oxygenLevel: String, patientId: String? = null) {
-        prefs.edit()
+    fun saveCachedVitals(dateStr: String, sleepHours: String, heartRate: String, oxygenLevel: String, steps: String? = null, patientId: String? = null) {
+        val editor = prefs.edit()
             .putString(getScopedKey(KEY_CACHED_VITALS_DATE, patientId), dateStr)
             .putString(getScopedKey(KEY_CACHED_SLEEP_HOURS, patientId), sleepHours)
             .putString(getScopedKey(KEY_CACHED_HEART_RATE, patientId), heartRate)
             .putString(getScopedKey(KEY_CACHED_OXYGEN_LEVEL, patientId), oxygenLevel)
+        if (steps != null) {
+            editor.putString(getScopedKey(KEY_CACHED_STEPS, patientId), steps)
+        }
+        editor.apply()
+    }
+
+    fun saveCachedSteps(steps: String, dateStr: String, patientId: String? = null) {
+        prefs.edit()
+            .putString(getScopedKey(KEY_CACHED_VITALS_DATE, patientId), dateStr)
+            .putString(getScopedKey(KEY_CACHED_STEPS, patientId), steps)
             .apply()
     }
 
@@ -243,6 +257,9 @@ class SyncPrefsManager(context: Context) {
 
     fun getCachedOxygenLevel(patientId: String? = null): String? = 
         prefs.getString(getScopedKey(KEY_CACHED_OXYGEN_LEVEL, patientId), null)
+
+    fun getCachedSteps(patientId: String? = null): String? = 
+        prefs.getString(getScopedKey(KEY_CACHED_STEPS, patientId), null)
 
     fun clearUserData(patientId: String? = null) {
         val pid = if (!patientId.isNullOrBlank()) {
@@ -310,11 +327,184 @@ class SyncPrefsManager(context: Context) {
         prefs.edit().putBoolean(KEY_PROMPTED_HISTORY_PERMISSION, prompted).apply()
     }
 
+    fun saveCachedWeeklyPlans(json: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_CACHED_WEEKLY_PLANS, patientId)
+        prefs.edit().putString(key, json).apply()
+    }
+
+    fun getCachedWeeklyPlans(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_WEEKLY_PLANS, patientId)
+        return prefs.getString(key, null)
+    }
+
+    fun getLastPlanFetchTimestamp(patientId: String? = null): Long {
+        val key = getScopedKey(KEY_LAST_PLAN_FETCH_TIMESTAMP, patientId)
+        return prefs.getLong(key, 0L)
+    }
+
+    fun setLastPlanFetchTimestamp(timestampMs: Long, patientId: String? = null) {
+        val key = getScopedKey(KEY_LAST_PLAN_FETCH_TIMESTAMP, patientId)
+        prefs.edit().putLong(key, timestampMs).apply()
+    }
+
+    fun addPendingPlanSync(planId: String, scheduleJson: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PLAN_SYNCS, patientId)
+        val currentJson = prefs.getString(key, null)
+        val jsonMap = try {
+            if (!currentJson.isNullOrBlank()) {
+                org.json.JSONObject(currentJson)
+            } else {
+                org.json.JSONObject()
+            }
+        } catch (e: Exception) {
+            org.json.JSONObject()
+        }
+        jsonMap.put(planId, scheduleJson)
+        prefs.edit().putString(key, jsonMap.toString()).apply()
+    }
+
+    fun getPendingPlanSyncs(patientId: String? = null): Map<String, String> {
+        val key = getScopedKey(KEY_PENDING_PLAN_SYNCS, patientId)
+        val currentJson = prefs.getString(key, null) ?: return emptyMap()
+        val result = mutableMapOf<String, String>()
+        try {
+            val jsonObject = org.json.JSONObject(currentJson)
+            val keys = jsonObject.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                result[k] = jsonObject.getString(k)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
+    fun removePendingPlanSync(planId: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PLAN_SYNCS, patientId)
+        val currentJson = prefs.getString(key, null) ?: return
+        try {
+            val jsonObject = org.json.JSONObject(currentJson)
+            jsonObject.remove(planId)
+            prefs.edit().putString(key, jsonObject.toString()).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun clearPendingPlanSyncs(patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PLAN_SYNCS, patientId)
+        prefs.edit().remove(key).apply()
+    }
+
+    // Daily Vitals Cache
+    fun saveCachedDailyVitals(json: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_CACHED_DAILY_VITALS, patientId)
+        prefs.edit().putString(key, json).apply()
+    }
+
+    fun getCachedDailyVitals(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_DAILY_VITALS, patientId)
+        return prefs.getString(key, null)
+    }
+
+    // Zivaa Scores Cache
+    fun saveCachedZivaaScores(json: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_CACHED_ZIVAA_SCORES, patientId)
+        prefs.edit().putString(key, json).apply()
+    }
+
+    fun getCachedZivaaScores(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_ZIVAA_SCORES, patientId)
+        return prefs.getString(key, null)
+    }
+
+    // Patient Checkins (Mood) Cache
+    fun saveCachedPatientCheckins(json: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_CACHED_PATIENT_CHECKINS, patientId)
+        prefs.edit().putString(key, json).apply()
+    }
+
+    fun getCachedPatientCheckins(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_PATIENT_CHECKINS, patientId)
+        return prefs.getString(key, null)
+    }
+
+    // Pending Patient Checkins Outbox
+    fun addPendingPatientCheckin(checkinJson: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PATIENT_CHECKINS, patientId)
+        val currentList = getPendingPatientCheckins(patientId).toMutableList()
+        currentList.add(checkinJson)
+        val array = org.json.JSONArray(currentList)
+        prefs.edit().putString(key, array.toString()).apply()
+    }
+
+    fun getPendingPatientCheckins(patientId: String? = null): List<String> {
+        val key = getScopedKey(KEY_PENDING_PATIENT_CHECKINS, patientId)
+        val str = prefs.getString(key, null) ?: return emptyList()
+        val result = mutableListOf<String>()
+        try {
+            val array = org.json.JSONArray(str)
+            for (i in 0 until array.length()) {
+                result.add(array.getString(i))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
+    fun removePendingPatientCheckin(checkinJson: String, patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PATIENT_CHECKINS, patientId)
+        val currentList = getPendingPatientCheckins(patientId).toMutableList()
+        currentList.remove(checkinJson)
+        val array = org.json.JSONArray(currentList)
+        prefs.edit().putString(key, array.toString()).apply()
+    }
+
+    fun clearPendingPatientCheckins(patientId: String? = null) {
+        val key = getScopedKey(KEY_PENDING_PATIENT_CHECKINS, patientId)
+        prefs.edit().remove(key).apply()
+    }
+
+    // Intraday Heart Rate Cache
+    fun saveCachedIntradayHeartRate(json: String, dateStr: String, patientId: String? = null) {
+        val keyJson = getScopedKey(KEY_CACHED_INTRADAY_HR, patientId)
+        val keyDate = getScopedKey(KEY_CACHED_INTRADAY_HR_DATE, patientId)
+        prefs.edit().putString(keyJson, json).putString(keyDate, dateStr).apply()
+    }
+
+    fun getCachedIntradayHeartRate(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_INTRADAY_HR, patientId)
+        return prefs.getString(key, null)
+    }
+
+    fun getCachedIntradayHeartRateDate(patientId: String? = null): String? {
+        val key = getScopedKey(KEY_CACHED_INTRADAY_HR_DATE, patientId)
+        return prefs.getString(key, null)
+    }
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }
 
     companion object {
+        val DEFAULT_SOURCE_PRIORITIES = listOf(
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.sec.android.app.shealth_watch", 0),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.sec.android.app.shealth", 1),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.fitbit.FitbitMobile", 2),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.garmin", 2),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.withings", 2),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.google.android.apps.fitness", 3),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.google.android.apps.healthdata", 4),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.google.android.apps.wear.healthservices", 1),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.sec.android.app.shealth_phone", 97),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.fitbit.FitbitMobile_phone", 98),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "android", 99),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "android_phone", 99),
+            com.zivaa.app.data.remote.MetricSourcePriorityRecord("StepsRecord", "com.android.healthconnect.phone", 50)
+        )
+
         private const val PREFS_NAME = "health_sync_prefs"
         private const val KEY_PROMPTED_HISTORY_PERMISSION = "prompted_history_permission"
         private const val KEY_CHANGES_TOKEN = "changes_token"
@@ -343,7 +533,17 @@ class SyncPrefsManager(context: Context) {
         private const val KEY_CACHED_SLEEP_HOURS = "cached_sleep_hours"
         private const val KEY_CACHED_HEART_RATE = "cached_heart_rate"
         private const val KEY_CACHED_OXYGEN_LEVEL = "cached_oxygen_level"
+        private const val KEY_CACHED_STEPS = "cached_steps"
         private const val KEY_LAST_SUCCESSFUL_SYNC_TIMESTAMP = "last_successful_sync_timestamp"
         private const val KEY_HISTORICAL_LOOKBACK_PROGRESS = "historical_lookback_progress"
+        private const val KEY_CACHED_WEEKLY_PLANS = "cached_weekly_plans"
+        private const val KEY_LAST_PLAN_FETCH_TIMESTAMP = "last_plan_fetch_timestamp"
+        private const val KEY_PENDING_PLAN_SYNCS = "pending_plan_syncs"
+        private const val KEY_CACHED_DAILY_VITALS = "cached_daily_vitals"
+        private const val KEY_CACHED_ZIVAA_SCORES = "cached_zivaa_scores"
+        private const val KEY_CACHED_PATIENT_CHECKINS = "cached_patient_checkins"
+        private const val KEY_PENDING_PATIENT_CHECKINS = "pending_patient_checkins"
+        private const val KEY_CACHED_INTRADAY_HR = "cached_intraday_hr"
+        private const val KEY_CACHED_INTRADAY_HR_DATE = "cached_intraday_hr_date"
     }
 }
