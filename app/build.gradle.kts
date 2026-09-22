@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 52
-        versionName = "1.0.51"
+        versionCode = 53
+        versionName = "1.0.52"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.51 - Rest Score v2 with WASO & HRV biometric metrics, decoupled asynchronous vitals rollup trigger, and personalized sleep analytics"
+                releaseNotes = "Zivaa v1.0.52 - Heart Health Score v2 with diurnal segments & recovery metrics, dedicated Health Connect settings and sync diagnostics history screens, and morning briefing temporal realignment"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

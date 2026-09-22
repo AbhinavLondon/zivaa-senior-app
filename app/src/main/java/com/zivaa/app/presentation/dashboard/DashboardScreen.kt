@@ -712,18 +712,30 @@ fun HeroCardContent(
     val eyebrowText = when (period) {
         "afternoon" -> "Afternoon Check-In"
         "evening" -> "Evening Check-In"
-        else -> "All Well Today"
+        else -> when (viewModel.morningBriefingStatus) {
+            MorningBriefingStatus.READY -> "Today's Briefing"
+            MorningBriefingStatus.ANALYZING_REST -> "Analyzing Rest"
+            MorningBriefingStatus.AWAITING_SLEEP -> "Morning Greeting"
+        }
     }
     
     val eyebrowDotColor = when (period) {
         "afternoon" -> Color(0xFFD6A35A) // Amber/Yellowish
         "evening" -> Color(0xFF8AA676) // Leaf
-        else -> colors.leaf.copy(alpha = 0.3f)
+        else -> when (viewModel.morningBriefingStatus) {
+            MorningBriefingStatus.READY -> colors.leaf
+            MorningBriefingStatus.ANALYZING_REST -> Color(0xFFD6A35A)
+            MorningBriefingStatus.AWAITING_SLEEP -> colors.leaf.copy(alpha = 0.5f)
+        }
     }
 
     val patientName = viewModel.patientFirstName.ifEmpty { "User" }
     val cleanMorningHeadline = viewModel.morningBriefingHeadline.removeSuffix(".").removeSuffix(", Ranjit").removeSuffix(" Ranjit").removeSuffix(", $patientName").removeSuffix(" $patientName").trim()
-    val morningHeadline = if (cleanMorningHeadline.isNotEmpty()) cleanMorningHeadline else "Good morning"
+    val morningHeadline = when (viewModel.morningBriefingStatus) {
+        MorningBriefingStatus.READY -> if (cleanMorningHeadline.isNotEmpty()) cleanMorningHeadline else "Your Daily Briefing"
+        MorningBriefingStatus.ANALYZING_REST -> "Preparing your daily briefing"
+        MorningBriefingStatus.AWAITING_SLEEP -> "Good morning, $patientName"
+    }
     
     val headlineText = when (period) {
         "latenight" -> "It's late, $patientName"
@@ -736,7 +748,11 @@ fun HeroCardContent(
         "latenight" -> viewModel.lateNightInsightText ?: "Loading your late night summary..."
         "afternoon" -> viewModel.middaySummaryText ?: "Loading your afternoon check-in..."
         "evening" -> viewModel.eveningSummaryText ?: "Loading your evening wind down..."
-        else -> if (viewModel.morningBriefingText.isNotEmpty()) viewModel.morningBriefingText else "We are preparing your briefing for today..."
+        else -> when (viewModel.morningBriefingStatus) {
+            MorningBriefingStatus.READY -> if (viewModel.morningBriefingText.isNotEmpty()) viewModel.morningBriefingText else "Here is your morning health summary for today."
+            MorningBriefingStatus.ANALYZING_REST -> "Reviewing your sleep and yesterday's activity to prepare your personalized briefing..."
+            MorningBriefingStatus.AWAITING_SLEEP -> "Wishing you a peaceful and energizing start to your day. As soon as your watch finishes analyzing last night's rest, your full briefing will appear here."
+        }
     }
     
     val contentColor = if (period == "evening" || period == "latenight") Color.White else ZivaaTheme.colors.sageInk
@@ -779,8 +795,9 @@ fun HeroCardContent(
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            val cleanHeadline = headlineText.trimEnd('.')
             Text(
-                text = "$headlineText.",
+                text = "$cleanHeadline.",
                 style = ZivaaTheme.typography.displayMedium.copy(fontSize = 28.sp, lineHeight = (28 * 1.1).sp, letterSpacing = (-0.012).em),
                 color = contentColor
             )
@@ -795,6 +812,52 @@ fun HeroCardContent(
                 ),
                 color = contentColor
             )
+
+            if (period == "morning" && viewModel.morningBriefingStatus == MorningBriefingStatus.AWAITING_SLEEP) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(contentColor.copy(alpha = 0.08f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Schedule,
+                        contentDescription = "Watch Sync",
+                        tint = contentColor.copy(alpha = 0.65f),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = "Waiting for watch sleep sync",
+                        style = ZivaaTheme.typography.meta.copy(fontSize = 11.5.sp),
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
+                }
+            } else if (period == "morning" && viewModel.morningBriefingStatus == MorningBriefingStatus.ANALYZING_REST) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFD6A35A).copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.AutoAwesome,
+                        contentDescription = "Analyzing",
+                        tint = Color(0xFFD6A35A),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = "Analyzing rest & activity...",
+                        style = ZivaaTheme.typography.meta.copy(fontSize = 11.5.sp),
+                        color = contentColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
             
             if (period == "latenight") {
                 Spacer(modifier = Modifier.height(24.dp))

@@ -738,6 +738,14 @@ fun MobilityScoreCard(
     }
 }
 
+fun getMobilityScoreTierColor(score: Int, isDark: Boolean): Color = when {
+    score <= 0 -> if (isDark) Color(0xFF4A4E58) else Color(0xFFD4CDC2)
+    score >= 85 -> if (isDark) Color(0xFF4EAE7B) else Color(0xFF2E8555)
+    score >= 70 -> if (isDark) Color(0xFF7CB89E) else Color(0xFF2E6B56)
+    score >= 50 -> if (isDark) Color(0xFFE5A643) else Color(0xFFC97A1E)
+    else -> if (isDark) Color(0xFFE58B43) else Color(0xFFC85A24)
+}
+
 @Composable
 private fun MobilityArcDialer(
     score: Int,
@@ -1417,12 +1425,7 @@ fun WeeklyMobilityScoreChartCard(
                 "Gentle Avg"
             } else ""
 
-            val heroScoreColor = when {
-                heroScore >= 85 -> if (isDark) Color(0xFF4EAE7B) else Color(0xFF2E8555)
-                heroScore >= 70 -> if (isDark) Color(0xFF7CB89E) else Color(0xFF2E6B56)
-                heroScore >= 50 -> if (isDark) Color(0xFFE5A643) else Color(0xFFC97A1E)
-                else -> if (isDark) Color(0xFFE58B43) else Color(0xFFC85A24)
-            }
+            val heroScoreColor = getMobilityScoreTierColor(heroScore, isDark)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1541,11 +1544,13 @@ fun WeeklyMobilityScoreChartCard(
 
             val pastBarColor = if (isDark) Color(0xFF4A4E58) else Color(0xFFD4CDC2)
             val columns = List(scoreData.size) { index ->
-                if (index == scoreData.size - 1) {
-                    lineComponent(color = heroScoreColor, thickness = barThickness, shape = Shapes.pillShape)
+                val barVal = scoreData.getOrNull(index)?.second?.toInt() ?: 0
+                val barColor = if (barVal > 0) {
+                    getMobilityScoreTierColor(barVal, isDark)
                 } else {
-                    lineComponent(color = pastBarColor, thickness = barThickness, shape = Shapes.pillShape)
+                    pastBarColor
                 }
+                lineComponent(color = barColor, thickness = barThickness, shape = Shapes.pillShape)
             }
 
             val chart = if (viewModel.selectedChartType == MovementChartType.LINE) {

@@ -24,5 +24,11 @@ data class SupabaseZivaaScoreRecord(
     val restScore: Int? = null,
 
     @SerializedName("rest_breakdown")
-    val restBreakdown: Map<String, Any>? = null
+    val restBreakdown: Map<String, Any>? = null,
+
+    @SerializedName("heart_score")
+    val heartScore: Int? = null,
+
+    @SerializedName("heart_breakdown")
+    val heartBreakdown: Map<String, Any>? = null
 )

@@ -33,7 +33,8 @@ fun ProfileScreen(
     onNavigateHome: () -> Unit = {},
     onNavigateToCustomisePlan: () -> Unit = {},
     onNavigateToHealthWallet: () -> Unit = {},
-    onNavigateToTakeTour: () -> Unit = {}
+    onNavigateToTakeTour: () -> Unit = {},
+    onNavigateToHealthConnect: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -551,6 +552,42 @@ fun ProfileScreen(
                                 .background(ProfileTheme.colors.cardBackground, RoundedCornerShape(24.dp))
                                 .padding(24.dp)
                         ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onNavigateToHealthConnect() }
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Health Connect",
+                                            style = ProfileTheme.typography.cardTitle
+                                        )
+                                        Text(
+                                            text = "Permissions, background sync & sync history",
+                                            style = ProfileTheme.typography.cardSubtitle,
+                                            color = ProfileTheme.colors.textSecondary
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Health Connect",
+                                        tint = ProfileTheme.colors.textSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(
+                                color = ProfileTheme.colors.divider,
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            )
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -31,12 +31,20 @@ import androidx.lifecycle.AndroidViewModel
 
 import kotlinx.coroutines.flow.StateFlow
 
+enum class MorningBriefingStatus {
+    AWAITING_SLEEP,
+    ANALYZING_REST,
+    READY
+}
+
 class DashboardViewModel(
     application: Application,
     private val healthConnectManager: HealthConnectManager,
     private val prefsManager: com.zivaa.app.data.local.SyncPrefsManager,
     private val appSettingsManager: com.zivaa.app.data.local.AppSettingsManager
 ) : AndroidViewModel(application) {
+
+    var morningBriefingStatus by mutableStateOf(MorningBriefingStatus.AWAITING_SLEEP)
 
     val showLongevityPlanEnabled: StateFlow<Boolean> = appSettingsManager.showLongevityPlanFlow
 
@@ -64,7 +72,7 @@ class DashboardViewModel(
 
     var morningBriefingText by mutableStateOf("")
     var morningBriefingHeadline by mutableStateOf("")
-    var sleepInsightText by mutableStateOf<String?>("")
+    var sleepInsightText by mutableStateOf<String?>(null)
     var middaySummaryText by mutableStateOf<String?>(null)
     var eveningSummaryText by mutableStateOf<String?>(null)
     var lateNightInsightText by mutableStateOf<String?>(null)
@@ -98,13 +106,21 @@ class DashboardViewModel(
         if (prefsManager.getCachedBriefingDate(userId) == todayStr) {
             val cachedText = prefsManager.getMorningBriefingText(userId)
             val cachedHeadline = prefsManager.getMorningBriefingHeadline(userId)
-            morningBriefingText = if (!cachedText.isNullOrBlank()) cachedText else "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
-            morningBriefingHeadline = if (!cachedHeadline.isNullOrBlank()) cachedHeadline else "Your Daily Briefing"
+            if (!cachedText.isNullOrBlank()) {
+                morningBriefingText = cachedText
+                morningBriefingHeadline = if (!cachedHeadline.isNullOrBlank()) cachedHeadline else "Your Daily Briefing"
+                morningBriefingStatus = MorningBriefingStatus.READY
+            } else {
+                morningBriefingStatus = MorningBriefingStatus.AWAITING_SLEEP
+                morningBriefingHeadline = "Good morning"
+                morningBriefingText = "Wishing you a peaceful and energizing start to your day. As soon as your watch finishes analyzing last night's rest, your full briefing will appear here."
+            }
             middaySummaryText = prefsManager.getMiddaySummaryText(userId)
             eveningSummaryText = prefsManager.getEveningSummaryText(userId)
         } else {
-            morningBriefingHeadline = "Your Daily Briefing"
-            morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
+            morningBriefingStatus = MorningBriefingStatus.AWAITING_SLEEP
+            morningBriefingHeadline = "Good morning"
+            morningBriefingText = "Wishing you a peaceful and energizing start to your day. As soon as your watch finishes analyzing last night's rest, your full briefing will appear here."
         }
 
         // Hydrate clinical vitals from SharedPreferences cache if for today
@@ -683,6 +699,7 @@ class DashboardViewModel(
                                     sleepHours = "${hours}h ${minutes}m"
                                 } else {
                                     sleepHours = "--"
+                                    sleepInsightText = null
                                 }
                                 
                                 if (latest.minHeartRate != null && latest.maxHeartRate != null && latest.maxHeartRate > 0) {
@@ -706,6 +723,9 @@ class DashboardViewModel(
                                     oxygenLevel = oxygenLevel,
                                     patientId = userId
                                 )
+                            } else {
+                                sleepHours = "--"
+                                sleepInsightText = null
                             }
                         }
                     }
@@ -806,22 +826,42 @@ class DashboardViewModel(
                     val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
                     if (userId != null) {
                         if (!isLateNight) {
-                            val briefingResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getMorningBriefing("eq.$userId")
+                            val briefingResponse = com.zivaa.app.data.remote.RetrofitClient.apiService.getMorningBriefing(
+                                patientIdQuery = "eq.$userId",
+                                dateQuery = "eq.$todayStr"
+                            )
                             if (briefingResponse.isSuccessful) {
                                 val records = briefingResponse.body()
-                                if (!records.isNullOrEmpty()) {
+                                if (!records.isNullOrEmpty() && records[0].date == todayStr) {
                                     morningBriefingText = records[0].summary
                                     morningBriefingHeadline = records[0].headline ?: "Your Daily Briefing"
+                                    morningBriefingStatus = MorningBriefingStatus.READY
                                     prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline, userId)
                                 } else {
-                                    morningBriefingHeadline = "Your Daily Briefing"
-                                    morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
-                                    prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline, userId)
+                                    // Today's briefing has not been generated yet
+                                    if (sleepHours != "--" && sleepHours.isNotBlank()) {
+                                        morningBriefingStatus = MorningBriefingStatus.ANALYZING_REST
+                                        morningBriefingHeadline = "Preparing your daily briefing..."
+                                        morningBriefingText = "Reviewing your sleep and yesterday's activity to prepare your personalized briefing..."
+                                    } else {
+                                        morningBriefingStatus = MorningBriefingStatus.AWAITING_SLEEP
+                                        val nameGreeting = if (patientFirstName.isNotBlank()) "Good morning, $patientFirstName" else "Good morning"
+                                        morningBriefingHeadline = nameGreeting
+                                        morningBriefingText = "Wishing you a peaceful and energizing start to your day. As soon as your watch finishes analyzing last night's rest, your full briefing will appear here."
+                                    }
                                 }
                             } else {
-                                if (morningBriefingText.isEmpty()) {
-                                    morningBriefingHeadline = "Your Daily Briefing"
-                                    morningBriefingText = "We are preparing your briefing for today. Check back shortly as we analyze your morning activity and vitals."
+                                if (morningBriefingStatus != MorningBriefingStatus.READY) {
+                                    if (sleepHours != "--" && sleepHours.isNotBlank()) {
+                                        morningBriefingStatus = MorningBriefingStatus.ANALYZING_REST
+                                        morningBriefingHeadline = "Preparing your daily briefing..."
+                                        morningBriefingText = "Reviewing your sleep and yesterday's activity to prepare your personalized briefing..."
+                                    } else {
+                                        morningBriefingStatus = MorningBriefingStatus.AWAITING_SLEEP
+                                        val nameGreeting = if (patientFirstName.isNotBlank()) "Good morning, $patientFirstName" else "Good morning"
+                                        morningBriefingHeadline = nameGreeting
+                                        morningBriefingText = "Wishing you a peaceful and energizing start to your day. As soon as your watch finishes analyzing last night's rest, your full briefing will appear here."
+                                    }
                                 }
                             }
                         } else {
@@ -862,13 +902,15 @@ class DashboardViewModel(
                         )
                         if (insightResponse.isSuccessful) {
                             val insights = insightResponse.body()
-                            if (!insights.isNullOrEmpty()) {
+                            if (!insights.isNullOrEmpty() && sleepHours != "--" && sleepHours.isNotBlank()) {
                                 val rawText = insights[0].insight_text
                                 val match = "\\[(.*?)\\]".toRegex().find(rawText)
                                 sleepInsightText = match?.groupValues?.get(1)?.lowercase()?.replaceFirstChar { it.uppercase() }
                             } else {
                                 sleepInsightText = null
                             }
+                        } else {
+                            sleepInsightText = null
                         }
 
                         // Fetch Nudge Alerts that are unacknowledged
@@ -978,7 +1020,7 @@ class DashboardViewModel(
                 val workManager = androidx.work.WorkManager.getInstance(appContext)
                 workManager.enqueueUniqueWork(
                     "ManualHealthDataSync",
-                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    androidx.work.ExistingWorkPolicy.KEEP,
                     oneTimeWork
                 )
 

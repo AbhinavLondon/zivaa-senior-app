@@ -429,8 +429,8 @@ class MainActivity : ComponentActivity() {
                             "dashboard" -> "home"
                             "care" -> "care"
                             "health_connect", "health_wallet", "lab_report", "lab_summary" -> "health"
-                            "wellness", "mood", "movement", "sleep", "heart_rate", "mobility_score_explainer", "exercise_follow_along" -> "wellness"
-                            "profile", "settings", "primary_focus", "plan_setup", "plan" -> "ranjit"
+                            "wellness", "mood", "movement", "sleep", "heart_rate", "heart_score_explainer", "mobility_score_explainer", "exercise_follow_along" -> "wellness"
+                            "profile", "settings", "primary_focus", "plan_setup", "plan", "health_connect_settings", "sync_history" -> "ranjit"
                             else -> "home"
                         }
 
@@ -629,7 +629,27 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToTakeTour = {
                                         prefsManager.setTodayTourCompleted(false, activeUserId)
                                         currentScreen = "dashboard"
-                                    }
+                                    },
+                                    onNavigateToHealthConnect = { currentScreen = "health_connect_settings" }
+                                )
+                            }
+                            "health_connect_settings" -> {
+                                val hcViewModel: com.zivaa.app.presentation.health.HealthConnectSettingsViewModel = viewModel(
+                                    key = "health_connect_settings_$activeUserId"
+                                )
+                                com.zivaa.app.presentation.health.HealthConnectSettingsScreen(
+                                    viewModel = hcViewModel,
+                                    onNavigateBack = { currentScreen = "profile" },
+                                    onNavigateToSyncHistory = { currentScreen = "sync_history" }
+                                )
+                            }
+                            "sync_history" -> {
+                                val hcViewModel: com.zivaa.app.presentation.health.HealthConnectSettingsViewModel = viewModel(
+                                    key = "health_connect_settings_$activeUserId"
+                                )
+                                com.zivaa.app.presentation.health.SyncHistoryScreen(
+                                    viewModel = hcViewModel,
+                                    onNavigateBack = { currentScreen = "health_connect_settings" }
                                 )
                             }
                             "mood" -> {
@@ -744,7 +764,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 com.zivaa.app.presentation.heartrate.HeartRateScreen(
                                     viewModel = heartRateViewModel,
-                                    onNavigateBack = { currentScreen = "dashboard" }
+                                    onNavigateBack = { currentScreen = "dashboard" },
+                                    onInfoClick = { currentScreen = "heart_score_explainer" }
+                                )
+                            }
+                            "heart_score_explainer" -> {
+                                com.zivaa.app.presentation.heartrate.HeartScoreExplainerScreen(
+                                    onNavigateBack = { currentScreen = "heart_rate" }
                                 )
                             }
                             "nudge_deep_dive" -> {

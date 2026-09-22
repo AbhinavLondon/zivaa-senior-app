@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
+import kotlin.math.roundToInt
 
 import androidx.compose.foundation.clickable
 import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
@@ -96,13 +97,15 @@ fun RestScreen(
             val color = when {
                 score == 0 -> Color(0xFF6B7280) // Gray for no data
                 score >= 85 -> Color(0xFF4EAE7B) // Optimal Green
-                score >= 60 -> Color(0xFFE5A643) // Steady Yellow
-                else -> Color(0xFFE58B43)        // Attention Orange
+                score >= 70 -> Color(0xFF3B82F6) // Steady Blue
+                score >= 50 -> Color(0xFFE5A643) // Moderate Amber
+                else -> Color(0xFFEF4444)        // Attention Red
             }
             val text = when {
                 score == 0 -> "No Data Yet"
-                score >= 85 -> "Excellent Rest"
-                score >= 60 -> "Fair Rest"
+                score >= 85 -> "Optimal Rest"
+                score >= 70 -> "Restorative Sleep"
+                score >= 50 -> "Fair Rest"
                 else -> "Needs Attention"
             }
 
@@ -182,21 +185,45 @@ fun RestScreen(
                             // 2x2 Grid of factors (4 rows of 2 tiles)
                             val b = viewModel.restBreakdown
                             
+                            fun formatHours(hours: Double?): String {
+                                if (hours == null || hours <= 0.0) return "No data"
+                                val totalMinutes = (hours * 60.0).roundToInt()
+                                val h = totalMinutes / 60
+                                val m = totalMinutes % 60
+                                return when {
+                                    h > 0 && m > 0 -> "${h}h ${m}m"
+                                    h > 0 -> "${h}h"
+                                    else -> "${m}m"
+                                }
+                            }
+
+                            fun formatMinutes(mins: Double?): String {
+                                if (mins == null || mins < 0.0) return "No data"
+                                val totalMinutes = mins.roundToInt()
+                                val h = totalMinutes / 60
+                                val m = totalMinutes % 60
+                                return when {
+                                    h > 0 && m > 0 -> "${h}h ${m}m"
+                                    h > 0 -> "${h}h"
+                                    else -> "${m}m"
+                                }
+                            }
+
                             // Values
                             val durPts = (b?.get("duration_pts") as? Number)?.toInt() ?: 0
                             val durValNum = (b?.get("sleep_hours") as? Number)?.toDouble()
-                            val durVal = durValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
+                            val durVal = formatHours(durValNum)
                             
                             // WASO replaces Efficiency
                             val wasoPts = (b?.get("waso_pts") as? Number)?.toInt()
                             val wasoValNum = (b?.get("waso_mins") as? Number)?.toDouble()
-                            val wasoVal = wasoValNum?.let { "${it.toInt()} min" } ?: "No data"
+                            val wasoVal = formatMinutes(wasoValNum)
                             
                             val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
-                            val deepVal = deepValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
+                            val deepVal = formatHours(deepValNum)
                             
                             val remValNum = (b?.get("sleep_stage_6_hours") as? Number)?.toDouble()
-                            val remVal = remValNum?.let { String.format(Locale.US, "%.1fh", it) } ?: "No data"
+                            val remVal = formatHours(remValNum)
                             
                             // Resting HR & HRV
                             val rhrValNum = (b?.get("resting_heart_rate") as? Number)?.toInt()
@@ -464,11 +491,21 @@ fun RestScreen(
                             isDecimal = true
                         )
                         
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Spacer(modifier = Modifier.height(140.dp))
                     }
                 }
             }
         }
+    }
+}
+
+fun getRestScoreTierInfo(score: Int): Pair<String, Color> {
+    return when {
+        score == 0 -> "No Data Yet" to Color(0xFF6B7280)
+        score >= 85 -> "Optimal Rest" to Color(0xFF4EAE7B)
+        score >= 70 -> "Restorative Sleep" to Color(0xFF3B82F6)
+        score >= 50 -> "Fair Rest" to Color(0xFFE5A643)
+        else -> "Needs Attention" to Color(0xFFEF4444)
     }
 }
 
@@ -488,77 +525,89 @@ fun RestArcDialer(
         label = "dialerProgress"
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(170.dp),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(170.dp)) {
-            val strokeWidthPx = 13.dp.toPx()
-            val knobRadiusPx = 8.dp.toPx()
-            val arcPadding = strokeWidthPx / 2f + knobRadiusPx
-            val arcDiameter = size.minDimension - 2 * arcPadding
-            val arcTopLeft = androidx.compose.ui.geometry.Offset(
-                (size.width - arcDiameter) / 2f,
-                (size.height - arcDiameter) / 2f
-            )
-            val arcSize = androidx.compose.ui.geometry.Size(arcDiameter, arcDiameter)
-            val radius = arcDiameter / 2f
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val startAngle = 135f
-            val sweepTotal = 270f
+        Box(
+            modifier = Modifier.size(165.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidthPx = 13.dp.toPx()
+                val knobRadiusPx = 8.dp.toPx()
+                val arcPadding = strokeWidthPx / 2f + knobRadiusPx
+                val arcDiameter = size.minDimension - 2 * arcPadding
+                val arcTopLeft = androidx.compose.ui.geometry.Offset(
+                    (size.width - arcDiameter) / 2f,
+                    (size.height - arcDiameter) / 2f
+                )
+                val arcSize = androidx.compose.ui.geometry.Size(arcDiameter, arcDiameter)
+                val radius = arcDiameter / 2f
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val startAngle = 135f
+                val sweepTotal = 270f
 
-            drawArc(
-                color = if (isDark) Color(0xFF2E3238) else lineStrongColor,
-                startAngle = startAngle,
-                sweepAngle = sweepTotal,
-                useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidthPx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            )
-
-            if (animatedScoreFraction > 0f) {
                 drawArc(
-                    color = tierColor,
+                    color = if (isDark) Color(0xFF2E3238) else lineStrongColor,
                     startAngle = startAngle,
-                    sweepAngle = sweepTotal * animatedScoreFraction,
+                    sweepAngle = sweepTotal,
                     useCenter = false,
                     topLeft = arcTopLeft,
                     size = arcSize,
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidthPx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
                 )
 
-                val currentAngleRad = Math.toRadians((startAngle + sweepTotal * animatedScoreFraction).toDouble())
-                val knobX = cx + (radius * Math.cos(currentAngleRad)).toFloat()
-                val knobY = cy + (radius * Math.sin(currentAngleRad)).toFloat()
-                val knobCenter = androidx.compose.ui.geometry.Offset(knobX, knobY)
+                if (animatedScoreFraction > 0f) {
+                    drawArc(
+                        color = tierColor,
+                        startAngle = startAngle,
+                        sweepAngle = sweepTotal * animatedScoreFraction,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidthPx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    )
 
-                drawCircle(color = tierColor.copy(alpha = 0.35f), radius = knobRadiusPx + 3.dp.toPx(), center = knobCenter)
-                drawCircle(color = tierColor, radius = knobRadiusPx, center = knobCenter)
-                drawCircle(color = inkColor.copy(alpha = 0.85f), radius = 2.5.dp.toPx(), center = knobCenter)
+                    val currentAngleRad = Math.toRadians((startAngle + sweepTotal * animatedScoreFraction).toDouble())
+                    val knobX = cx + (radius * Math.cos(currentAngleRad)).toFloat()
+                    val knobY = cy + (radius * Math.sin(currentAngleRad)).toFloat()
+                    val knobCenter = androidx.compose.ui.geometry.Offset(knobX, knobY)
+
+                    drawCircle(color = tierColor.copy(alpha = 0.35f), radius = knobRadiusPx + 3.dp.toPx(), center = knobCenter)
+                    drawCircle(color = tierColor, radius = knobRadiusPx, center = knobCenter)
+                    drawCircle(color = inkColor.copy(alpha = 0.85f), radius = 2.5.dp.toPx(), center = knobCenter)
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                Text(
+                    text = if (score == 0) "--" else "$score",
+                    style = ZivaaTheme.typography.displayLarge.copy(
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-1.5).sp
+                    ),
+                    color = inkColor
+                )
             }
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(top = 4.dp)
-        ) {
-            Text(
-                text = "$score",
-                style = ZivaaTheme.typography.displayLarge.copy(fontSize = 46.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.5).sp),
-                color = inkColor
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = tierTitle,
-                style = ZivaaTheme.typography.bodyMedium.copy(fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold),
-                color = tierColor
-            )
-        }
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = tierTitle,
+            style = ZivaaTheme.typography.bodyMedium.copy(
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = tierColor
+        )
     }
 }
 
@@ -941,13 +990,21 @@ fun RestChartCard(
         entryModelOf(*series.toTypedArray())
     }
 
+    val isRestScoreCard = title.contains("Rest Score", ignoreCase = true)
+
     val pastBarColor = if (isDark) Color(0xFF4A4E58) else Color(0xFFB8B0A2)
     val columns = List(values.size) { index ->
-        if (index == values.size - 1) {
-            lineComponent(color = color, thickness = barThickness, shape = Shapes.pillShape)
+        val barColor = if (isRestScoreCard) {
+            val barVal = values.getOrNull(index)?.roundToInt() ?: 0
+            if (barVal <= 0) {
+                pastBarColor
+            } else {
+                getRestScoreTierInfo(barVal).second
+            }
         } else {
-            lineComponent(color = pastBarColor, thickness = barThickness, shape = Shapes.pillShape)
+            if (index == values.size - 1) color else pastBarColor
         }
+        lineComponent(color = barColor, thickness = barThickness, shape = Shapes.pillShape)
     }
 
     val chartMax = (values.maxOrNull() ?: 0f) * 1.15f
@@ -958,11 +1015,28 @@ fun RestChartCard(
         RestTimeRange.THREE_MONTHS -> "3 Months"
     }
 
-    val heroValue = if (isSevenDays) (values.lastOrNull() ?: 0f) else {
+    val heroValue = if (isRestScoreCard) {
+        if (averageValue > 0f) averageValue else {
+            val nonZeros = values.filter { it > 0f }
+            if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else (values.lastOrNull() ?: 0f)
+        }
+    } else if (isSevenDays) {
+        values.lastOrNull() ?: 0f
+    } else {
         val nonZeros = values.filter { it > 0f }
         if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else 0f
     }
-    val heroSubtitle = if (isSevenDays) "latest" else "average"
+
+    val scoreInt = heroValue.roundToInt()
+    val (tagText, tagColor) = if (isRestScoreCard) getRestScoreTierInfo(scoreInt) else "" to color
+
+    val heroSubtitle = if (isRestScoreCard) {
+        when (timeRange) {
+            RestTimeRange.SEVEN_DAYS -> "7-day average score"
+            RestTimeRange.THIRTY_DAYS -> "30-day average score"
+            RestTimeRange.THREE_MONTHS -> "3-month average score"
+        }
+    } else if (isSevenDays) "latest" else "average"
 
     val avgLine = if (showAverageLine && averageValue > 0f) {
         val avgLabelText = when {
@@ -1037,14 +1111,39 @@ fun RestChartCard(
                     } else {
                         String.format(Locale.US, "%.1f", heroValue)
                     }
-                    Text(
-                        text = heroText,
-                        style = ZivaaTheme.typography.displayLarge.copy(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = color
+                    if (isRestScoreCard && scoreInt > 0) {
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = heroText,
+                                style = ZivaaTheme.typography.displayLarge.copy(
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = tagColor
+                                )
+                            )
+                            Text(
+                                text = tagText,
+                                style = ZivaaTheme.typography.bodyLarge.copy(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = tagColor
+                                ),
+                                modifier = Modifier.padding(bottom = 5.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = heroText,
+                            style = ZivaaTheme.typography.displayLarge.copy(
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = color
+                            )
                         )
-                    )
+                    }
                     Text(
                         text = heroSubtitle,
                         style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),

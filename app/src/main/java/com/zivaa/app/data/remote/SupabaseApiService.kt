@@ -17,6 +17,13 @@ interface SupabaseApiService {
         @Body log: SupabaseSyncLogRecord
     ): Response<Void>
 
+    @retrofit2.http.GET("rest/v1/sync_logs")
+    suspend fun getSyncLogs(
+        @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("order") order: String = "timestamp.desc",
+        @retrofit2.http.Query("limit") limit: Int = 50
+    ): Response<List<SupabaseSyncLogRecord>>
+
     @retrofit2.http.DELETE("rest/v1/vitals_raw")
     suspend fun deleteRawVitalsByHealthConnectIds(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,
@@ -102,6 +109,7 @@ interface SupabaseApiService {
     @retrofit2.http.GET("rest/v1/daily_morning_briefings")
     suspend fun getMorningBriefing(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,
+        @retrofit2.http.Query("date") dateQuery: String,
         @retrofit2.http.Query("order") order: String = "created_at.desc",
         @retrofit2.http.Query("limit") limit: Int = 1
     ): Response<List<MorningBriefingRecord>>
@@ -355,11 +363,12 @@ data class MetricSourcePriorityRecord(
 )
 
 data class SupabaseSyncLogRecord(
+    val id: String? = null,
     val patient_id: String?,
     val sync_type: String,
     val status: String,
     val records_synced: Int,
-    val metric_types: Map<String, @JvmSuppressWildcards Any?>? = null,
+    val metric_types: Any? = null,
     val error_message: String? = null,
     val timestamp: String? = null
 )
