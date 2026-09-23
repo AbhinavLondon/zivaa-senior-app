@@ -1189,7 +1189,7 @@ class DashboardViewModel(
                 val workManager = androidx.work.WorkManager.getInstance(appContext)
                 workManager.enqueueUniqueWork(
                     "ManualHealthDataSync",
-                    androidx.work.ExistingWorkPolicy.KEEP,
+                    androidx.work.ExistingWorkPolicy.REPLACE,
                     oneTimeWork
                 )
 

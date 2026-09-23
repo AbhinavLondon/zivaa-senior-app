@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class HealthDataSyncWorker(
@@ -25,7 +26,6 @@ class HealthDataSyncWorker(
         private const val TAG = "HealthDataSyncWorker"
         private const val CHUNK_SIZE = 800
         private const val DELETION_CHUNK_SIZE = 150
-        private val syncMutex = kotlinx.coroutines.sync.Mutex()
     }
 
     private var activePatientId: String? = null
@@ -54,14 +54,8 @@ class HealthDataSyncWorker(
     }
 
     override suspend fun doWork(): Result {
-        if (!syncMutex.tryLock()) {
-            android.util.Log.i(TAG, "Another HealthDataSyncWorker is currently running. Skipping duplicate execution.")
-            return Result.success()
-        }
-        return try {
+        return HealthSyncCoordinator.syncMutex.withLock {
             doWorkInternal()
-        } finally {
-            syncMutex.unlock()
         }
     }
 
@@ -227,7 +221,7 @@ class HealthDataSyncWorker(
                     val priorityPayload = priorityRecords.flatMap { healthConnectManager.mapRecordToSupabase(it, patientId) }
                     val prioritySuccess = uploadRecordsToSupabase(priorityPayload, patientId, syncType)
                     if (!prioritySuccess) return Result.retry()
-                    payload.addAll(priorityPayload)
+                    // Note: Do NOT add priorityPayload to payload; it is already uploaded above.
 
                     // Immediate orchestration ping so dashboard displays fresh data
                     try {
@@ -358,58 +352,52 @@ class HealthDataSyncWorker(
                     nextToken = token
                     logWorkerI("ChangesToken pagination complete: $totalUpsertions upsertions, ${deletedRecordIds.size} deletions for patient $patientId.")
 
-                    // Process deletions in Supabase (High-Throughput Concurrent Bounded Purge)
+                    // Process deletions in Supabase (Indexed Sequential Bounded Purge)
                     if (deletedRecordIds.isNotEmpty()) {
                         val chunks = deletedRecordIds.chunked(DELETION_CHUNK_SIZE)
-                        logWorkerI("Purging ${deletedRecordIds.size} deleted Health Connect records across ${chunks.size} chunks (concurrency: 4)...")
-                        for (batch in chunks.chunked(4)) {
+                        logWorkerI("Purging ${deletedRecordIds.size} deleted Health Connect records across ${chunks.size} chunks sequentially...")
+                        for (delChunk in chunks) {
                             if (isStopped) {
                                 logWorkerW("Worker stopped during deletion purge. Halting.")
                                 return Result.retry()
                             }
-                            coroutineScope {
-                                batch.map { delChunk ->
-                                    async(Dispatchers.IO) {
-                                        val delStart = System.currentTimeMillis()
-                                        try {
-                                            val filterStr = "in.(${delChunk.joinToString(",")})"
-                                            val delRes = com.zivaa.app.data.remote.RetrofitClient.apiService.deleteRawVitalsByHealthConnectIds(
-                                                patientIdQuery = "eq.$patientId",
-                                                healthConnectIdInQuery = filterStr
-                                            )
-                                            val delDuration = System.currentTimeMillis() - delStart
-                                            val isSuccess = delRes.isSuccessful
-                                            HealthSyncLogger.logDeletions(
-                                                context = applicationContext,
-                                                userId = patientId,
-                                                syncType = syncType,
-                                                recordCount = delChunk.size,
-                                                durationMs = delDuration,
-                                                isSuccess = isSuccess,
-                                                details = if (isSuccess) "Purged ${delChunk.size} deleted records from Supabase." else "HTTP ${delRes.code()} - ${delRes.errorBody()?.string()}"
-                                            )
-                                            if (isSuccess) {
-                                                logWorkerI("Successfully purged ${delChunk.size} deleted Health Connect records from Supabase.")
-                                            } else {
-                                                logWorkerW("Failed to purge deleted records from Supabase: HTTP ${delRes.code()} - ${delRes.errorBody()?.string()}")
-                                            }
-                                        } catch (e: Exception) {
-                                            if (e is CancellationException) throw e
-                                            val delDuration = System.currentTimeMillis() - delStart
-                                            HealthSyncLogger.logDeletions(
-                                                context = applicationContext,
-                                                userId = patientId,
-                                                syncType = syncType,
-                                                recordCount = delChunk.size,
-                                                durationMs = delDuration,
-                                                isSuccess = false,
-                                                details = "Exception purging deletions: ${e.message}",
-                                                exception = e
-                                            )
-                                            logWorkerE("Exception purging deleted Health Connect records from Supabase: ${e.message}", e)
-                                        }
-                                    }
-                                }.awaitAll()
+                            val delStart = System.currentTimeMillis()
+                            try {
+                                val filterStr = "in.(${delChunk.joinToString(",")})"
+                                val delRes = com.zivaa.app.data.remote.RetrofitClient.apiService.deleteRawVitalsByHealthConnectIds(
+                                    patientIdQuery = "eq.$patientId",
+                                    healthConnectIdInQuery = filterStr
+                                )
+                                val delDuration = System.currentTimeMillis() - delStart
+                                val isSuccess = delRes.isSuccessful
+                                HealthSyncLogger.logDeletions(
+                                    context = applicationContext,
+                                    userId = patientId,
+                                    syncType = syncType,
+                                    recordCount = delChunk.size,
+                                    durationMs = delDuration,
+                                    isSuccess = isSuccess,
+                                    details = if (isSuccess) "Purged ${delChunk.size} deleted records from Supabase." else "HTTP ${delRes.code()} - ${delRes.errorBody()?.string()}"
+                                )
+                                if (isSuccess) {
+                                    logWorkerI("Successfully purged ${delChunk.size} deleted Health Connect records from Supabase.")
+                                } else {
+                                    logWorkerW("Failed to purge deleted records from Supabase: HTTP ${delRes.code()} - ${delRes.errorBody()?.string()}")
+                                }
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                val delDuration = System.currentTimeMillis() - delStart
+                                HealthSyncLogger.logDeletions(
+                                    context = applicationContext,
+                                    userId = patientId,
+                                    syncType = syncType,
+                                    recordCount = delChunk.size,
+                                    durationMs = delDuration,
+                                    isSuccess = false,
+                                    details = "Exception purging deletions: ${e.message}",
+                                    exception = e
+                                )
+                                logWorkerE("Exception purging deleted Health Connect records from Supabase: ${e.message}", e)
                             }
                         }
                     }

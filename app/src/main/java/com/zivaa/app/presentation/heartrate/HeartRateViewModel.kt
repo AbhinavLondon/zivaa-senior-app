@@ -219,34 +219,20 @@ class HeartRateViewModel(
     }
 
     private fun computeScoreAndBreakdown() {
-        val todayDateStr = LocalDate.now().toString()
-        val yesterdayDate = LocalDate.now().minusDays(1)
+        val today = LocalDate.now()
+        val yesterdayDate = today.minusDays(1)
         val yesterdayDateStr = yesterdayDate.toString()
 
-        val targetScore = allScores.firstOrNull { it.heartScore != null && it.date.take(10) < todayDateStr }
-            ?: allScores.firstOrNull { it.heartScore != null }
-        
-        val targetScoreDateStr = targetScore?.date?.take(10) ?: yesterdayDateStr
-        val targetVitals = allVitals.firstOrNull { it.date.take(10) == targetScoreDateStr }
-            ?: allVitals.firstOrNull { it.date.take(10) < todayDateStr }
+        val targetScore = allScores.firstOrNull { it.date.take(10) == yesterdayDateStr && it.heartScore != null }
+        val targetVitals = allVitals.firstOrNull { it.date.take(10) == yesterdayDateStr }
 
-        try {
-            val scoreLocalDate = LocalDate.parse(targetScoreDateStr)
-            val today = LocalDate.now()
-            scoreDateLabel = when {
-                scoreLocalDate == today.minusDays(1) -> "Yesterday, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
-                scoreLocalDate == today -> "Today, ${scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
-                else -> scoreLocalDate.format(DateTimeFormatter.ofPattern("d MMM"))
-            }
-        } catch (e: Exception) {
-            scoreDateLabel = "Yesterday"
-        }
+        scoreDateLabel = "Yesterday, ${yesterdayDate.format(DateTimeFormatter.ofPattern("d MMM"))}"
 
         if (targetScore != null && targetScore.heartScore != null) {
             heartScore = targetScore.heartScore
             val merged: MutableMap<String, Any?> = targetScore.heartBreakdown?.toMutableMap() ?: mutableMapOf()
             
-            if (targetVitals != null && targetVitals.date.take(10) == targetScoreDateStr) {
+            if (targetVitals != null && targetVitals.date.take(10) == yesterdayDateStr) {
                 targetVitals.restingHeartRateCalculated?.let { merged["resting_heart_rate"] = it }
                 targetVitals.hrvRmssdAvg?.let { merged["hrv_rmssd"] = it }
                 targetVitals.minHeartRate?.let { merged["min_heart_rate"] = it }

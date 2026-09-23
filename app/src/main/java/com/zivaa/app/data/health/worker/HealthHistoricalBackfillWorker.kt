@@ -34,7 +34,6 @@ class HealthHistoricalBackfillWorker(
         private const val TAG = "HealthHistoricalBackfill"
         private const val CHUNK_SIZE = 800
         const val WORK_NAME_PREFIX = "HistoricalBackfill_"
-        private val backfillMutex = kotlinx.coroutines.sync.Mutex()
 
         fun enqueue(context: Context, patientId: String) {
             val constraints = Constraints.Builder()
@@ -84,14 +83,14 @@ class HealthHistoricalBackfillWorker(
     }
 
     override suspend fun doWork(): Result {
-        if (!backfillMutex.tryLock()) {
-            android.util.Log.i(TAG, "Another HealthHistoricalBackfillWorker is currently running. Skipping duplicate execution.")
+        if (!HealthSyncCoordinator.syncMutex.tryLock()) {
+            android.util.Log.i(TAG, "Health sync or backfill is currently active. Skipping duplicate execution.")
             return Result.success()
         }
         return try {
             doWorkInternal()
         } finally {
-            backfillMutex.unlock()
+            HealthSyncCoordinator.syncMutex.unlock()
         }
     }
 

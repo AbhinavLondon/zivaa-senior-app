@@ -112,7 +112,7 @@ fun HeartRateScreen(
                 else -> Color(0xFFEF4444)        // Attention Red
             }
             val text = when {
-                score == 0 -> "No Readings Yet"
+                score == 0 -> "No data available"
                 score >= 85 -> "Optimal Rhythm"
                 score >= 70 -> "Resilient & Stable"
                 score >= 50 -> "Mild Cardiac Strain"
@@ -144,7 +144,7 @@ fun HeartRateScreen(
             val hrvVal = if (hasHrv) "${hrvValNum!!.toInt()} ms" else "No data"
             val hrvScorePts = (b?.get("hrv_pts") as? Number)?.toInt()
             val hrvStatus = when {
-                !hasHrv -> "Sensor Inactive"
+                !hasHrv -> "No data"
                 hrvValNum!! >= 35.0 -> "High Resilience"
                 hrvValNum!! >= 22.0 -> "Balanced Tone"
                 else -> "Under Strain"
@@ -152,7 +152,7 @@ fun HeartRateScreen(
             val hrvAccentColor = when (hrvStatus) {
                 "High Resilience" -> Color(0xFF4EAE7B)
                 "Balanced Tone" -> Color(0xFF06B6D4)
-                "Sensor Inactive" -> Color(0xFF6B7280)
+                "No data" -> Color(0xFF6B7280)
                 else -> Color(0xFFE58B43)
             }
 
@@ -478,7 +478,7 @@ fun HeartRateScreen(
 
 fun getHeartScoreTierInfo(score: Int): Pair<String, Color> {
     return when {
-        score == 0 -> "No Readings Yet" to Color(0xFF6B7280)
+        score == 0 -> "No data available" to Color(0xFF6B7280)
         score >= 85 -> "Optimal Rhythm" to Color(0xFF4EAE7B)
         score >= 70 -> "Resilient & Stable" to Color(0xFF3B82F6)
         score >= 50 -> "Mild Cardiac Strain" to Color(0xFFE5A643)

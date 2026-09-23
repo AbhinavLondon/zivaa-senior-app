@@ -112,7 +112,7 @@ fun HealthConnectScreen() {
                         .build()
                     WorkManager.getInstance(context).enqueueUniqueWork(
                         "ManualHealthDataSync",
-                        androidx.work.ExistingWorkPolicy.KEEP,
+                        androidx.work.ExistingWorkPolicy.REPLACE,
                         workRequest
                     )
                     Toast.makeText(context, "Sync started! Check Supabase in a few seconds.", Toast.LENGTH_LONG).show()

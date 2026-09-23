@@ -17,8 +17,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 54
-        versionName = "1.0.53"
+        versionCode = 55
+        versionName = "1.0.54"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +56,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.53 - Resilient background daily plan sync worker, persistent offline checkin queuing, and optimized clinical alert context queries"
+                releaseNotes = "Zivaa v1.0.54 - Health sync mutex coordinator, resilient weather lookup with Open-Meteo fallback, and timezone-aware daily plan generation"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

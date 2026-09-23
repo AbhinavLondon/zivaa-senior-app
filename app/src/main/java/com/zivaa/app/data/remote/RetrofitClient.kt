@@ -36,6 +36,30 @@ object RetrofitClient {
 
         chain.proceed(requestBuilder.build())
     }
+    // Dedicated unauthenticated client for auth operations (login, refresh token)
+    // NEVER attaches expired Bearer token in Authorization header
+    private val authOkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Content-Type", "application/json")
+                .build()
+            chain.proceed(request)
+        }
+        .addInterceptor(loggingInterceptor)
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    private val authRetrofit = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(authOkHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    private val authApiService: SupabaseApiService = authRetrofit.create(SupabaseApiService::class.java)
+
     private val tokenAuthenticator = object : okhttp3.Authenticator {
         override fun authenticate(route: okhttp3.Route?, response: okhttp3.Response): okhttp3.Request? {
             // Prevent infinite loop if the refresh token endpoint itself fails with 401
@@ -47,7 +71,7 @@ object RetrofitClient {
             if (refreshToken.isBlank()) return null
             
             val refreshRequest = RefreshTokenRequest(refresh_token = refreshToken)
-            val call = apiService.refreshToken(refreshRequest)
+            val call = authApiService.refreshToken(refreshRequest)
             val retrofitResponse = try {
                 call.execute() // Synchronous execution
             } catch (e: Exception) {
@@ -69,9 +93,20 @@ object RetrofitClient {
                 }
             }
             
-            android.util.Log.w("RetrofitClient", "Token refresh failed with HTTP ${retrofitResponse.code()}: ${retrofitResponse.errorBody()?.string()}. Clearing session.")
-            // If we fail to refresh the token, log out the user
-            authManager?.clearSession()
+            val errorCode = retrofitResponse.code()
+            val errorBody = retrofitResponse.errorBody()?.string() ?: ""
+            android.util.Log.w("RetrofitClient", "Token refresh failed with HTTP $errorCode: $errorBody")
+            
+            // Only clear session if server explicitly rejects refresh token as invalid or revoked.
+            // Do NOT clear on 5xx server errors, rate limits, or network glitches!
+            if (errorCode == 400 || errorCode == 401) {
+                if (errorBody.contains("invalid_grant", ignoreCase = true) ||
+                    errorBody.contains("invalid refresh token", ignoreCase = true) ||
+                    errorBody.contains("refresh_token_not_found", ignoreCase = true)) {
+                    android.util.Log.e("RetrofitClient", "Refresh token is permanently invalid/revoked. Clearing session.")
+                    authManager?.clearSession()
+                }
+            }
             return null
         }
     }

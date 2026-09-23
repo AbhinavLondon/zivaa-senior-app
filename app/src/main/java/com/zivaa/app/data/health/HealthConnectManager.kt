@@ -512,7 +512,7 @@ class HealthConnectManager(private val context: Context) {
             SpeedRecord::class,
             DistanceRecord::class,
             ActiveCaloriesBurnedRecord::class,
-            TotalCaloriesBurnedRecord::class,
+            // TotalCaloriesBurnedRecord omitted to prevent minute-by-minute synthetic BMR spam
             ElevationGainedRecord::class,
             FloorsClimbedRecord::class,
             StepsCadenceRecord::class,
@@ -596,8 +596,8 @@ class HealthConnectManager(private val context: Context) {
                 values["energyKcal"] = record.energy.inKilocalories
             }
             is androidx.health.connect.client.records.TotalCaloriesBurnedRecord -> {
-                recordedAt = record.endTime.toString()
-                values["energyKcal"] = record.energy.inKilocalories
+                // Defensively omit synthetic minute BMR records from Supabase storage
+                return emptyList()
             }
             is androidx.health.connect.client.records.HeartRateRecord -> {
                 recordedAt = record.endTime.toString()
