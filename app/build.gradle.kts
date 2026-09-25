@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
     id("com.google.firebase.appdistribution")
@@ -17,8 +18,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 55
-        versionName = "1.0.54"
+        versionCode = 56
+        versionName = "1.0.55"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,7 +57,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.54 - Health sync mutex coordinator, resilient weather lookup with Open-Meteo fallback, and timezone-aware daily plan generation"
+                releaseNotes = "Zivaa v1.0.55 - Symptom closed-loop tracking & trajectory engine, care plan action efficacy feedback, real-time Supabase sync, and branded adaptive launcher icons"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -86,6 +87,10 @@ android {
 }
 
 dependencies {
+    // Supabase Realtime
+    implementation("io.github.jan-tennert.supabase:realtime-kt:2.4.0")
+    implementation("io.ktor:ktor-client-okhttp:2.3.11")
+
     // Health Connect Client
     implementation("androidx.health.connect:connect-client:1.1.0")
 

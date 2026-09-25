@@ -167,6 +167,39 @@ class DashboardViewModel(
 
         // Flush any pending offline syncs in background if connected
         flushPendingDailyPlanSyncs()
+
+        // Setup Realtime WebSocket for morning briefing updates
+        setupRealtimeSubscription()
+    }
+
+    private fun setupRealtimeSubscription() {
+        val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: return
+        viewModelScope.launch {
+            try {
+                com.zivaa.app.data.remote.SupabaseRealtimeClient.subscribeToMorningBriefings(userId)
+                    .collect { event ->
+                        val todayStr = java.time.LocalDate.now().toString()
+                        if (event.date == todayStr) {
+                            morningBriefingText = event.summary
+                            morningBriefingHeadline = event.headline ?: "Your Daily Briefing"
+                            morningBriefingStatus = MorningBriefingStatus.READY
+                            prefsManager.saveMorningBriefing(todayStr, morningBriefingText, morningBriefingHeadline, userId)
+                        }
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Realtime subscription failed: ${e.message}")
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        val userId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId()
+        if (userId != null) {
+            viewModelScope.launch {
+                com.zivaa.app.data.remote.SupabaseRealtimeClient.disconnectChannel(userId)
+            }
+        }
     }
 
     val hasPlanForToday: Boolean
@@ -506,6 +539,33 @@ class DashboardViewModel(
                 )
             } catch (e: Exception) {
                 android.util.Log.e("DashboardVM", "Error pausing habit", e)
+            }
+        }
+    }
+
+    fun submitTaskMicroFeedback(
+        task: com.zivaa.app.data.remote.DailyPlanTask,
+        feedback: String,
+        period: String? = null,
+        taskIndex: Int? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val patientId = com.zivaa.app.data.remote.RetrofitClient.authManager?.getUserId() ?: "0c445588-b36c-478f-9be3-2addfc77dc1c"
+                com.zivaa.app.data.remote.ZivaaBackendClient.apiService.submitTaskFeedback(
+                    com.zivaa.app.data.remote.TaskFeedbackPayload(
+                        patient_id = patientId,
+                        task_id = task.id,
+                        action_id = task.care_plan_action_id ?: task.id,
+                        task_title = task.task,
+                        symptom_id = task.symptom_id ?: task.anchor_id,
+                        feedback = feedback,
+                        period = period,
+                        task_index = taskIndex
+                    )
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardVM", "Error submitting task micro-feedback", e)
             }
         }
     }

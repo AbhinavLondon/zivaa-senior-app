@@ -212,25 +212,51 @@ fun RestScreen(
                             // Values
                             val durPts = (b?.get("duration_pts") as? Number)?.toInt() ?: 0
                             val durValNum = (b?.get("sleep_hours") as? Number)?.toDouble()
-                            val durVal = formatHours(durValNum)
-                            
-                            // WASO replaces Efficiency
+                            val hasDur = durValNum != null && durValNum > 0.0
+                            val durVal = if (hasDur) formatHours(durValNum) else "No data"
+                            val durStatusText = if (!hasDur) "No data" else if (durPts >= 30) "Optimal" else if (durPts >= 20) "Steady" else "Attention"
+                            val durAccentColor = if (!hasDur) Color(0xFF6B7280) else if (durPts >= 30) Color(0xFF4EAE7B) else if (durPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
+                            val durScoreText = if (!hasDur) "" else "$durPts/35"
+                            val durProgress = if (!hasDur) 0f else (durPts / 35f).coerceIn(0f, 1f)
+
+                            val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
+                            val hasDeep = deepValNum != null && deepValNum > 0.0
+                            val deepVal = if (hasDeep) formatHours(deepValNum) else "No data"
+                            val deepStatusText = if (!hasDeep) "No data" else if (deepValNum!! >= 1.5) "Optimal" else if (deepValNum >= 1.0) "Steady" else "Attention"
+                            val deepAccentColor = if (!hasDeep) Color(0xFF6B7280) else if (deepValNum!! >= 1.5) Color(0xFF4EAE7B) else if (deepValNum >= 1.0) Color(0xFFE5A643) else Color(0xFFE58B43)
+                            val deepScoreText = if (!hasDeep) "" else if (b?.get("deep_pts") != null) "${(b["deep_pts"] as Number).toInt()}/10" else "Max 10"
+                            val deepProgress = if (!hasDeep) 0f else ((deepValNum!!.toFloat()) / 1.5f).coerceIn(0f, 1f)
+
+                            val remValNum = (b?.get("sleep_stage_6_hours") as? Number)?.toDouble()
+                            val hasRem = remValNum != null && remValNum > 0.0
+                            val remVal = if (hasRem) formatHours(remValNum) else "No data"
+                            val remStatusText = if (!hasRem) "No data" else if (remValNum!! >= 1.5) "Optimal" else if (remValNum >= 1.0) "Steady" else "Attention"
+                            val remAccentColor = if (!hasRem) Color(0xFF6B7280) else if (remValNum!! >= 1.5) Color(0xFF4EAE7B) else if (remValNum >= 1.0) Color(0xFFE5A643) else Color(0xFFE58B43)
+                            val remScoreText = if (!hasRem) "" else if (b?.get("rem_pts") != null) "${(b["rem_pts"] as Number).toInt()}/10" else "Max 10"
+                            val remProgress = if (!hasRem) 0f else ((remValNum!!.toFloat()) / 1.5f).coerceIn(0f, 1f)
+
+                            // WASO replaces Efficiency: Only present if user had stage data and WASO was tracked
                             val wasoPts = (b?.get("waso_pts") as? Number)?.toInt()
                             val wasoValNum = (b?.get("waso_mins") as? Number)?.toDouble()
-                            val wasoVal = formatMinutes(wasoValNum)
-                            
-                            val deepValNum = (b?.get("sleep_stage_5_hours") as? Number)?.toDouble()
-                            val deepVal = formatHours(deepValNum)
-                            
-                            val remValNum = (b?.get("sleep_stage_6_hours") as? Number)?.toDouble()
-                            val remVal = formatHours(remValNum)
-                            
+                            val hasStages = hasDeep || hasRem
+                            val hasWaso = wasoValNum != null && (wasoValNum > 0.0 || (wasoValNum == 0.0 && hasStages && wasoPts != null && wasoPts > 0))
+                            val wasoVal = if (hasWaso) formatMinutes(wasoValNum) else "No data"
+                            val wasoStatusText = if (!hasWaso) "No data" else if (wasoValNum!! <= 30) "Optimal" else if (wasoValNum <= 60) "Steady" else "Attention"
+                            val wasoAccentColor = if (!hasWaso) Color(0xFF6B7280) else if (wasoValNum!! <= 30) Color(0xFF4EAE7B) else if (wasoValNum <= 60) Color(0xFFE5A643) else Color(0xFFE58B43)
+                            val wasoScoreText = if (!hasWaso || wasoPts == null) "" else "$wasoPts/15"
+                            val wasoProgress = if (!hasWaso) 0f else if (wasoPts != null) (wasoPts / 15f).coerceIn(0f, 1f) else if (wasoValNum!! <= 30) 1f else (1f - ((wasoValNum.toFloat() - 30f) / 45f)).coerceIn(0f, 1f)
+
                             // Resting HR & HRV
                             val rhrValNum = (b?.get("resting_heart_rate") as? Number)?.toInt()
-                            val rhrVal = rhrValNum?.let { "$it bpm" } ?: "No data"
+                            val hasRhr = rhrValNum != null && rhrValNum > 0
+                            val rhrVal = if (hasRhr) "$rhrValNum bpm" else "No data"
                             val hrvScorePts = (b?.get("hrv_pts") as? Number)?.toInt()
                             val rhrMax = if (hrvScorePts != null) 15 else 30
-                            val rhrScorePts = (b?.get("rhr_pts") as? Number)?.toInt() ?: (b?.get("vitals_pts") as? Number)?.toInt() ?: 0
+                            val rhrScorePts = if (hasRhr) ((b?.get("rhr_pts") as? Number)?.toInt() ?: (b?.get("vitals_pts") as? Number)?.toInt() ?: 0) else 0
+                            val rhrStatusText = if (!hasRhr) "No data" else if (rhrScorePts >= (rhrMax * 0.85f)) "Optimal" else if (rhrScorePts >= (rhrMax * 0.5f)) "Steady" else "Attention"
+                            val rhrAccentColor = if (!hasRhr) Color(0xFF6B7280) else if (rhrScorePts >= (rhrMax * 0.85f)) Color(0xFF4EAE7B) else if (rhrScorePts >= (rhrMax * 0.5f)) Color(0xFFE5A643) else Color(0xFFE58B43)
+                            val rhrScoreText = if (!hasRhr) "" else "$rhrScorePts/$rhrMax"
+                            val rhrProgress = if (!hasRhr) 0f else (rhrScorePts.toFloat() / rhrMax.toFloat()).coerceIn(0f, 1f)
 
                             val hrvValNum = (b?.get("hrv_rmssd") as? Number)?.toDouble()
                             val hrvBaseNum = (b?.get("hrv_rmssd_baseline") as? Number)?.toDouble()
@@ -252,22 +278,22 @@ fun RestScreen(
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Sleep time",
-                                    scoreText = if (durValNum == null) "" else "$durPts/35",
+                                    scoreText = durScoreText,
                                     primaryValue = durVal,
                                     unitText = "",
-                                    progress = if (durValNum == null) 0f else (durPts / 35f).coerceIn(0f, 1f),
-                                    statusText = if (durValNum == null) "No data" else if (durPts >= 30) "Optimal" else if (durPts >= 20) "Steady" else "Attention",
-                                    accentColor = if (durValNum == null) Color(0xFF6B7280) else if (durPts >= 30) Color(0xFF4EAE7B) else if (durPts >= 20) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = durProgress,
+                                    statusText = durStatusText,
+                                    accentColor = durAccentColor
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "WASO",
-                                    scoreText = if (wasoValNum == null) "" else "${wasoPts ?: 0}/15",
+                                    scoreText = wasoScoreText,
                                     primaryValue = wasoVal,
                                     unitText = "",
-                                    progress = if (wasoValNum == null) 0f else if (wasoPts != null) (wasoPts / 15f).coerceIn(0f, 1f) else if (wasoValNum <= 30) 1f else (1f - ((wasoValNum.toFloat() - 30f) / 45f)).coerceIn(0f, 1f),
-                                    statusText = if (wasoValNum == null) "No data" else if (wasoValNum <= 30) "Optimal" else if (wasoValNum <= 60) "Steady" else "Attention",
-                                    accentColor = if (wasoValNum == null) Color(0xFF6B7280) else if (wasoValNum <= 30) Color(0xFF4EAE7B) else if (wasoValNum <= 60) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = wasoProgress,
+                                    statusText = wasoStatusText,
+                                    accentColor = wasoAccentColor
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -277,22 +303,22 @@ fun RestScreen(
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Deep sleep",
-                                    scoreText = if (deepValNum == null) "" else "Max 10",
+                                    scoreText = deepScoreText,
                                     primaryValue = deepVal,
                                     unitText = "",
-                                    progress = ((deepValNum?.toFloat() ?: 0f) / 1.5f).coerceIn(0f, 1f),
-                                    statusText = if (deepValNum == null) "No data" else if (deepValNum >= 1.5) "Optimal" else if (deepValNum >= 1.0) "Steady" else "Attention",
-                                    accentColor = if (deepValNum == null) Color(0xFF6B7280) else if (deepValNum >= 1.5) Color(0xFF4EAE7B) else if (deepValNum >= 1.0) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = deepProgress,
+                                    statusText = deepStatusText,
+                                    accentColor = deepAccentColor
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "REM sleep",
-                                    scoreText = if (remValNum == null) "" else "Max 10",
+                                    scoreText = remScoreText,
                                     primaryValue = remVal,
                                     unitText = "",
-                                    progress = ((remValNum?.toFloat() ?: 0f) / 1.5f).coerceIn(0f, 1f),
-                                    statusText = if (remValNum == null) "No data" else if (remValNum >= 1.5) "Optimal" else if (remValNum >= 1.0) "Steady" else "Attention",
-                                    accentColor = if (remValNum == null) Color(0xFF6B7280) else if (remValNum >= 1.5) Color(0xFF4EAE7B) else if (remValNum >= 1.0) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = remProgress,
+                                    statusText = remStatusText,
+                                    accentColor = remAccentColor
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -302,12 +328,12 @@ fun RestScreen(
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
                                     title = "Resting HR",
-                                    scoreText = if (rhrValNum == null) "" else "$rhrScorePts/$rhrMax",
+                                    scoreText = rhrScoreText,
                                     primaryValue = rhrVal,
                                     unitText = "",
-                                    progress = if (rhrValNum == null) 0f else (rhrScorePts.toFloat() / rhrMax.toFloat()).coerceIn(0f, 1f),
-                                    statusText = if (rhrValNum == null) "No data" else if (rhrScorePts >= (rhrMax * 0.85f)) "Optimal" else if (rhrScorePts >= (rhrMax * 0.5f)) "Steady" else "Attention",
-                                    accentColor = if (rhrValNum == null) Color(0xFF6B7280) else if (rhrScorePts >= (rhrMax * 0.85f)) Color(0xFF4EAE7B) else if (rhrScorePts >= (rhrMax * 0.5f)) Color(0xFFE5A643) else Color(0xFFE58B43)
+                                    progress = rhrProgress,
+                                    statusText = rhrStatusText,
+                                    accentColor = rhrAccentColor
                                 )
                                 RestFactorTile(
                                     modifier = Modifier.weight(1f),
@@ -1015,13 +1041,26 @@ fun RestChartCard(
         RestTimeRange.THREE_MONTHS -> "3 Months"
     }
 
+    val isSkinTempCard = title.contains("Skin Temp", ignoreCase = true)
+
+    val latestRaw = values.lastOrNull()
+    val hasLatestData = if (isRestScoreCard) {
+        (averageValue > 0f || (latestRaw != null && latestRaw > 0f))
+    } else if (isSkinTempCard) {
+        latestRaw != null && latestRaw > -50f
+    } else if (isSevenDays) {
+        latestRaw != null && latestRaw > 0f
+    } else {
+        values.any { it > 0f }
+    }
+
     val heroValue = if (isRestScoreCard) {
         if (averageValue > 0f) averageValue else {
             val nonZeros = values.filter { it > 0f }
-            if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else (values.lastOrNull() ?: 0f)
+            if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else (latestRaw ?: 0f)
         }
     } else if (isSevenDays) {
-        values.lastOrNull() ?: 0f
+        if (latestRaw != null && latestRaw > 0f) latestRaw else 0f
     } else {
         val nonZeros = values.filter { it > 0f }
         if (nonZeros.isNotEmpty()) nonZeros.average().toFloat() else 0f
@@ -1103,6 +1142,20 @@ fun RestChartCard(
                         style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = ZivaaTheme.colors.inkMute
                     )
+                } else if (!hasLatestData) {
+                    Text(
+                        text = "No data",
+                        style = ZivaaTheme.typography.displayLarge.copy(
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6B7280)
+                        )
+                    )
+                    Text(
+                        text = if (isSevenDays) "no reading today" else "no readings recorded",
+                        style = ZivaaTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = ZivaaTheme.colors.inkMute
+                    )
                 } else {
                     val heroText = if (title.contains("Skin Temp", ignoreCase = true)) {
                         String.format(Locale.US, "%+.1f", heroValue)
@@ -1152,7 +1205,7 @@ fun RestChartCard(
                 }
             }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(plotAreaHeightDp)
@@ -1169,8 +1222,18 @@ fun RestChartCard(
                         )
                     }
                 } else {
+                    val n = values.size
+                    val isLineChart = chartType != RestChartType.BAR
+                    val horizontalPadding = if (isLineChart && isSevenDays && n > 1) {
+                        maxWidth / (2f * n)
+                    } else {
+                        0.dp
+                    }
+
                     Chart(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = horizontalPadding),
                         chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
                         chart = if (chartType == RestChartType.BAR) {
                             columnChart(
@@ -1197,7 +1260,9 @@ fun RestChartCard(
                                 decorations = decorations,
                                 axisValuesOverrider = com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider.fixed(
                                     minY = 0f,
-                                    maxY = if (chartMax > 0f) chartMax else 10f
+                                    maxY = if (chartMax > 0f) chartMax else 10f,
+                                    minX = 0f,
+                                    maxX = if (n > 1) (n - 1).toFloat() else 0f
                                 )
                             )
                         },
@@ -1269,6 +1334,7 @@ fun RestSleepStagesChartCard(
         RestTimeRange.THIRTY_DAYS -> "30 Days"
         RestTimeRange.THREE_MONTHS -> "3 Months"
     }
+    val isSevenDays = timeRange == RestTimeRange.SEVEN_DAYS
     val plotAreaHeightDp = 150.dp
 
     val lightLineColor = Color(0xFF9CA3AF)
@@ -1361,13 +1427,21 @@ fun RestSleepStagesChartCard(
                 }
             }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(plotAreaHeightDp)
             ) {
+                val horizontalPadding = if (chartType != RestChartType.BAR && isSevenDays && dates.size > 1) {
+                    maxWidth / (2f * dates.size)
+                } else {
+                    0.dp
+                }
+
                 Chart(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = horizontalPadding),
                     chartScrollSpec = com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec(isScrollEnabled = false),
                     chart = if (chartType == RestChartType.BAR) {
                         columnChart(
@@ -1426,7 +1500,9 @@ fun RestSleepStagesChartCard(
                             },
                             axisValuesOverrider = AxisValuesOverrider.fixed(
                                 minY = 0f,
-                                maxY = chartMax
+                                maxY = chartMax,
+                                minX = 0f,
+                                maxX = if (dates.size > 1) (dates.size - 1).toFloat() else 0f
                             )
                         )
                     },

@@ -40,7 +40,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -82,6 +82,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -199,7 +200,7 @@ fun DashboardScreen(
     }
 
     var activeTab by remember { mutableStateOf("home") }
-        val scope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
 
         LaunchedEffect(viewModel.activeHeroPeriod) {
             if (viewModel.activeHeroPeriod == "afternoon") {
@@ -1142,6 +1143,7 @@ fun GoalsCard(
     onNavigateToExerciseFollowAlong: ((routineTitle: String, exerciseIds: List<String>, bodyPart: String?, taskId: String?) -> Unit)? = null
 ) {
     val colors = ZivaaTheme.colors
+    var pendingSymptomFeedback by remember { mutableStateOf<Triple<DailyPlanTask, String, Int>?>(null) }
     val allGoals = remember(
         viewModel.morningTasks,
         viewModel.afternoonTasks,
@@ -1475,6 +1477,10 @@ fun GoalsCard(
                             CelebratoryDailyPlanTaskRow(
                                 task = task,
                                 onComplete = {
+                                    val isSymptomTask = !task.symptom_id.isNullOrBlank() ||
+                                        task.anchor_type?.equals("symptom", ignoreCase = true) == true ||
+                                        task.provenance?.badge_text?.contains("RELIEF", ignoreCase = true) == true
+
                                     if (!task.id.isNullOrBlank()) {
                                         viewModel.markTaskCompletedById(task.id)
                                     } else {
@@ -1484,6 +1490,10 @@ fun GoalsCard(
                                             "evening" -> viewModel.toggleEveningTask(originalIndex)
                                             "night" -> viewModel.toggleNightTask(originalIndex)
                                         }
+                                    }
+
+                                    if (isSymptomTask) {
+                                        pendingSymptomFeedback = Triple(task, period, originalIndex)
                                     }
                                 },
                                 onDismiss = {
@@ -1766,6 +1776,20 @@ fun GoalsCard(
                 }
             }
         }
+    }
+
+    pendingSymptomFeedback?.let { (symptomTask, period, origIdx) ->
+        com.zivaa.app.presentation.dashboard.components.SymptomFeedbackBottomSheet(
+            task = symptomTask,
+            onFeedbackSubmitted = { feedback ->
+                viewModel.submitTaskMicroFeedback(symptomTask, feedback, period, origIdx)
+                pendingSymptomFeedback = null
+            },
+            onDismiss = {
+                viewModel.submitTaskMicroFeedback(symptomTask, "skip", period, origIdx)
+                pendingSymptomFeedback = null
+            }
+        )
     }
 }
 
@@ -2886,6 +2910,89 @@ fun PremiumTaskOverflowMenu(
 }
 
 @Composable
+private fun CelebratoryDailyPlanCtaButton(
+    action: com.zivaa.app.data.remote.TaskAction,
+    task: DailyPlanTask,
+    isCompleting: Boolean,
+    onNavigateToExerciseFollowAlong: ((String, List<String>, String?, String?) -> Unit)?,
+    onNavigateToHealthConnect: () -> Unit,
+    onNavigateToNutrition: () -> Unit,
+    onNavigateToCoachChat: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ZivaaTheme.colors
+    val context = LocalContext.current
+    val ctaType = action.action_type?.uppercase() ?: return
+    val (ctaBg, ctaIcon, defaultLabel) = when (ctaType) {
+        "FOLLOW_EXERCISE" -> Triple(colors.sage, Icons.Default.PlayArrow, "Start Routine")
+        "LOG_VITALS" -> Triple(Color(0xFFD9534F), Icons.Default.Favorite, "Record Vitals")
+        "LOG_MEAL" -> Triple(Color(0xFFE67E22), Icons.Default.Restaurant, "Snap Meal")
+        "COACH_CHAT" -> Triple(Color(0xFF2E7D32), Icons.Default.ChatBubble, "Ask Zivaa")
+        "CALL_PHONE" -> Triple(Color(0xFFC62828), Icons.Default.Phone, "Consult Doctor")
+        else -> Triple(colors.sage, Icons.Default.PlayArrow, "Open Action")
+    }
+
+    Surface(
+        onClick = {
+            if (isCompleting) return@Surface
+            when (ctaType) {
+                "FOLLOW_EXERCISE" -> onNavigateToExerciseFollowAlong?.invoke(
+                    action.routine_title ?: task.task,
+                    action.exercise_ids ?: emptyList(),
+                    action.target_body_part,
+                    task.id
+                )
+                "LOG_VITALS" -> onNavigateToHealthConnect()
+                "LOG_MEAL" -> onNavigateToNutrition()
+                "COACH_CHAT" -> onNavigateToCoachChat()
+                "CALL_PHONE" -> {
+                    try {
+                        val phoneIntent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                            data = android.net.Uri.parse("tel:112")
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(phoneIntent)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardScreen", "Error launching phone dialer", e)
+                    }
+                }
+            }
+        },
+        shape = RoundedCornerShape(12.dp),
+        color = ctaBg,
+        shadowElevation = 2.dp,
+        modifier = modifier.padding(top = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = ctaIcon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = action.cta_label ?: defaultLabel,
+                style = ZivaaTheme.typography.bodyMedium.copy(
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color.White
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(13.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun CelebratoryDailyPlanTaskRow(
     task: DailyPlanTask,
     onComplete: () -> Unit,
@@ -2898,6 +3005,8 @@ fun CelebratoryDailyPlanTaskRow(
     modifier: Modifier = Modifier
 ) {
     val colors = ZivaaTheme.colors
+    val context = LocalContext.current
+    var isExpanded by remember { mutableStateOf(false) }
     var isCompleting by remember { mutableStateOf(false) }
     var isRowVisible by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
@@ -2905,6 +3014,8 @@ fun CelebratoryDailyPlanTaskRow(
     val goalTaskText = task.task
     val (iconVector, bgTone, textTone) = getGoalIconAndColors(goalTaskText)
     val action = task.action
+    val isDark = colors.isDark
+    val hasAction = action != null && !action.action_type.isNullOrBlank() && action.action_type.uppercase() != "CHECKBOX_ONLY"
 
     val rowAlpha by animateFloatAsState(
         targetValue = if (isCompleting) 0.50f else 1.0f,
@@ -2912,14 +3023,29 @@ fun CelebratoryDailyPlanTaskRow(
         label = "rowAlpha"
     )
     val cardBg by animateColorAsState(
-        targetValue = if (isCompleting) colors.sage.copy(alpha = if (colors.isDark) 0.12f else 0.04f) else Color.Transparent,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = when {
+            isCompleting -> colors.sage.copy(alpha = if (isDark) 0.12f else 0.04f)
+            isExpanded -> if (isDark) colors.surfaceCard else Color(0xFFF9F7F3)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 250),
         label = "cardBg"
+    )
+    val cardBorderColor by animateColorAsState(
+        targetValue = if (isExpanded) colors.line.copy(alpha = 0.6f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 250),
+        label = "cardBorderColor"
     )
     val titleColor by animateColorAsState(
         targetValue = if (isCompleting) colors.inkMute else colors.ink,
         animationSpec = tween(durationMillis = 300),
         label = "titleColor"
+    )
+
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 250),
+        label = "chevronRotation"
     )
 
     AnimatedVisibility(
@@ -2937,13 +3063,28 @@ fun CelebratoryDailyPlanTaskRow(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .padding(vertical = if (isExpanded) 4.dp else 0.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, cardBorderColor, RoundedCornerShape(14.dp))
                 .background(cardBg)
+                .clickable(
+                    enabled = !isCompleting,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    performTactileFeedback(context)
+                    isExpanded = !isExpanded
+                }
+                .padding(
+                    horizontal = if (isExpanded) 14.dp else 4.dp,
+                    vertical = if (isExpanded) 12.dp else 10.dp
+                )
+                .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f))
         ) {
+            // Header Row: Left Icon, Title/Preview, Chevron, Overflow Menu, Checkbox
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp)
                     .graphicsLayer { alpha = rowAlpha },
                 verticalAlignment = Alignment.Top
             ) {
@@ -2959,43 +3100,15 @@ fun CelebratoryDailyPlanTaskRow(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Task Details & Provenance
+                // Title & Subtitle Preview (when collapsed)
                 Column(modifier = Modifier.weight(1f)) {
-                    // Eyebrow: Time + Premium Provenance Badge
                     val badgeText = task.provenance?.badge_text
-                    val hasTime = !task.time.isNullOrBlank()
-                    val hasBadge = !badgeText.isNullOrBlank()
-
-                    if (hasTime || hasBadge) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(bottom = 3.dp)
-                        ) {
-                            if (hasTime) {
-                                Text(
-                                    text = task.time!!,
-                                    style = ZivaaTheme.typography.meta.copy(
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Normal
-                                    ),
-                                    color = colors.inkMute
-                                )
-                            }
-                            if (hasTime && hasBadge) {
-                                Text(
-                                    text = "·",
-                                    style = ZivaaTheme.typography.meta.copy(fontWeight = FontWeight.Normal),
-                                    color = colors.inkMute.copy(alpha = 0.4f)
-                                )
-                            }
-                            if (hasBadge) {
-                                PremiumProvenanceBadge(badge = badgeText!!)
-                            }
+                    if (!badgeText.isNullOrBlank()) {
+                        Row(modifier = Modifier.padding(bottom = 3.dp)) {
+                            PremiumProvenanceBadge(badge = badgeText)
                         }
                     }
 
-                    // Main Task Title with gentle strike-through
                     Text(
                         text = goalTaskText,
                         style = ZivaaTheme.typography.bodyMedium.copy(
@@ -3007,14 +3120,15 @@ fun CelebratoryDailyPlanTaskRow(
                         color = titleColor
                     )
 
-                    // Subtitle / Details
+                    // Subtitle / Preview when collapsed
                     val instructions = action?.instructions
                     val metaSubtitle = when {
                         !instructions.isNullOrBlank() && instructions != goalTaskText -> instructions
                         !task.details.isNullOrBlank() && task.details != goalTaskText -> task.details
                         else -> null
                     }
-                    if (metaSubtitle != null) {
+
+                    if (!isExpanded && metaSubtitle != null) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = metaSubtitle,
@@ -3023,72 +3137,39 @@ fun CelebratoryDailyPlanTaskRow(
                                 lineHeight = 16.sp
                             ),
                             color = colors.inkSoft,
-                            maxLines = 2
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Prominent Call to Action Button
-                    if (action != null && !action.action_type.isNullOrBlank() && action.action_type.uppercase() != "CHECKBOX_ONLY") {
-                        val ctaType = action.action_type.uppercase()
-                        val (ctaBg, ctaIcon, defaultLabel) = when (ctaType) {
-                            "FOLLOW_EXERCISE" -> Triple(colors.sage, Icons.Default.PlayArrow, "Start Routine")
-                            "LOG_VITALS" -> Triple(Color(0xFFD9534F), Icons.Default.Favorite, "Record Vitals")
-                            "LOG_MEAL" -> Triple(Color(0xFFE67E22), Icons.Default.Restaurant, "Snap Meal")
-                            "COACH_CHAT" -> Triple(Color(0xFF2E7D32), Icons.Default.ChatBubble, "Ask Zivaa")
-                            else -> Triple(colors.sage, Icons.Default.PlayArrow, "Open Action")
-                        }
-
-                        Surface(
-                            onClick = {
-                                if (isCompleting) return@Surface
-                                when (ctaType) {
-                                    "FOLLOW_EXERCISE" -> onNavigateToExerciseFollowAlong?.invoke(
-                                        action.routine_title ?: task.task,
-                                        action.exercise_ids ?: emptyList(),
-                                        action.target_body_part,
-                                        task.id
-                                    )
-                                    "LOG_VITALS" -> onNavigateToHealthConnect()
-                                    "LOG_MEAL" -> onNavigateToNutrition()
-                                    "COACH_CHAT" -> onNavigateToCoachChat()
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            color = ctaBg,
-                            shadowElevation = 2.dp,
-                            modifier = Modifier.padding(top = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = ctaIcon,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = action.cta_label ?: defaultLabel,
-                                    style = ZivaaTheme.typography.bodyMedium.copy(
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = Color.White
-                                )
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-                        }
+                    // Action CTA button when collapsed
+                    if (!isExpanded && hasAction) {
+                        CelebratoryDailyPlanCtaButton(
+                            action = action!!,
+                            task = task,
+                            isCompleting = isCompleting,
+                            onNavigateToExerciseFollowAlong = onNavigateToExerciseFollowAlong,
+                            onNavigateToHealthConnect = onNavigateToHealthConnect,
+                            onNavigateToNutrition = onNavigateToNutrition,
+                            onNavigateToCoachChat = onNavigateToCoachChat
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Animated Chevron
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Collapse details" else "Expand details",
+                    tint = if (isExpanded) colors.sage else colors.inkMute,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .padding(top = 2.dp)
+                        .graphicsLayer { rotationZ = chevronRotation }
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Premium Overflow Menu (Dismiss / Pause Habit)
                 PremiumTaskOverflowMenu(
@@ -3108,12 +3189,9 @@ fun CelebratoryDailyPlanTaskRow(
                         if (!isCompleting) {
                             isCompleting = true
                             coroutineScope.launch {
-                                // 1. Savor the win: checkmark pops & line-through sweeps across (480ms)
                                 delay(480)
-                                // 2. Liquid height collapse: smoothly shrinks and fades out over 380ms
                                 isRowVisible = false
-                                delay(400) // Wait for full shrink duration so height reaches 0dp
-                                // 3. Commit state change to ViewModel after card has completely collapsed
+                                delay(400)
                                 onComplete()
                             }
                         }
@@ -3121,7 +3199,200 @@ fun CelebratoryDailyPlanTaskRow(
                 )
             }
 
-            HorizontalDivider(color = ZivaaTheme.colors.line.copy(alpha = 0.4f), thickness = 0.5.dp)
+            // Full-Width Details & Reason (Spanning 100% of card width when expanded!)
+            if (isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Full Details (untruncated, 100% card width)
+                    val detailsText = task.details
+                    if (!detailsText.isNullOrBlank() && detailsText != goalTaskText) {
+                        Text(
+                            text = detailsText,
+                            style = ZivaaTheme.typography.bodyMedium.copy(
+                                fontSize = 13.5.sp,
+                                lineHeight = 19.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = colors.ink,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Step-by-Step Instructions (if distinct, 100% card width)
+                    val instructionsText = action?.instructions
+                    if (!instructionsText.isNullOrBlank() && instructionsText != detailsText && instructionsText != goalTaskText) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isDark) colors.surfaceCard else Color(0xFFF3EFEA),
+                            border = BorderStroke(0.5.dp, colors.line.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                                        contentDescription = null,
+                                        tint = colors.sage,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Instructions",
+                                        style = ZivaaTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp
+                                        ),
+                                        color = colors.ink
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = instructionsText,
+                                    style = ZivaaTheme.typography.bodySmall.copy(
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp
+                                    ),
+                                    color = colors.inkSoft,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    // Clinical / Coach Rationale (100% card width)
+                    val provenanceReason = task.provenance?.reason
+                    if (!provenanceReason.isNullOrBlank() && provenanceReason != detailsText) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = colors.sage.copy(alpha = if (isDark) 0.16f else 0.08f),
+                            border = BorderStroke(0.5.dp, colors.sage.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = colors.sage,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .padding(top = 1.dp)
+                                )
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "Why this was recommended",
+                                        style = ZivaaTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = colors.sage
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = provenanceReason,
+                                        style = ZivaaTheme.typography.bodySmall.copy(
+                                            fontSize = 12.5.sp,
+                                            lineHeight = 18.sp,
+                                            fontStyle = FontStyle.Italic
+                                        ),
+                                        color = colors.inkSoft,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Routine & Focus Target
+                    val targetBodyPart = action?.target_body_part
+                    val routineTitle = action?.routine_title
+                    if (!targetBodyPart.isNullOrBlank() || (!routineTitle.isNullOrBlank() && routineTitle != goalTaskText)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (!routineTitle.isNullOrBlank() && routineTitle != goalTaskText) {
+                                Text(
+                                    text = "Routine: $routineTitle",
+                                    style = ZivaaTheme.typography.meta.copy(fontSize = 11.5.sp, fontWeight = FontWeight.Medium),
+                                    color = colors.inkMute
+                                )
+                            }
+                            if (!targetBodyPart.isNullOrBlank()) {
+                                Text(
+                                    text = "• Focus: $targetBodyPart",
+                                    style = ZivaaTheme.typography.meta.copy(fontSize = 11.5.sp, fontWeight = FontWeight.Medium),
+                                    color = colors.inkMute
+                                )
+                            }
+                        }
+                    }
+
+                    // Action CTA button when expanded (full-width container)
+                    if (hasAction) {
+                        CelebratoryDailyPlanCtaButton(
+                            action = action!!,
+                            task = task,
+                            isCompleting = isCompleting,
+                            onNavigateToExerciseFollowAlong = onNavigateToExerciseFollowAlong,
+                            onNavigateToHealthConnect = onNavigateToHealthConnect,
+                            onNavigateToNutrition = onNavigateToNutrition,
+                            onNavigateToCoachChat = onNavigateToCoachChat
+                        )
+                    }
+
+                    // Collapse Affordance
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    performTactileFeedback(context)
+                                    isExpanded = false
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Show less",
+                                style = ZivaaTheme.typography.meta.copy(
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.sage
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = colors.sage,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (!isExpanded) {
+                HorizontalDivider(color = ZivaaTheme.colors.line.copy(alpha = 0.4f), thickness = 0.5.dp)
+            }
         }
     }
 }

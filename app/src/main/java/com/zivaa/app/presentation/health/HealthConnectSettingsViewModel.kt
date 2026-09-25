@@ -73,6 +73,9 @@ class HealthConnectSettingsViewModel(
     private val _isHistoryReadGranted = MutableStateFlow(false)
     val isHistoryReadGranted: StateFlow<Boolean> = _isHistoryReadGranted.asStateFlow()
 
+    private val _isBatteryOptimizationIgnored = MutableStateFlow(false)
+    val isBatteryOptimizationIgnored: StateFlow<Boolean> = _isBatteryOptimizationIgnored.asStateFlow()
+
     private val _syncLogs = MutableStateFlow<List<SyncLogUiItem>>(emptyList())
     val syncLogs: StateFlow<List<SyncLogUiItem>> = _syncLogs.asStateFlow()
 
@@ -104,10 +107,15 @@ class HealthConnectSettingsViewModel(
                 _grantedPermissionsCount.value = granted.intersect(healthConnectManager.permissions).size
                 _isBackgroundReadGranted.value = healthConnectManager.hasBackgroundReadPermission()
                 _isHistoryReadGranted.value = healthConnectManager.hasHistoryReadPermission()
+                _isBatteryOptimizationIgnored.value = com.zivaa.app.data.health.util.BatteryOptimizationHelper.isIgnoringBatteryOptimizations(getApplication())
             } catch (e: Exception) {
                 android.util.Log.e("HealthConnectVM", "Error refreshing Health Connect state: ${e.message}", e)
             }
         }
+    }
+
+    fun openBatterySettings(context: android.content.Context) {
+        com.zivaa.app.data.health.util.BatteryOptimizationHelper.openBatterySettings(context)
     }
 
     fun triggerSyncNow() {

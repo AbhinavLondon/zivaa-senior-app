@@ -141,6 +141,13 @@ class HealthDataSyncWorker(
             details = "Health Connect sync session started. Health Connect SDK is available."
         )
 
+        val isBatteryUnrestricted = com.zivaa.app.data.health.util.BatteryOptimizationHelper.isIgnoringBatteryOptimizations(applicationContext)
+        if (isBatteryUnrestricted) {
+            logWorkerI("Android Power Management: UNRESTRICTED. 24/7 background sync active.")
+        } else {
+            logWorkerW("Android Power Management: OPTIMIZED/RESTRICTED. Background sync may be throttled or deferred by Android Adaptive Battery when phone is locked.")
+        }
+
         return try {
             val lastSyncedPatient = syncPrefsManager.getLastSyncedPatientId()
             val forceBackfill = inputData.getBoolean("force_backfill", false)

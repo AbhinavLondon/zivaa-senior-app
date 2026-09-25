@@ -53,6 +53,11 @@ interface ZivaaApiService {
         @Body payload: UpdateTaskPayload
     ): Response<TripwireResponse>
 
+    @POST("api/v1/health/daily-plan/task/feedback")
+    suspend fun submitTaskFeedback(
+        @Body payload: TaskFeedbackPayload
+    ): Response<Map<String, Any>>
+
     @retrofit2.http.GET("api/v1/health/lab-category-summary/{report_id}/{category}")
     suspend fun getCategorySummary(
         @retrofit2.http.Path("report_id") reportId: String,
@@ -176,6 +181,18 @@ data class DismissActionRequest(
     val reason: String = "not_relevant"
 )
 
+data class TaskFeedbackPayload(
+    val patient_id: String,
+    val task_id: String? = null,
+    val action_id: String? = null,
+    val task_title: String? = null,
+    val symptom_id: String? = null,
+    val feedback: String, // "better" | "same" | "worse" | "skip"
+    val period: String? = null,
+    val task_index: Int? = null,
+    val notes: String? = null
+)
+
 data class UpdateCarePlanStatusRequest(
     val status: String
 )
@@ -212,6 +229,9 @@ data class DailyPlanTask(
     val tier: String? = null,
     val anchor_type: String? = null,
     val anchor_id: String? = null,
+    val care_plan_action_id: String? = null,
+    val symptom_id: String? = null,
+    val canonical_key: String? = null,
     val details: String? = null,
     val completed: Boolean = false,
     val status: String = "pending",

@@ -28,14 +28,26 @@ import java.util.Locale
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import com.zivaa.app.data.remote.DailyPlanTask
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlanScreen(
     viewModel: com.zivaa.app.presentation.dashboard.DashboardViewModel,
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNavigateToCoachChat: ((String?) -> Unit)? = null,
+    onNavigateToExerciseFollowAlong: ((String, List<String>, String?, String?) -> Unit)? = null,
+    onNavigateToNutrition: () -> Unit = {},
+    onNavigateToHealthConnect: () -> Unit = {}
 ) {
     val colors = ZivaaTheme.colors
+    val context = LocalContext.current
+    var pendingSymptomFeedback by remember { mutableStateOf<Triple<DailyPlanTask, String, Int>?>(null) }
     
     val selectedLocalDate = remember(viewModel.selectedDate) {
         try {
@@ -81,123 +93,226 @@ fun PlanScreen(
         map
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.bg),
-        contentPadding = WindowInsets.systemBars.asPaddingValues()
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            PlanScreenHeader()
-        }
-        
-        stickyHeader {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.bg)
-            ) {
+    val allTodayTasks = viewModel.morningTasks + viewModel.afternoonTasks + viewModel.eveningTasks + viewModel.nightTasks
+    val totalCount = allTodayTasks.size
+    val completedCount = allTodayTasks.count { it.completed }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.bg),
+            contentPadding = WindowInsets.systemBars.asPaddingValues()
+        ) {
+            item {
                 Spacer(modifier = Modifier.height(24.dp))
-                WeeklyDaySelector(
-                    selectedDate = selectedLocalDate,
-                    onDateSelected = { date ->
-                        viewModel.selectDate(date.toString())
-                    },
-                    progressMap = dailyProgressMap
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                PlanScreenHeader(onNavigateBack = onNavigateBack)
             }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            PlanScreenHero(summary = viewModel.dailyPlanSummary)
-        }
-
-        val periods = listOf(
-            "Morning" to viewModel.morningTasks,
-            "Afternoon" to viewModel.afternoonTasks,
-            "Evening" to viewModel.eveningTasks,
-            "Night" to viewModel.nightTasks
-        )
-
-        for (period in periods) {
-            val periodName = period.first
-            val tasks = period.second
             
-            if (tasks.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    PlanSectionHeader(
-                        title = periodName,
-                        timeRange = "", 
-                        progress = "${tasks.count { it.completed }} / ${tasks.size}"
+            stickyHeader {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.bg)
+                ) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    WeeklyDaySelector(
+                        selectedDate = selectedLocalDate,
+                        onDateSelected = { date ->
+                            viewModel.selectDate(date.toString())
+                        },
+                        progressMap = dailyProgressMap
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
+            }
 
-                for ((index, task) in tasks.withIndex()) {
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                val dateFormatted = selectedLocalDate.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))
+                PlanScreenHero(
+                    summary = viewModel.dailyPlanSummary,
+                    dateString = dateFormatted,
+                    completedCount = completedCount,
+                    totalCount = totalCount
+                )
+            }
+
+            val periods = listOf(
+                "Morning" to viewModel.morningTasks,
+                "Afternoon" to viewModel.afternoonTasks,
+                "Evening" to viewModel.eveningTasks,
+                "Night" to viewModel.nightTasks
+            )
+
+            for (period in periods) {
+                val periodName = period.first
+                val tasks = period.second
+                
+                if (tasks.isNotEmpty()) {
                     item {
-                        val category = task.category ?: periodName
-                        val tagText = if (!task.time.isNullOrEmpty()) {
-                            "${category.toEyebrowTitleCase()} • ${task.time}"
-                        } else {
-                            category.toEyebrowTitleCase()
-                        }
-                        
-                        val (icon, bgColor, _) = com.zivaa.app.presentation.dashboard.getGoalIconAndColors(task.task)
-                        
-                        PlanTaskCard(
-                            tag = tagText,
-                            title = task.task,
-                            description = task.details,
-                            icon = icon,
-                            iconBgColor = bgColor,
-                            isCompleted = task.completed,
-                            onToggleCompletion = { 
-                                when (periodName.lowercase()) {
-                                    "morning" -> viewModel.toggleMorningTask(index)
-                                    "afternoon" -> viewModel.toggleAfternoonTask(index)
-                                    "evening" -> viewModel.toggleEveningTask(index)
-                                    "night" -> viewModel.toggleNightTask(index)
-                                }
-                            },
-                            actionText = null,
-                            actionIcon = null,
-                            actionBgColor = colors.bg,
-                            actionTextColor = colors.ink,
-                            isEditable = (selectedLocalDate == LocalDate.now())
+                        Spacer(modifier = Modifier.height(32.dp))
+                        PlanSectionHeader(
+                            title = periodName,
+                            timeRange = "", 
+                            progress = "${tasks.count { it.completed }} / ${tasks.size}"
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
+
+                    for ((index, task) in tasks.withIndex()) {
+                        item {
+                            val category = task.category ?: periodName
+                            val badge = task.provenance?.badge_text
+                            val baseTag = category.toEyebrowTitleCase()
+                            val tagText = if (!badge.isNullOrBlank()) {
+                                "$badge • $baseTag"
+                            } else {
+                                baseTag
+                            }
+                            
+                            val (icon, bgColor, _) = com.zivaa.app.presentation.dashboard.getGoalIconAndColors(task.task)
+
+                            val action = task.action
+                            val ctaType = action?.action_type?.uppercase()
+                            val hasAction = action != null && !ctaType.isNullOrBlank() && ctaType != "CHECKBOX_ONLY"
+
+                            val (actText, actIcon, actBg) = if (hasAction && action != null) {
+                                when (ctaType) {
+                                    "FOLLOW_EXERCISE" -> Triple(action.cta_label ?: "Start Routine", Icons.Default.PlayArrow, colors.sage)
+                                    "LOG_VITALS" -> Triple(action.cta_label ?: "Record Vitals", Icons.Default.Favorite, Color(0xFFD9534F))
+                                    "LOG_MEAL" -> Triple(action.cta_label ?: "Snap Meal", Icons.Default.Restaurant, Color(0xFFE67E22))
+                                    "COACH_CHAT" -> Triple(action.cta_label ?: "Ask Zivaa", Icons.Default.ChatBubble, Color(0xFF2E7D32))
+                                    "CALL_PHONE" -> Triple(action.cta_label ?: "Consult Doctor", Icons.Default.Phone, Color(0xFFC62828))
+                                    else -> Triple(action.cta_label ?: "Open Action", Icons.Default.PlayArrow, colors.sage)
+                                }
+                            } else {
+                                Triple(null, null, colors.bg)
+                            }
+
+                            val onActionClick: (() -> Unit)? = if (hasAction && action != null) {
+                                {
+                                    when (ctaType) {
+                                        "FOLLOW_EXERCISE" -> onNavigateToExerciseFollowAlong?.invoke(
+                                            action.routine_title ?: task.task,
+                                            action.exercise_ids ?: emptyList(),
+                                            action.target_body_part,
+                                            task.id
+                                        )
+                                        "LOG_VITALS" -> onNavigateToHealthConnect()
+                                        "LOG_MEAL" -> onNavigateToNutrition()
+                                        "COACH_CHAT" -> onNavigateToCoachChat?.invoke(action.prefilled_prompt)
+                                        "CALL_PHONE" -> {
+                                            try {
+                                                val phoneIntent = android.content.Intent(android.content.Intent.ACTION_DIAL).apply {
+                                                    data = android.net.Uri.parse("tel:112")
+                                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                                }
+                                                context.startActivity(phoneIntent)
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("PlanScreen", "Error launching phone dialer", e)
+                                            }
+                                        }
+                                    }
+                                }
+                            } else null
+                            
+                            PlanTaskCard(
+                                tag = tagText,
+                                title = task.task,
+                                description = task.details,
+                                icon = icon,
+                                iconBgColor = bgColor,
+                                isCompleted = task.completed,
+                                onToggleCompletion = { 
+                                    if (selectedLocalDate != LocalDate.now()) return@PlanTaskCard
+                                    val willBeCompleted = !task.completed
+                                    val isSymptomTask = !task.symptom_id.isNullOrBlank() ||
+                                        task.anchor_type?.equals("symptom", ignoreCase = true) == true ||
+                                        task.provenance?.badge_text?.contains("RELIEF", ignoreCase = true) == true
+
+                                    if (!task.id.isNullOrBlank()) {
+                                        viewModel.markTaskCompletedById(task.id)
+                                    } else {
+                                        when (periodName.lowercase()) {
+                                            "morning" -> viewModel.toggleMorningTask(index)
+                                            "afternoon" -> viewModel.toggleAfternoonTask(index)
+                                            "evening" -> viewModel.toggleEveningTask(index)
+                                            "night" -> viewModel.toggleNightTask(index)
+                                        }
+                                    }
+
+                                    if (willBeCompleted && isSymptomTask) {
+                                        pendingSymptomFeedback = Triple(task, periodName.lowercase(), index)
+                                    }
+                                },
+                                actionText = actText,
+                                actionIcon = actIcon,
+                                actionBgColor = actBg,
+                                actionTextColor = colors.ink,
+                                isEditable = (selectedLocalDate == LocalDate.now()),
+                                onActionClick = onActionClick
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
                 }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(130.dp))
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(130.dp))
+        pendingSymptomFeedback?.let { (symptomTask, period, origIdx) ->
+            com.zivaa.app.presentation.dashboard.components.SymptomFeedbackBottomSheet(
+                task = symptomTask,
+                onFeedbackSubmitted = { feedback ->
+                    viewModel.submitTaskMicroFeedback(symptomTask, feedback, period, origIdx)
+                    pendingSymptomFeedback = null
+                },
+                onDismiss = {
+                    viewModel.submitTaskMicroFeedback(symptomTask, "skip", period, origIdx)
+                    pendingSymptomFeedback = null
+                }
+            )
         }
     }
 }
 
 @Composable
-fun PlanScreenHeader() {
+fun PlanScreenHeader(onNavigateBack: () -> Unit = {}) {
     val colors = ZivaaTheme.colors
     val typography = ZivaaTheme.typography
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Your Day • Tue 16 Jun",
-            style = typography.eyebrow,
-            color = colors.eyebrow
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = colors.ink,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Text(
+                text = "Your Day",
+                style = typography.eyebrow,
+                color = colors.eyebrow
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -227,7 +342,12 @@ fun PlanScreenHeader() {
 }
 
 @Composable
-fun PlanScreenHero(summary: String = "") {
+fun PlanScreenHero(
+    summary: String = "",
+    dateString: String = "",
+    completedCount: Int = 0,
+    totalCount: Int = 0
+) {
     val colors = ZivaaTheme.colors
     val typography = ZivaaTheme.typography
 
@@ -241,7 +361,7 @@ fun PlanScreenHero(summary: String = "") {
     ) {
         Column {
             Text(
-                text = "Today • Tue 16 Jun",
+                text = if (dateString.isNotBlank()) "Plan • $dateString" else "Today's Plan",
                 style = typography.eyebrow,
                 color = colors.eyebrow
             )
@@ -264,12 +384,12 @@ fun PlanScreenHero(summary: String = "") {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "A fresh start — six small things today.",
+                    text = if (completedCount == totalCount && totalCount > 0) "All done for today! Well done." else if (completedCount > 0) "$completedCount completed so far." else "A fresh start — $totalCount small things today.",
                     style = typography.bodyMedium,
                     color = colors.sageInk
                 )
                 Text(
-                    text = "0 / 6",
+                    text = "$completedCount / $totalCount",
                     style = typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = colors.sageInk
                 )
@@ -277,14 +397,23 @@ fun PlanScreenHero(summary: String = "") {
             Spacer(modifier = Modifier.height(12.dp))
             
             // Progress Bar
+            val progressFraction = if (totalCount > 0) (completedCount.toFloat() / totalCount.toFloat()).coerceIn(0f, 1f) else 0f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(colors.ink.copy(alpha = 0.2f)) // dark inner shadow
+                    .background(colors.ink.copy(alpha = 0.15f))
             ) {
-                // Would be filled based on progress
+                if (progressFraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressFraction)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(colors.sageInk)
+                    )
+                }
             }
         }
     }
@@ -375,7 +504,8 @@ fun PlanTaskCard(
     actionBgColor: androidx.compose.ui.graphics.Color,
     actionTextColor: androidx.compose.ui.graphics.Color,
     isInsideTint: Boolean = false,
-    isEditable: Boolean = true
+    isEditable: Boolean = true,
+    onActionClick: (() -> Unit)? = null
 ) {
     val colors = ZivaaTheme.colors
     val typography = ZivaaTheme.typography
@@ -405,115 +535,120 @@ fun PlanTaskCard(
                 verticalAlignment = Alignment.Top
             ) {
                 // Left Icon
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iconBgColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.sageInk,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // Middle Content
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tag,
-                    style = typography.eyebrow,
-                    color = colors.eyebrow
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = title,
-                    style = typography.leadParagraph,
-                    color = colors.ink
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // Right Checkbox
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, if (isCompleted) colors.leaf else if (!isEditable) colors.line else colors.lineStrong, CircleShape)
-                    .background(if (isCompleted) colors.leaf else if (!isEditable) colors.line else colors.bg),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isCompleted) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(iconBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Completed",
-                        tint = colors.bg,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = colors.sageInk,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                // Middle Content
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = tag,
+                        style = typography.eyebrow,
+                        color = colors.eyebrow
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = title,
+                        style = typography.leadParagraph,
+                        color = colors.ink
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                // Right Checkbox
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, if (isCompleted) colors.leaf else if (!isEditable) colors.line else colors.lineStrong, CircleShape)
+                        .background(if (isCompleted) colors.leaf else if (!isEditable) colors.line else colors.bg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isCompleted) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Completed",
+                            tint = colors.bg,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
-        }
 
-        if (description != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = description,
-                style = typography.bodyMedium,
-                color = colors.inkSoft,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        
-        if (actionText != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
+            if (description != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = description,
+                    style = typography.bodyMedium,
+                    color = colors.inkSoft,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            if (actionText != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val isAccent = actionBgColor != colors.bg && actionBgColor != Color.Transparent
+                val actionBoxModifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
-                    .background(if (actionBgColor == colors.sage) colors.sage else colors.bg)
+                    .background(if (isAccent) actionBgColor else colors.bg)
                     .border(
                         1.dp, 
-                        if (actionBgColor == colors.sage) androidx.compose.ui.graphics.Color.Transparent else colors.lineStrong, 
+                        if (isAccent) Color.Transparent else colors.lineStrong, 
                         RoundedCornerShape(24.dp)
                     )
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = 16.dp)
-                ) {
-                    if (actionIcon != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(if (actionBgColor == colors.sage) colors.leaf else actionBgColor),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = actionIcon,
-                                contentDescription = null,
-                                tint = if (actionBgColor == colors.sage) colors.sageInk else colors.bg,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                    .let { mod ->
+                        if (onActionClick != null) mod.clickable { onActionClick() } else mod
                     }
-                    Text(
-                        text = actionText,
-                        style = typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = if (actionBgColor == colors.sage) colors.sageInk else colors.ink
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    if (actionBgColor != colors.sage) {
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+
+                Box(
+                    modifier = actionBoxModifier
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        if (actionIcon != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isAccent) Color.White.copy(alpha = 0.22f) else colors.leaf),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = actionIcon,
+                                    contentDescription = null,
+                                    tint = if (isAccent) Color.White else colors.sageInk,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+                        Text(
+                            text = actionText,
+                            style = typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (isAccent) Color.White else colors.ink
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            tint = colors.inkMute,
+                            tint = if (isAccent) Color.White.copy(alpha = 0.8f) else colors.inkMute,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -521,7 +656,6 @@ fun PlanTaskCard(
             }
         }
     }
-}
 }
 
 

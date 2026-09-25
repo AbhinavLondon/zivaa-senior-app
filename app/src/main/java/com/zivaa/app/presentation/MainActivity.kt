@@ -30,6 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
@@ -108,6 +111,31 @@ class MainActivity : ComponentActivity() {
             } catch (t: Throwable) {
                 // App Distribution in-app alerts are active in release builds for registered testers
             }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val patientId = if (::authManager.isInitialized) authManager.getUserId() else null
+        com.zivaa.app.data.telemetry.TelemetryTracker.onAppBackground(patientId)
+    }
+
+    private fun getReadableScreenName(screenId: String): String {
+        return when (screenId) {
+            "dashboard" -> "Today / Daily Plan"
+            "movement" -> "Movement & Longevity"
+            "coach_chat" -> "AI Health Coach Chat"
+            "plan" -> "Longevity Protocols & Plan"
+            "care" -> "Care Services & Consultations"
+            "health_connect" -> "Health Connect & Sync Status"
+            "wellness" -> "Wellness & Mindfulness"
+            "profile" -> "Senior Member Profile"
+            "order_medicine" -> "Order Medicine Refill"
+            "lab_tests" -> "Book Home Lab Tests"
+            "plan_setup" -> "Plan Setup Wizard"
+            "nutrition_log_food" -> "Nutrition & Meal Logging"
+            "sleep" -> "Rest & Sleep"
+            else -> screenId.replace('_', ' ').replaceFirstChar { it.uppercase() }
         }
     }
 
@@ -252,6 +280,16 @@ class MainActivity : ComponentActivity() {
             val darkThemeSetting by appSettingsManager.darkThemeFlow.collectAsState(initial = false)
             val darkThemeEnabled = if (appSettingsManager.hasExplicitDarkTheme()) darkThemeSetting else isSystemDark
 
+            // Real-time Screen & Feature Telemetry Pipeline
+            androidx.compose.runtime.LaunchedEffect(currentScreen) {
+                val patientId = if (::authManager.isInitialized) authManager.getUserId() else null
+                com.zivaa.app.data.telemetry.TelemetryTracker.onScreenChanged(
+                    newScreenId = currentScreen,
+                    newScreenName = getReadableScreenName(currentScreen),
+                    userId = patientId
+                )
+            }
+
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 if (!showSetup) {
                     // User is already logged in, register FCM token on startup
@@ -305,7 +343,36 @@ class MainActivity : ComponentActivity() {
 
             ZivaaTheme(darkTheme = darkThemeEnabled) {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                val tapQueue = java.util.concurrent.ConcurrentLinkedQueue<Long>()
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val isDown = event.changes.any { it.changedToDown() }
+                                    if (isDown) {
+                                        val now = System.currentTimeMillis()
+                                        val oldest = tapQueue.peek()
+                                        while (tapQueue.isNotEmpty() && oldest != null && (now - oldest) > 1000L) {
+                                            tapQueue.poll()
+                                        }
+                                        if (tapQueue.size >= 3) {
+                                            val count = tapQueue.size
+                                            tapQueue.clear()
+                                            val patientId = if (::authManager.isInitialized) authManager.getUserId() else null
+                                            com.zivaa.app.data.telemetry.TelemetryTracker.logRageTap(
+                                                targetId = currentScreen,
+                                                targetLabel = "Rapid Taps on $currentScreen",
+                                                tapCount = count,
+                                                durationMs = 1000L,
+                                                userId = patientId
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (showHealthConnectRationaleDialog) {
@@ -581,7 +648,23 @@ class MainActivity : ComponentActivity() {
                             }
                             "plan" -> com.zivaa.app.presentation.plan.PlanScreen(
                                 viewModel = viewModel,
-                                onNavigateBack = { currentScreen = "dashboard" }
+                                onNavigateBack = { currentScreen = "dashboard" },
+                                onNavigateToCoachChat = { prompt ->
+                                    if (!prompt.isNullOrBlank()) {
+                                        coachChatViewModel.startNewChat()
+                                        coachChatViewModel.sendMessage(prompt)
+                                    }
+                                    currentScreen = "coach_chat"
+                                },
+                                onNavigateToExerciseFollowAlong = { routineTitle, exerciseIds, bodyPart, taskId ->
+                                    followAlongRoutineTitle = routineTitle
+                                    followAlongExerciseIds = exerciseIds
+                                    followAlongTargetBodyPart = bodyPart
+                                    followAlongTaskId = taskId
+                                    currentScreen = "exercise_follow_along"
+                                },
+                                onNavigateToNutrition = { currentScreen = "nutrition_log_food" },
+                                onNavigateToHealthConnect = { currentScreen = "health_connect" }
                             )
                             "longevity" -> {
                                 val longevityViewModel: com.zivaa.app.presentation.longevity.LongevityViewModel = viewModel(

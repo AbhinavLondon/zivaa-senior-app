@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.zivaa.app.data.health.HealthConnectManager
 import com.zivaa.app.presentation.profile.theme.ProfileTheme
 import com.zivaa.app.ui.theme.InstrumentSerif
@@ -53,6 +56,7 @@ fun HealthConnectSettingsScreen(
     val totalCount by viewModel.totalPermissionsCount.collectAsState()
     val isBackgroundReadGranted by viewModel.isBackgroundReadGranted.collectAsState()
     val isHistoryReadGranted by viewModel.isHistoryReadGranted.collectAsState()
+    val isBatteryOptimizationIgnored by viewModel.isBatteryOptimizationIgnored.collectAsState()
     val reSyncStatus by viewModel.reSyncStatus.collectAsState()
 
     var showReSyncDialog by remember { mutableStateOf(false) }
@@ -61,6 +65,19 @@ fun HealthConnectSettingsScreen(
         PermissionController.createRequestPermissionResultContract()
     ) {
         viewModel.refreshState()
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshState()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -219,7 +236,94 @@ fun HealthConnectSettingsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- 2. Quick Links Card ---
+            // --- 2. Battery & Background Sync Optimization Card ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(ProfileTheme.colors.cardBackground)
+                    .padding(24.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (isBatteryOptimizationIgnored) Color(0xFF10B981) else Color(0xFFE5A643))
+                        )
+                        Text(
+                            text = if (isBatteryOptimizationIgnored) "Unrestricted Background Sync" else "Background Sync Restricted",
+                            style = ProfileTheme.typography.cardSubtitle.copy(
+                                color = if (isBatteryOptimizationIgnored) Color(0xFF10B981) else Color(0xFFE5A643),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+                    }
+
+                    Text(
+                        text = "Android Power",
+                        style = ProfileTheme.typography.meta,
+                        color = ProfileTheme.colors.textSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = if (isBatteryOptimizationIgnored) "24/7 Real-Time Sync Active" else "Allow Background Battery Usage",
+                    fontFamily = InstrumentSerif,
+                    fontSize = 20.sp,
+                    color = ProfileTheme.colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (isBatteryOptimizationIgnored) {
+                        "Android battery optimization is configured to keep Health Connect vitals syncing continuously, even when your phone is locked or idle."
+                    } else {
+                        "Android's Adaptive Battery is currently restricting Zivaa. Background sync may pause or be delayed until you open the app. Set battery usage to 'Unrestricted' for continuous health monitoring."
+                    },
+                    style = ProfileTheme.typography.cardSubtitle,
+                    color = ProfileTheme.colors.textSecondary
+                )
+
+                if (!isBatteryOptimizationIgnored) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "1. Tap below to open Settings\n2. Tap 'App battery usage'\n3. Select 'Unrestricted'",
+                        style = ProfileTheme.typography.meta.copy(
+                            color = ProfileTheme.colors.textPrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = { viewModel.openBatterySettings(context) },
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ProfileTheme.colors.accentGreen,
+                            contentColor = ProfileTheme.colors.accentBeige
+                        ),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text("Configure Battery Settings", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // --- 3. Quick Links Card ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

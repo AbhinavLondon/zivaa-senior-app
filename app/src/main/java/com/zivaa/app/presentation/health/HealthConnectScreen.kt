@@ -131,6 +131,15 @@ fun HealthConnectScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                Button(onClick = {
+                    com.zivaa.app.data.health.util.BatteryOptimizationHelper.openBatterySettings(context)
+                }) {
+                    val isUnrestricted = com.zivaa.app.data.health.util.BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+                    Text(if (isUnrestricted) "Battery: Unrestricted (Configured)" else "Configure Battery (Set to Unrestricted)")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 aggregatedData?.let { data ->
                     Column(horizontalAlignment = Alignment.Start) {
                         Text(text = "Steps: ${data.steps}", style = MaterialTheme.typography.bodyLarge)

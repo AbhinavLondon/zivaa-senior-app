@@ -117,13 +117,52 @@ class RestViewModel(
             val mergedBreakdown: MutableMap<String, Any?> = latestScore.restBreakdown?.toMutableMap() ?: mutableMapOf()
 
             if (latestVitals != null && latestVitals.date.take(10) == todayDateStr) {
-                latestVitals.sleepHours?.let { mergedBreakdown["sleep_hours"] = it }
-                latestVitals.sleepEfficiencyPct?.let { mergedBreakdown["sleep_efficiency_pct"] = it }
-                latestVitals.sleepStage5Hours?.let { mergedBreakdown["sleep_stage_5_hours"] = it }
-                latestVitals.sleepStage6Hours?.let { mergedBreakdown["sleep_stage_6_hours"] = it }
-                latestVitals.restingHeartRateCalculated?.let { mergedBreakdown["resting_heart_rate"] = it }
-                latestVitals.wasoMins?.let { mergedBreakdown["waso_mins"] = it }
-                latestVitals.hrvRmssdAvg?.let { mergedBreakdown["hrv_rmssd"] = it }
+                if (latestVitals.sleepHours != null && latestVitals.sleepHours > 0) {
+                    mergedBreakdown["sleep_hours"] = latestVitals.sleepHours
+                } else {
+                    mergedBreakdown.remove("sleep_hours")
+                }
+
+                if (latestVitals.sleepEfficiencyPct != null && latestVitals.sleepEfficiencyPct > 0) {
+                    mergedBreakdown["sleep_efficiency_pct"] = latestVitals.sleepEfficiencyPct
+                } else {
+                    mergedBreakdown.remove("sleep_efficiency_pct")
+                }
+
+                if (latestVitals.sleepStage5Hours != null && latestVitals.sleepStage5Hours > 0) {
+                    mergedBreakdown["sleep_stage_5_hours"] = latestVitals.sleepStage5Hours
+                } else {
+                    mergedBreakdown.remove("sleep_stage_5_hours")
+                    mergedBreakdown.remove("deep_pts")
+                }
+
+                if (latestVitals.sleepStage6Hours != null && latestVitals.sleepStage6Hours > 0) {
+                    mergedBreakdown["sleep_stage_6_hours"] = latestVitals.sleepStage6Hours
+                } else {
+                    mergedBreakdown.remove("sleep_stage_6_hours")
+                    mergedBreakdown.remove("rem_pts")
+                }
+
+                if (latestVitals.restingHeartRateCalculated != null && latestVitals.restingHeartRateCalculated > 0) {
+                    mergedBreakdown["resting_heart_rate"] = latestVitals.restingHeartRateCalculated
+                } else {
+                    mergedBreakdown.remove("resting_heart_rate")
+                    mergedBreakdown.remove("rhr_pts")
+                }
+
+                if (latestVitals.wasoMins != null && latestVitals.wasoMins >= 0) {
+                    mergedBreakdown["waso_mins"] = latestVitals.wasoMins
+                } else {
+                    mergedBreakdown.remove("waso_mins")
+                    mergedBreakdown.remove("waso_pts")
+                }
+
+                if (latestVitals.hrvRmssdAvg != null && latestVitals.hrvRmssdAvg > 0) {
+                    mergedBreakdown["hrv_rmssd"] = latestVitals.hrvRmssdAvg
+                } else {
+                    mergedBreakdown.remove("hrv_rmssd")
+                    mergedBreakdown.remove("hrv_pts")
+                }
 
                 if (latestVitals.skinTemperatureDelta == null) {
                     mergedBreakdown.remove("skin_temp_delta")
@@ -131,11 +170,38 @@ class RestViewModel(
                     mergedBreakdown["skin_temp_delta"] = latestVitals.skinTemperatureDelta
                 }
 
-                if (latestVitals.respiratoryRateAvg == null) {
+                if (latestVitals.respiratoryRateAvg == null || latestVitals.respiratoryRateAvg <= 0) {
                     mergedBreakdown.remove("respiratory_rate")
                 } else {
                     mergedBreakdown["respiratory_rate"] = latestVitals.respiratoryRateAvg
                 }
+            }
+
+            // Normalize any 0.0 artifacts from backend SQL triggers
+            val d5 = (mergedBreakdown["sleep_stage_5_hours"] as? Number)?.toDouble() ?: 0.0
+            val d6 = (mergedBreakdown["sleep_stage_6_hours"] as? Number)?.toDouble() ?: 0.0
+            if (d5 <= 0.0) {
+                mergedBreakdown.remove("sleep_stage_5_hours")
+                mergedBreakdown.remove("deep_pts")
+            }
+            if (d6 <= 0.0) {
+                mergedBreakdown.remove("sleep_stage_6_hours")
+                mergedBreakdown.remove("rem_pts")
+            }
+            val rhr = (mergedBreakdown["resting_heart_rate"] as? Number)?.toDouble() ?: 0.0
+            if (rhr <= 0.0) {
+                mergedBreakdown.remove("resting_heart_rate")
+                mergedBreakdown.remove("rhr_pts")
+            }
+            val waso = (mergedBreakdown["waso_mins"] as? Number)?.toDouble() ?: 0.0
+            if (waso <= 0.0 && d5 <= 0.0 && d6 <= 0.0) {
+                mergedBreakdown.remove("waso_mins")
+                mergedBreakdown.remove("waso_pts")
+            }
+            val hrv = (mergedBreakdown["hrv_rmssd"] as? Number)?.toDouble() ?: 0.0
+            if (hrv <= 0.0) {
+                mergedBreakdown.remove("hrv_rmssd")
+                mergedBreakdown.remove("hrv_pts")
             }
 
             if (mergedBreakdown.containsKey("duration") && !mergedBreakdown.containsKey("duration_pts")) {
@@ -153,8 +219,35 @@ class RestViewModel(
 
             restBreakdown = mergedBreakdown
         } else if (latestScore != null) {
+            val normalized: MutableMap<String, Any?> = latestScore.restBreakdown?.toMutableMap() ?: mutableMapOf()
+            val d5 = (normalized["sleep_stage_5_hours"] as? Number)?.toDouble() ?: 0.0
+            val d6 = (normalized["sleep_stage_6_hours"] as? Number)?.toDouble() ?: 0.0
+            if (d5 <= 0.0) {
+                normalized.remove("sleep_stage_5_hours")
+                normalized.remove("deep_pts")
+            }
+            if (d6 <= 0.0) {
+                normalized.remove("sleep_stage_6_hours")
+                normalized.remove("rem_pts")
+            }
+            val rhr = (normalized["resting_heart_rate"] as? Number)?.toDouble() ?: 0.0
+            if (rhr <= 0.0) {
+                normalized.remove("resting_heart_rate")
+                normalized.remove("rhr_pts")
+            }
+            val waso = (normalized["waso_mins"] as? Number)?.toDouble() ?: 0.0
+            if (waso <= 0.0 && d5 <= 0.0 && d6 <= 0.0) {
+                normalized.remove("waso_mins")
+                normalized.remove("waso_pts")
+            }
+            val hrv = (normalized["hrv_rmssd"] as? Number)?.toDouble() ?: 0.0
+            if (hrv <= 0.0) {
+                normalized.remove("hrv_rmssd")
+                normalized.remove("hrv_pts")
+            }
+
             restScore = latestScore.restScore
-            restBreakdown = latestScore.restBreakdown
+            restBreakdown = normalized
         } else {
             restScore = null
             restBreakdown = null

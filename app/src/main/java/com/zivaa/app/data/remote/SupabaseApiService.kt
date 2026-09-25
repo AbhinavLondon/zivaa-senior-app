@@ -17,6 +17,16 @@ interface SupabaseApiService {
         @Body log: SupabaseSyncLogRecord
     ): Response<Void>
 
+    @POST("rest/v1/telemetry_screen_views")
+    suspend fun insertScreenView(
+        @Body record: com.zivaa.app.data.telemetry.SupabaseScreenViewRecord
+    ): Response<Void>
+
+    @POST("rest/v1/telemetry_events")
+    suspend fun insertTelemetryEvent(
+        @Body record: com.zivaa.app.data.telemetry.SupabaseTelemetryEventRecord
+    ): Response<Void>
+
     @retrofit2.http.GET("rest/v1/sync_logs")
     suspend fun getSyncLogs(
         @retrofit2.http.Query("patient_id") patientIdQuery: String,
