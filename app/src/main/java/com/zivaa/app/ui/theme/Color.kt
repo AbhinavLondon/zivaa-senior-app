@@ -68,7 +68,7 @@ fun darkZivaaColors(): ZivaaColors {
     val darkBgElev = Color(0xFF1C2024)
     val darkInk = Color(0xFFEDE9DF)
     val darkInkSoft = Color(0xFFA8A59C)
-    val darkInkMute = Color(0xFF6F6E66)
+    val darkInkMute = Color(0xFF8E8D84)
     val darkLine = Color(0x14EDE9DF)
     val darkLineStrong = Color(0x24EDE9DF)
     val darkSage = Color(0xFF7CB89E)

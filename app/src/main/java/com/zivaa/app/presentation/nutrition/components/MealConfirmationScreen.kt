@@ -33,9 +33,10 @@ import com.zivaa.app.ui.theme.InstrumentSerif
 fun MealConfirmationScreen(
     imageUri: Uri?,
     mealName: String?,
+    initialMealType: String = "Lunch",
     initialFoods: List<FoodItem>,
     analysisText: String?,
-    onConfirm: (List<FoodItem>, Float) -> Unit,
+    onConfirm: (List<FoodItem>, Float, String) -> Unit,
     onCancel: () -> Unit
 ) {
     val colors = LocalZivaaColors.current
@@ -44,6 +45,7 @@ fun MealConfirmationScreen(
     // Keep track of quantities for each food item index
     var quantities by remember { mutableStateOf(initialFoods.map { 1 }) }
     var mealQuantity by remember { mutableStateOf(1.0f) }
+    var selectedMealType by remember { mutableStateOf(initialMealType) }
 
     Column(
         modifier = Modifier
@@ -116,6 +118,54 @@ fun MealConfirmationScreen(
                             fontSize = 28.sp,
                             color = colors.textStrong
                         )
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "MEAL TYPE",
+                            style = typography.meta.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = androidx.compose.ui.unit.TextUnit(0.06f, androidx.compose.ui.unit.TextUnitType.Em)
+                            ),
+                            color = colors.textMeta
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                "Breakfast" to "☀️ Breakfast",
+                                "Lunch" to "🍛 Lunch",
+                                "Snacks" to "☕ Snacks",
+                                "Dinner" to "🌙 Dinner"
+                            ).forEach { (type, label) ->
+                                val isSelected = selectedMealType.equals(type, ignoreCase = true)
+                                val chipBg = if (isSelected) colors.sage else colors.bg
+                                val chipText = if (isSelected) colors.sageInk else colors.textStrong
+                                val chipBorder = if (isSelected) colors.sage else colors.borderHairline
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(chipBg)
+                                        .border(1.dp, chipBorder, RoundedCornerShape(999.dp))
+                                        .clickable { selectedMealType = type }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = typography.meta.copy(
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        ),
+                                        color = chipText,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -334,10 +384,10 @@ fun MealConfirmationScreen(
                                 fat = food.fat * qty
                             )
                         }
-                        onConfirm(finalFoods, mealQuantity)
+                        onConfirm(finalFoods, mealQuantity, selectedMealType)
                     },
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1.2f)
                         .height(52.dp),
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -346,8 +396,9 @@ fun MealConfirmationScreen(
                     )
                 ) {
                     Text(
-                        "Add to Log",
-                        style = typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                        "Save to $selectedMealType",
+                        style = typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1
                     )
                 }
             }

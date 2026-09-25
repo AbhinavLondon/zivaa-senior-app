@@ -41,6 +41,10 @@ import com.zivaa.app.ui.theme.LocalZivaaColors
 import com.zivaa.app.ui.theme.LocalZivaaTypography
 import com.zivaa.app.ui.theme.toEyebrowTitleCase
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.border
 import androidx.compose.ui.text.font.FontWeight
 
@@ -48,12 +52,14 @@ import androidx.compose.ui.text.font.FontWeight
 @Composable
 fun LogMealBottomSheet(
     mealName: String,
+    onMealChange: (String) -> Unit = {},
     onDismissRequest: () -> Unit,
     onOptionSelected: (String) -> Unit
 ) {
     val colors = LocalZivaaColors.current
     val typography = LocalZivaaTypography.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var currentMeal by remember(mealName) { mutableStateOf(mealName) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -71,18 +77,71 @@ fun LogMealBottomSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Add To ${mealName.toEyebrowTitleCase()}",
+                text = "Add To ${currentMeal.toEyebrowTitleCase()}",
                 style = typography.eyebrow,
                 color = colors.eyebrow
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "How shall we log it?",
+                text = "Which meal is this?",
                 fontFamily = InstrumentSerif,
-                fontSize = 32.sp,
+                fontSize = 30.sp,
                 color = colors.textStrong
             )
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 4 Meal Selection Pills
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "Breakfast" to "☀️ Breakfast",
+                    "Lunch" to "🍛 Lunch",
+                    "Snacks" to "☕ Snacks",
+                    "Dinner" to "🌙 Dinner"
+                ).forEach { (type, label) ->
+                    val isSelected = currentMeal.equals(type, ignoreCase = true)
+                    val chipBg = if (isSelected) colors.sage else colors.bg
+                    val chipText = if (isSelected) colors.sageInk else colors.textStrong
+                    val chipBorder = if (isSelected) colors.sage else colors.lineStrong
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(chipBg)
+                            .border(1.dp, chipBorder, RoundedCornerShape(999.dp))
+                            .clickable {
+                                currentMeal = type
+                                onMealChange(type)
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            style = typography.meta.copy(
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            color = chipText,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "How shall we log it?",
+                style = typography.meta.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = androidx.compose.ui.unit.TextUnit(0.06f, androidx.compose.ui.unit.TextUnitType.Em)
+                ),
+                color = colors.textMeta
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             
             // Options
             LogOptionItem(

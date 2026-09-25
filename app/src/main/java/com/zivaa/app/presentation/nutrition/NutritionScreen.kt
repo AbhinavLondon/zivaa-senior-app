@@ -102,13 +102,25 @@ fun NutritionScreen(
     androidx.compose.runtime.LaunchedEffect(selectedDate) {
         viewModel.fetchMealsForDate(selectedDate)
     }
-    var showLogSheetForMeal by rememberSaveable { mutableStateOf<String?>(if (initialShowLogSheet) "Snacks" else null) }
+
+    val contextualDefaultMeal = remember {
+        val currentHour = java.time.LocalTime.now().hour
+        when {
+            currentHour in 5..10 -> "Breakfast"
+            currentHour in 11..15 -> "Lunch"
+            currentHour in 16..18 -> "Snacks"
+            currentHour in 19..23 -> "Dinner"
+            else -> "Snacks"
+        }
+    }
+
+    var showLogSheetForMeal by rememberSaveable { mutableStateOf<String?>(if (initialShowLogSheet) contextualDefaultMeal else null) }
     var showBarcodeScanner by rememberSaveable { mutableStateOf(false) }
     
     var tempPhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
     var tempPhotoUri: Uri? = tempPhotoUriString?.let { Uri.parse(it) }
     
-    var activeMealForLogging by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeMealForLogging by rememberSaveable { mutableStateOf<String?>(if (initialShowLogSheet) contextualDefaultMeal else null) }
     var activeLoggingMethod by rememberSaveable { mutableStateOf("photo") }
     
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -356,6 +368,10 @@ fun NutritionScreen(
         if (showLogSheetForMeal != null) {
             LogMealBottomSheet(
                 mealName = showLogSheetForMeal!!,
+                onMealChange = { updatedMeal ->
+                    showLogSheetForMeal = updatedMeal
+                    activeMealForLogging = updatedMeal
+                },
                 onDismissRequest = { showLogSheetForMeal = null },
                 onOptionSelected = { option ->
                     activeMealForLogging = showLogSheetForMeal
@@ -448,6 +464,7 @@ fun NutritionScreen(
                     com.zivaa.app.presentation.nutrition.components.MealConfirmationScreen(
                         imageUri = tempPhotoUri,
                         mealName = state.mealName,
+                        initialMealType = activeMealForLogging ?: contextualDefaultMeal,
                         initialFoods = state.foods.map {
                             FoodItem(
                                 id = System.currentTimeMillis().toString() + it.name,
@@ -460,20 +477,11 @@ fun NutritionScreen(
                             )
                         },
                         analysisText = state.analysis,
-                        onConfirm = { finalFoods, quantity ->
-                            val mealType = activeMealForLogging ?: run {
-                                val currentHour = java.time.LocalTime.now().hour
-                                when {
-                                    currentHour < 11 -> "Breakfast"
-                                    currentHour < 15 -> "Lunch"
-                                    currentHour < 18 -> "Snacks"
-                                    else -> "Dinner"
-                                }
-                            }
+                        onConfirm = { finalFoods, quantity, confirmedMealType ->
                             viewModel.saveMealToDatabase(
                                 mealName = state.mealName ?: "Meal",
                                 mealQuantity = quantity,
-                                mealType = mealType,
+                                mealType = confirmedMealType,
                                 loggingMethod = activeLoggingMethod,
                                 analysisText = state.analysis,
                                 date = selectedDate,

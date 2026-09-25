@@ -18,8 +18,8 @@ android {
         applicationId = "com.zivaa.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 56
-        versionName = "1.0.55"
+        versionCode = 57
+        versionName = "1.0.56"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -57,7 +57,7 @@ android {
             firebaseAppDistribution {
                 serviceCredentialsFile = rootProject.file("../zivaa-backend/serviceAccountKey.json").absolutePath
                 groups = "zivaa-beta"
-                releaseNotes = "Zivaa v1.0.55 - Symptom closed-loop tracking & trajectory engine, care plan action efficacy feedback, real-time Supabase sync, and branded adaptive launcher icons"
+                releaseNotes = "Zivaa v1.0.56 - Nutrition logging integration in bottom navigation, meal type selection (Breakfast, Lunch, Snacks, Dinner), and dark theme contrast improvements"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

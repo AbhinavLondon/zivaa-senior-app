@@ -591,8 +591,8 @@ class MainActivity : ComponentActivity() {
                                                 androidx.compose.material3.FloatingActionButton(
                                                     onClick = { showHealthAssistSheet = true },
                                                     shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
-                                                    containerColor = com.zivaa.app.ui.theme.ZivaaTheme.colors.sage,
-                                                    contentColor = androidx.compose.ui.graphics.Color.White,
+                                                    containerColor = if (darkThemeEnabled) androidx.compose.ui.graphics.Color(0xFF8EE0B8) else com.zivaa.app.ui.theme.ZivaaTheme.colors.sage,
+                                                    contentColor = if (darkThemeEnabled) androidx.compose.ui.graphics.Color(0xFF14171A) else androidx.compose.ui.graphics.Color.White,
                                                     modifier = Modifier
                                                         .size(56.dp)
                                                         .onGloballyPositioned { coords ->
